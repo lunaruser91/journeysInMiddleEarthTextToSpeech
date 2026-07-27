@@ -282,7 +282,8 @@ Do not rediscover them.
    saved images, without real capture.
 2. **OCR harness with real CER** — today the noise is synthetic. Measuring Apple Vision
    against the fixtures tells whether we are in the 1-3% range, where the matcher is 97% correct.
-3. **`player.py`** — audio queue, repeat/pause/skip, hotkeys.
+3. ~~**`player.py`**~~ — done: queue, repeat/pause/skip, manual mode, and it
+   stays silent on the 20 blocks the game narrates itself.
 4. **Capture on macOS** — ScreenCaptureKit in a signed `.app`. It is the expensive item (half
    a day plus the developer account) and the last to do, because everything above runs without it.
 5. **Piper for the blocks with `{0}`** — 622 blocks are only completed at game time.
