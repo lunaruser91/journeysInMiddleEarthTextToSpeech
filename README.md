@@ -52,6 +52,26 @@ alias jime="~/jime-venv/bin/python"
 
 ## Usage
 
+Everything runs through one command. `jime <command> --help` shows the full
+options for each.
+
+```bash
+jime status                    # what is done and what is missing
+jime doctor                    # is this machine ready?
+jime languages                 # what each of the 13 localisations supports
+jime extract --lang pt         # game assets  ->  corpus
+jime render --campaign bonesofarnor --speed 1.30
+jime play --campaign bonesofarnor
+jime test --video recording.mp4
+```
+
+Ten of the game's thirteen languages can be narrated — that is where the game's
+localisations and the speech model's languages overlap. Czech, Hungarian and
+Ukrainian have text but no voice. `jime languages` shows the table, including
+which ones have the icon vocabulary filled in.
+
+### The individual tools
+
 ### Phase 1 — extract the corpus from your installation
 
 ```bash

@@ -15,9 +15,11 @@ on a semaphore that the handler signals. The handlers run on Grand Central
 Dispatch queues, not the calling thread, which is why the results are stashed in
 a list rather than returned.
 
-A timeout is mandatory on those waits. Without permission the handler is never
-called at all, and a bare `semaphore.wait()` would hang the whole narrator with
-no message — the single worst failure mode for a tool that runs unattended.
+A timeout guards those waits anyway. Measured on this machine, a denied
+permission does *not* hang: the handler is called with error -3801 and a clear
+message. But the timeout stays, because a framework that never answers would
+otherwise hang the narrator silently — the worst failure mode for a tool meant to
+run unattended.
 """
 from __future__ import annotations
 
@@ -50,6 +52,19 @@ def _shareable_content():
             "tick your terminal application, then restart the terminal.")
     content, error = box[0]
     if error is not None or content is None:
+        # -3801 is TCC denial. Verified on this machine: the handler IS called
+        # and returns this code, so the timeout above only covers the rarer case
+        # where the framework never answers at all.
+        code = getattr(error, "code", lambda: None)()
+        if code == -3801:
+            raise CaptureError(
+                "screen recording permission has not been granted.\n\n"
+                "  System Settings → Privacy & Security → Screen Recording\n"
+                "  Tick your terminal application, then RESTART the terminal —\n"
+                "  the grant is read when the process launches, so a running\n"
+                "  terminal keeps the old answer.\n\n"
+                "Nothing needs to be signed or notarised: the permission attaches\n"
+                "to the terminal, and this script inherits it.")
         raise CaptureError(f"ScreenCaptureKit refused: {error}")
     return content
 
