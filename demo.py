@@ -53,68 +53,32 @@ GREEN, RED, YELLOW, GRAY, RESET = ("\033[92m", "\033[91m", "\033[93m",
                                    "\033[90m", "\033[0m")
 
 
-def ocr(path: Path, crop: tuple[float, float, float, float] | None) -> str:
-    """Reads the text out of the image with Apple Vision.
+def ocr(path: Path, region: tuple[float, float, float, float] | None) -> str:
+    """Read the image, via the shared OCR layer.
 
-    `crop` is (left, top, right, bottom) as a fraction of the image. The JiME
-    text box sits in the upper central band; cropping improves the OCR a lot
-    because it removes the map, the HUD icons and the menu bar — which only
-    produce garbage.
+    The engine choice and the line-to-paragraph reconstruction both live in
+    ocr/base.py, so this tool, batch.py and narrator.py cannot drift apart on
+    the part that turned out to matter most — see that module on why grouping
+    lines into paragraphs is not optional.
     """
-    try:
-        from ocrmac import ocrmac
-        from PIL import Image
-    except ImportError as e:  # noqa: BLE001
-        raise SystemExit(
-            f"[error] {e.name} is not in this interpreter ({sys.executable}).\n"
-            f"        Use the project venv:  ~/jime-venv/bin/python demo.py ...")
+    import numpy as np
+    from PIL import Image
 
-    img = Image.open(path).convert("RGB")
-    if crop:
-        w, h = img.size
-        left, top, right, bottom = crop
-        img = img.crop((int(w * left), int(h * top), int(w * right), int(h * bottom)))
-    # always write a temporary PNG: Vision does not open webp/heic directly,
-    # and converting here avoids an obscure error deep inside it
-    tmp = Path("/tmp/_jime_entrada.png")
-    img.save(tmp)
-    path = tmp
+    from ocr.base import crop as crop_region
+    from ocr.base import group_paragraphs, open_ocr
+
+    image = np.asarray(Image.open(path).convert("L"))
+    if region:
+        image = crop_region(image, region)
 
     t0 = time.perf_counter()
-    res = ocrmac.OCR(str(path), language_preference=["pt-BR"]).recognize()
+    engine = open_ocr()
+    lines = engine.read(image)
     dt = (time.perf_counter() - t0) * 1000
-
-    # Apple Vision returns ONE LINE per result, not paragraphs. Joining it all
-    # with "\n" would turn every line into a paragraph in the matcher — and a
-    # 60-char line against a 150-char block fails the length-ratio lock, even
-    # with score 100. That is exactly what happened in the first real test.
-    #
-    # The reconstruction uses the geometry: each result carries (text,
-    # confidence, bbox) with bbox = (x, y, width, height) normalized and the
-    # origin at the bottom left (Vision's convention). Consecutive lines whose
-    # vertical spacing exceeds ~1.6x the typical height belong to different
-    # paragraphs.
-    items = [(r[0], r[2]) for r in res if r[0].strip()]
-    items.sort(key=lambda it: -it[1][1])           # top to bottom
-    if not items:
-        print(f"{GRAY}[ocr] Apple Vision, {dt:.0f} ms, nothing readable{RESET}")
-        return ""
-
-    heights = sorted(b[3] for _t, b in items)
-    typical_height = heights[len(heights) // 2]
-    paras, current = [], [items[0][0]]
-    for (txt, bb), (_pt, pb) in zip(items[1:], items[:-1]):
-        gap = (pb[1] - bb[1]) - typical_height  # white space between the lines
-        if gap > typical_height * 0.6:
-            paras.append(" ".join(current))
-            current = [txt]
-        else:
-            current.append(txt)
-    paras.append(" ".join(current))
-
-    print(f"{GRAY}[ocr] Apple Vision, {dt:.0f} ms, {len(items)} lines "
-          f"regrouped into {len(paras)} paragraph(s){RESET}")
-    return "\n\n".join(paras)
+    paragraphs = group_paragraphs(lines)
+    print(f"{GRAY}[ocr] {type(engine).__name__}, {dt:.0f} ms, {len(lines)} lines "
+          f"regrouped into {len(paragraphs)} paragraph(s){RESET}")
+    return "\n\n".join(paragraphs)
 
 
 def find_audio(key: str, folders: list[Path]) -> Path | None:

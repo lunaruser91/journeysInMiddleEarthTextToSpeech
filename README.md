@@ -85,6 +85,18 @@ Audit the result, looking for degenerate blocks:
 jime check_pace.py output/audio/manifest.json --mad 2.0
 ```
 
+### Phase 3 — narrate a live game
+
+```bash
+jime narrator.py                     # watches the game window
+jime narrator.py --list-windows      # what the capture backend can see
+jime narrator.py --from-video FILE   # replay a recording, no permission needed
+```
+
+On macOS the first capture triggers the system prompt. If it hangs instead,
+the permission is missing: System Settings → Privacy & Security → Screen
+Recording → tick your terminal, then **restart the terminal**.
+
 ### Phase 3 — test the recognition
 
 One screen:

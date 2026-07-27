@@ -22,6 +22,15 @@ tts = [
 ]
 # Native macOS OCR (Apple Vision). Offline, ~150 ms.
 ocr = ["ocrmac"]
+# Portable OCR, for platforms without Apple Vision. ~19 MB of ONNX weights.
+ocr-portable = ["rapidocr-onnxruntime"]
+# Window capture. ScreenCaptureKit is the only API on macOS 26 that still sees
+# windows; Windows.Graphics.Capture is the equivalent on Windows, where BitBlt
+# returns black frames for Unity.
+capture-macos = ["pyobjc-framework-ScreenCaptureKit", "pyobjc-framework-Quartz"]
+capture-windows = ["windows-capture"]
 
 [tool.setuptools]
-py-modules = ["glyphs", "matcher", "check_pace", "demo", "batch", "watch_log"]
+py-modules = ["glyphs", "matcher", "check_pace", "demo", "batch",
+              "watch_log", "trigger", "player", "narrator"]
+packages = ["capture", "ocr"]
