@@ -312,29 +312,37 @@ def cmd_play(args: argparse.Namespace) -> int:
 
     argv = ["--corpus", str(corpus)]
     folder = audio_dir(args.lang)
-    if (folder / "manifest.json").exists():
+    primary = (folder / "manifest.json").exists()
+    if primary:
         argv += ["--audio", str(folder)]
+
+    # Renders made while testing live in their own folders under output/. They
+    # are added after the real one, never instead of it: the player keeps the
+    # first folder that has a key, so the canonical render always wins and these
+    # only fill gaps. A block spoken at a slightly different pace beats silence,
+    # and a partial render is the normal state for a long time.
+    spare = [d for d in sorted((ROOT / "output").glob("*"))
+             if (d / "manifest.json").exists() and d != folder]
+    for d in spare:
+        argv += ["--audio", str(d)]
+
+    names = ", ".join(d.name for d in spare)
+    if primary and spare:
+        print(f"{GRAY}filling gaps from {len(spare)} test folder(s): {names}. "
+              f"Their pace may differ from the current render.{RESET}")
+    elif primary:
+        pass
+    elif spare:
+        print(f"{YELLOW}{folder.name}/ has no render yet — using {len(spare)} "
+              f"test folder(s): {names}.\nExpect most screens to be silent; "
+              f"render the campaign to fix that:\n  jime render --campaign "
+              f"{args.campaign or '<campaign>'} --lang {args.lang}{RESET}")
     else:
-        # Do not go silent just because the canonical folder is missing. Renders
-        # made during testing live in their own folders under output/, and using
-        # them proves the whole chain — capture, matching, playback — instead of
-        # leaving the player empty and the failure looking like a matcher bug.
-        spare = sorted(d for d in (ROOT / "output").glob("*")
-                       if (d / "manifest.json").exists())
-        if spare:
-            print(f"{YELLOW}{folder.name}/ has no render yet — falling back to "
-                  f"{len(spare)} test folder(s): "
-                  f"{', '.join(d.name for d in spare)}.\nExpect most screens to "
-                  f"be silent; render the campaign to fix that:\n"
-                  f"  jime render --campaign {args.campaign or '<campaign>'} "
-                  f"--lang {args.lang}{RESET}")
-            for d in spare:
-                argv += ["--audio", str(d)]
-        else:
-            print(f"{RED}nothing has been rendered for {args.lang!r}. The "
-                  f"narrator will recognise screens and stay completely "
-                  f"silent.\n  jime render --campaign "
-                  f"{args.campaign or '<campaign>'} --lang {args.lang}{RESET}")
+        print(f"{RED}nothing has been rendered for {args.lang!r}. The narrator "
+              f"will recognise screens and stay completely silent.\n"
+              f"  jime render --campaign {args.campaign or '<campaign>'} "
+              f"--lang {args.lang}{RESET}")
+
     if args.campaign:
         argv += ["--campaign", args.campaign]
     if args.manual:
