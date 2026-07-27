@@ -327,10 +327,10 @@ def _probe_capture(args: argparse.Namespace) -> int:
     """
     import numpy as np
 
-    from capture.base import CaptureError, open_window
+    from capture.base import CaptureError, open_display, open_window
 
     try:
-        cap = open_window("", "Journeys")
+        cap = open_display() if args.display else open_window("", "Journeys")
     except CaptureError as exc:
         return _fail(str(exc))
 
@@ -441,6 +441,8 @@ def main() -> None:
     p.add_argument("--images", type=Path, nargs="+", help="screenshots")
     p.add_argument("--capture", action="store_true",
                    help="grab one frame from the game and prove it has pixels")
+    p.add_argument("--display", action="store_true",
+                   help="capture the whole display instead of the game window")
     p.set_defaults(func=cmd_test)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")

@@ -86,6 +86,19 @@ def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
     return _backend().open_window(title_hint, app_hint)
 
 
+def open_display(index: int = 0) -> Capture:
+    """Capture an entire display instead of one window.
+
+    Slower to process and noisier for OCR, but it avoids the window-filter code
+    path in ScreenCaptureKit that can abort the process on macOS. Use it when
+    window capture will not cooperate.
+    """
+    backend = _backend()
+    if not hasattr(backend, "open_display"):
+        raise CaptureError("this backend cannot capture a whole display")
+    return backend.open_display(index)
+
+
 def _backend():
     system = platform.system()
     if system == "Darwin":

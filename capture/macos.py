@@ -69,17 +69,46 @@ def _shareable_content():
     return content
 
 
+def _usable(w) -> bool:
+    """Is this window something SCContentFilter can safely be built from?
+
+    This check is not defensive politeness — it prevents a **process abort**.
+    `SCContentFilter initWithDesktopIndependentWindow:` calls down into
+    SkyLight's `SLSGetDisplaysWithRect`, which fires an assertion, and therefore
+    `abort()`, when handed a rect it cannot place on any display. That kills the
+    interpreter outright: it is not a raised exception and cannot be caught from
+    Python. Observed as a real crash on macOS 26.5.2.
+
+    Windows that are off-screen, zero-sized, or belonging to no application all
+    produce such a rect.
+    """
+    try:
+        frame = w.frame()
+        if frame.size.width < 1 or frame.size.height < 1:
+            return False
+        if not w.isOnScreen():
+            return False
+        return w.owningApplication() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def list_windows(app_hint: str = "") -> list[Window]:
+    # The SCWindow objects are only meaningful while the SCShareableContent that
+    # produced them is alive, so it is carried along on each Window rather than
+    # left to be collected.
     content = _shareable_content()
     out = []
     for w in content.windows():
+        if not _usable(w):
+            continue
         app = w.owningApplication()
         app_name = app.applicationName() if app else ""
         title = w.title() or ""
         if app_hint and app_hint.lower() not in app_name.lower():
             continue
         frame = w.frame()
-        out.append(Window(handle=w, title=title, app=app_name,
+        out.append(Window(handle=(w, content), title=title, app=app_name,
                           width=int(frame.size.width),
                           height=int(frame.size.height)))
     return out
@@ -92,7 +121,14 @@ class MacCapture(Capture):
     def grab(self) -> np.ndarray | None:
         import ScreenCaptureKit as SCK
 
-        w = self.window.handle
+        # Re-resolve the window every time. A cached SCWindow goes stale when the
+        # game moves between displays, is minimised, or is relaunched — and a
+        # stale one is exactly what makes SkyLight abort the process.
+        fresh = _find(self.window.title, self.window.app)
+        if fresh is None:
+            return None
+        self.window = fresh
+        w, _content = self.window.handle
         # desktopIndependentWindow captures the window alone: no desktop behind
         # it, nothing overlapping it, and no need to keep it frontmost.
         filt = SCK.SCContentFilter.alloc().initWithDesktopIndependentWindow_(w)
@@ -142,15 +178,78 @@ def _cgimage_to_gray(image) -> np.ndarray:
     return ((r * 77 + g * 150 + b * 29) >> 8).astype(np.uint8)
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
+@dataclass
+class DisplayCapture(Capture):
+    """Capture the whole display instead of one window.
+
+    A safety valve. Window capture goes through
+    `SCContentFilter initWithDesktopIndependentWindow:`, which aborts the process
+    — via a SkyLight assertion, not a catchable exception — when it dislikes the
+    window's rect. The display path never touches that code, so it works when the
+    window path cannot even be attempted safely.
+
+    The trade-off is real: the frame includes everything on screen, so the
+    dialogue-box crop has to account for the game not filling the display, and
+    anything overlapping the game ends up in the OCR.
+    """
+
+    index: int = 0
+    _content: object | None = None
+
+    def grab(self) -> np.ndarray | None:
+        import ScreenCaptureKit as SCK
+
+        content = _shareable_content()
+        self._content = content            # keep alive while the filter exists
+        displays = content.displays()
+        if not displays or self.index >= len(displays):
+            return None
+        display = displays[self.index]
+
+        filt = SCK.SCContentFilter.alloc().initWithDisplay_excludingWindows_(
+            display, [])
+        cfg = SCK.SCStreamConfiguration.alloc().init()
+        cfg.setWidth_(display.width())
+        cfg.setHeight_(display.height())
+
+        box, done = [], threading.Event()
+
+        def handler(image, error):
+            box.append((image, error))
+            done.set()
+
+        SCK.SCScreenshotManager.captureImageWithFilter_configuration_completionHandler_(
+            filt, cfg, handler)
+        if not done.wait(TIMEOUT):
+            raise CaptureError("the display capture timed out")
+        image, error = box[0]
+        if error is not None or image is None:
+            return None
+        return _cgimage_to_gray(image)
+
+    def close(self) -> None:
+        pass
+
+
+def _find(title_hint: str, app_hint: str) -> Window | None:
     windows = list_windows(app_hint)
     if title_hint:
         windows = [w for w in windows if title_hint.lower() in w.title.lower()]
     windows = [w for w in windows if w.width > 200 and w.height > 200]
-    if not windows:
+    return max(windows, key=lambda w: w.width * w.height) if windows else None
+
+
+def open_display(index: int = 0) -> Capture:
+    """Capture a whole display. See DisplayCapture for when this is the answer."""
+    return DisplayCapture(index=index)
+
+
+def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
+    window = _find(title_hint, app_hint)
+    if window is None:
         seen = list_windows("")
         raise CaptureError(
-            f"no window matching app={app_hint!r} title={title_hint!r}.\n"
-            f"Is the game running? Visible windows right now:\n  "
+            f"no usable window matching app={app_hint!r} title={title_hint!r}.\n"
+            f"Is the game running and not minimised? Windows visible now:\n  "
             + "\n  ".join(str(w) for w in seen[:12]))
-    return MacCapture(window=max(windows, key=lambda w: w.width * w.height))
+    return MacCapture(window=window)
