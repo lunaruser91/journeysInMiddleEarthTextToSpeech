@@ -1,38 +1,38 @@
-# Narrador automático para *Jornadas na Terra Média*
+# Automatic narrator for *Journeys in Middle-earth*
 
-Narração em voz alta, **100% offline** e em **pt-BR**, dos textos que o app oficial de
-*The Lord of the Rings: Journeys in Middle-earth* (Fantasy Flight / Asmodee) mostra
-durante a partida. Voz de mago velho.
+Read-aloud narration, **100% offline** and in **pt-BR**, of the texts that the official
+*The Lord of the Rings: Journeys in Middle-earth* (Fantasy Flight / Asmodee) app shows
+during play. Old-wizard voice.
 
-O app não tem narração em português para o jogo em si — só o Prólogo e os Epílogos de
-cada campanha têm áudio gravado. Todo o resto os jogadores leem em voz alta, e é isso
-que este projeto substitui.
+The app has no Portuguese narration for the game itself — only the Prologue and the
+Epilogues of each campaign have recorded audio. Everything else the players read aloud,
+and that is what this project replaces.
 
-> ### Aviso de licença — leia antes de qualquer `git add`
+> ### License notice — read before any `git add`
 >
-> Os Termos da Asmodee Digital (§5.3/§5.4) proíbem extrair o conteúdo, **mesmo para uso
-> individual**. O texto é obra protegida (FFG + Middle-earth Enterprises) e o áudio
-> gerado é obra derivada. FFG/Asmodee já emitiram DMCA contra mods de fãs.
+> The Asmodee Digital Terms (§5.3/§5.4) prohibit extracting the content, **even for
+> individual use**. The text is a protected work (FFG + Middle-earth Enterprises) and the
+> generated audio is a derivative work. FFG/Asmodee have already issued DMCA against fan mods.
 >
-> **Este repositório publica um extrator e um renderizador, nunca o conteúdo.** Cada
-> pessoa roda a extração sobre a própria instalação, para uso local e não distribuído.
-> O `.gitignore` bloqueia corpus, manifests, áudio (em todos os formatos) e assets.
+> **This repository publishes an extractor and a renderer, never the content.** Each
+> person runs the extraction against their own installation, for local, non-distributed
+> use. The `.gitignore` blocks corpus, manifests, audio (in every format) and assets.
 
 ---
 
-## Estado do projeto
+## Project status
 
-| Fase | O que faz | Situação |
+| Phase | What it does | Status |
 |---|---|---|
-| 1 | assets do app → corpus pt-BR | **pronta** — 13.018 chaves, 9.740 blocos de narração |
-| 2 | corpus → áudio pré-renderizado | **funciona e está medida** — RTF 3,17; uma campanha em ~19 h |
-| 3 | tela → OCR → casamento → toca o áudio | **matcher pronto e medido (97,8%)**; falta captura, gatilho e tocador |
+| 1 | app assets → pt-BR corpus | **done** — 13,018 keys, 9,740 narration blocks |
+| 2 | corpus → pre-rendered audio | **works and is measured** — RTF 3.17; one campaign in ~19 h |
+| 3 | screen → OCR → matching → plays the audio | **matcher done and measured (97.8%)**; capture, trigger and player still missing |
 
 ---
 
-## Instalação
+## Installation
 
-O Python 3.14 **não tem wheels do PyTorch** — use 3.12 ou 3.13.
+Python 3.14 **has no PyTorch wheels** — use 3.12 or 3.13.
 
 ```bash
 python3.13 -m venv ~/jime-venv
@@ -42,7 +42,7 @@ python3.13 -m venv ~/jime-venv
 brew install ffmpeg
 ```
 
-Um atalho poupa digitação:
+A shortcut saves typing:
 
 ```bash
 alias jime="~/jime-venv/bin/python"
@@ -50,252 +50,253 @@ alias jime="~/jime-venv/bin/python"
 
 ---
 
-## Uso
+## Usage
 
-### Fase 1 — extrair o corpus da sua instalação
+### Phase 1 — extract the corpus from your installation
 
 ```bash
-jime fase1_extrair.py "<.../JiME.app/Contents/Resources/Data/StreamingAssets/bundles>" -o corpus/ --lang pt
+jime phase1_extract.py "<.../JiME.app/Contents/Resources/Data/StreamingAssets/bundles>" -o corpus/ --lang pt
 ```
 
-O app é Unity 2022.3 com Mono e **nada é obfuscado**: cada bundle de localização contém
-um único `TextAsset` que é um CSV limpo. São 13 idiomas disponíveis.
+The app is Unity 2022.3 with Mono and **nothing is obfuscated**: each localization bundle
+contains a single `TextAsset` that is a clean CSV. There are 13 languages available.
 
-### Fase 2 — renderizar o áudio
+### Phase 2 — render the audio
 
 ```bash
-jime fase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --check-ritmo
+jime phase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --check-pace
 ```
 
-Estimar antes de deixar a noite rodando:
+Estimate before leaving it running overnight:
 
 ```bash
-jime fase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --dry-run
+jime phase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --dry-run
 ```
 
-Renderizar blocos avulsos — é a renderização sob demanda que a Fase 3 usa:
+Render individual blocks — this is the on-demand rendering that Phase 3 uses:
 
 ```bash
-jime fase2_render.py corpus/corpus_pt.json --key "main:G22_SWORD_TRUE"
+jime phase2_render.py corpus/corpus_pt.json --key "main:G22_SWORD_TRUE"
 ```
 
-Auditar o resultado, procurando blocos degenerados:
+Audit the result, looking for degenerate blocks:
 
 ```bash
-jime check_ritmo.py saida/audio/manifest.json --mad 2.0
+jime check_pace.py output/audio/manifest.json --mad 2.0
 ```
 
-### Fase 3 — testar o reconhecimento
+### Phase 3 — test the recognition
 
-Uma tela:
+One screen:
 
 ```bash
-jime demo.py ~/Downloads/tela.webp --sem-audio     # só OCR + casamento
-jime demo.py ~/Downloads/tela.webp                 # toca o áudio, se existir
-jime demo.py ~/Downloads/tela.webp --render        # sintetiza na hora se faltar
+jime demo.py ~/Downloads/screen.webp --no-audio     # only OCR + matching
+jime demo.py ~/Downloads/screen.webp                 # plays the audio, if it exists
+jime demo.py ~/Downloads/screen.webp --render        # synthesizes on the spot if missing
 ```
 
-Sem argumento nenhum ele pega a captura mais recente da Área de Trabalho.
+With no argument at all it picks up the most recent screenshot from the Desktop.
 
-Várias telas de uma vez, com taxa de acerto:
+Several screens at once, with hit rate:
 
 ```bash
-jime lote.py ~/Downloads/*.webp --chaves /tmp/chaves.txt
+jime batch.py ~/Downloads/*.webp --keys /tmp/keys.txt
 ```
 
-Ver o log de eventos do jogo, útil para gerar fixtures:
+View the game's event log, useful for generating fixtures:
 
 ```bash
-jime ver_log.py --tudo
+jime watch_log.py --all
 ```
 
 ---
 
-## Onde as coisas ficam
+## Where things live
 
-O projeto é autocontido. **Nada é escrito fora do repositório.**
+The project is self-contained. **Nothing is written outside the repository.**
 
 ```
-corpus/          corpus extraído do jogo              (gerado, ignorado)
-ref/             voz de referência para clonagem      (ignorado)
-saida/           TUDO que é gerado                    (ignorado)
-  audio/           render por campanha + manifest.json
-  sob-demanda/     blocos sintetizados na hora
-  ocr-fixtures/    telas reais com a chave certa
-  legado-audio/    renders antigos, preservados
+corpus/          corpus extracted from the game       (generated, ignored)
+ref/             reference voice for cloning          (ignored)
+output/           EVERYTHING that is generated         (ignored)
+  audio/           render per campaign + manifest.json
+  sob-demanda/     blocks synthesized on the spot
+  ocr-fixtures/    real screens with the right key
+  legacy-audio/    old renders, preserved
 
-docs/            as notas de investigação
-legado/          scripts originais, mantidos para comparação
+docs/            the investigation notes
+legacy/          original scripts, kept for comparison
 ```
 
-| arquivo | o que faz |
+| file | what it does |
 |---|---|
-| `fase1_extrair.py` | AssetBundles do jogo → corpus JSON/CSV |
-| `fase2_render.py` | corpus → áudio, com cache retomável por hash |
-| `glifos.py` | ícones do jogo → palavras faladas; números por extenso; multi-idioma |
-| `check_ritmo.py` | detecta blocos cujo ritmo foge da mediana, para regeração |
-| `matcher.py` | casa o texto lido da tela com o bloco do corpus |
-| `test_matcher.py` | harness: 626 telas reais + ruído de OCR sintético |
-| `demo.py` | ciclo completo numa tela: imagem → OCR → matcher → áudio |
-| `lote.py` | o mesmo em várias telas, com taxa de acerto |
-| `ver_log.py` | lê o log de eventos do jogo |
+| `phase1_extract.py` | the game's AssetBundles → JSON/CSV corpus |
+| `phase2_render.py` | corpus → audio, with a resumable hash-based cache |
+| `glyphs.py` | game icons → spoken words; numbers spelled out; multi-language |
+| `check_pace.py` | detects blocks whose pace strays from the median, for regeneration |
+| `matcher.py` | matches the text read from the screen against the corpus block |
+| `test_matcher.py` | harness: 626 real screens + synthetic OCR noise |
+| `demo.py` | full cycle on one screen: image → OCR → matcher → audio |
+| `batch.py` | the same across several screens, with hit rate |
+| `watch_log.py` | reads the game's event log |
 
 ---
 
-## O que foi medido
+## What was measured
 
-Tudo abaixo é medição neste hardware (MacBook Pro M5 Pro, macOS 26 Tahoe), não
-estimativa. O detalhe está em [docs/FASE2-MEDICOES.md](docs/FASE2-MEDICOES.md) e
-[docs/FASE3-ESTRATEGIA.md](docs/FASE3-ESTRATEGIA.md).
+Everything below is measurement on this hardware (MacBook Pro M5 Pro, macOS 26 Tahoe), not
+estimate. The detail is in [docs/PHASE2-MEASUREMENTS.md](docs/PHASE2-MEASUREMENTS.md) and
+[docs/PHASE3-STRATEGY.md](docs/PHASE3-STRATEGY.md).
 
-### Desempenho da síntese
+### Synthesis performance
 
 | | |
 |---|---|
-| RTF (relógio ÷ duração do áudio) | **3,17** |
-| Bones of Arnor (6,0 h de áudio) | **~19 h de máquina** |
-| Corpus completo (44,8 h) | ~142 h — inviável de uma vez, viável por campanha |
-| Gargalo | decode autorregressivo do T3: **80–85% do relógio** |
+| RTF (wall clock ÷ audio duration) | **3.17** |
+| Bones of Arnor (6.0 h of audio) | **~19 h of machine time** |
+| Full corpus (44.8 h) | ~142 h — not viable in one go, viable per campaign |
+| Bottleneck | T3 autoregressive decode: **80–85% of the wall clock** |
 
-**Cinco hipóteses plausíveis foram testadas e quatro caíram.** Vale ler antes de tentar
-otimizar:
+**Five plausible hypotheses were tested and four fell.** Worth reading before trying to
+optimize:
 
-- **agrupar frases em chunks de 220 chars** → 11% **mais lento**. O decode cresce
-  superlinearmente com o comprimento; o custo fixo por chamada que se queria diluir é
-  pequeno demais para compensar.
-- **desligar o `AlignmentStreamAnalyzer`** para recuperar a atenção fundida → o modelo
-  passou a gerar **quase o dobro** de áudio para o mesmo texto. Ele é o freio que contém
-  a geração degenerada, não overhead decorativo.
-- **corrigir o vazamento de forward hooks** → o vazamento é real (69 hooks vivos após 23
-  frases) mas **não custa tempo**. Vale corrigir por memória, não por velocidade.
-- **teto de tokens por frase** → nunca é atingido (0 de 56 frases). É apólice, não
-  conserto.
-- **`prepare_conditionals` uma vez só** → a única que sobreviveu, e vale ~3%.
+- **grouping sentences into 220-char chunks** → 11% **slower**. Decode grows
+  superlinearly with length; the fixed per-call cost one wanted to amortize is too small
+  to compensate.
+- **turning off the `AlignmentStreamAnalyzer`** to recover the fused attention → the model
+  started generating **almost twice** the audio for the same text. It is the brake that
+  holds back degenerate generation, not decorative overhead.
+- **fixing the forward-hook leak** → the leak is real (69 live hooks after 23 sentences)
+  but **costs no time**. Worth fixing for memory, not for speed.
+- **token ceiling per sentence** → never reached (0 out of 56 sentences). It is insurance,
+  not a fix.
+- **`prepare_conditionals` only once** → the only one that survived, and it is worth ~3%.
 
-Uma armadilha de método: a variação entre duas execuções idênticas neste Mac chega a
-**30%**. Diferenças menores que isso só podem ser afirmadas com teste **pareado**.
+A methodological pitfall: the variation between two identical runs on this Mac reaches
+**30%**. Differences smaller than that can only be asserted with a **paired** test.
 
-### Reconhecimento de tela
+### Screen recognition
 
-Medido contra **626 telas reais** reconstruídas dos logs do jogo — sem transcrever
-nenhuma à mão.
+Measured against **626 real screens** reconstructed from the game's logs — without
+transcribing any of them by hand.
 
-| ruído de OCR | acerto | **erra** | recusa |
+| OCR noise | hit rate | **wrong** | refusal |
 |---:|---:|---:|---:|
-| 0% | **97,8%** | 0,6% | 1,6% |
-| 2% | 95,5% | 1,4% | 3,0% |
-| 5% | 94,4% | 1,9% | 3,7% |
+| 0% | **97.8%** | 0.6% | 1.6% |
+| 2% | 95.5% | 1.4% | 3.0% |
+| 5% | 94.4% | 1.9% | 3.7% |
 | 10% | 67% | 5% | 27% |
 
-Recusar é o comportamento certo: silêncio é recuperável com TTS ao vivo; narrar o bloco
-errado não é, porque o jogador age sobre o que ouve.
+Refusing is the right behavior: silence is recoverable with live TTS; narrating the wrong
+block is not, because the player acts on what they hear.
 
-O escopo pelo save (campanha, aventura) quase não muda o resultado — quem faz o trabalho
-são as travas de comprimento e margem, e o casamento por parágrafo.
+Scoping by the save (campaign, adventure) barely changes the result — the work is done by
+the length and margin guards, and by paragraph matching.
 
 ---
 
-## Três descobertas que mudaram o projeto
+## Three discoveries that changed the project
 
-### 1. O jogo mantém um log com as chaves exatas
+### 1. The game keeps a log with the exact keys
 
 `~/Library/Application Support/com.fantasyflightgames.jime/SavedGames/<slot>/LogA.txt`
-registra cada bloco exibido, com os parâmetros:
+records each block displayed, with its parameters:
 
 ```
 [3|1|PLACE_PERSON|1|8|0|A2_M1_T1_PLACE|0]
- │ │  │            │ └── tipo 8 = referência a outra chave
- │ │  │            └──── quantos parâmetros
- │ │  └─────────────── a chave, idêntica à do corpus
- │ └────────────────── rodada
- └──────────────────── aventura
+ │ │  │            │ └── type 8 = reference to another key
+ │ │  │            └──── how many parameters
+ │ │  └─────────────── the key, identical to the corpus one
+ │ └────────────────── round
+ └──────────────────── adventure
 ```
 
-4.827 linhas conferidas contra o corpus: **100% casam, zero chaves desconhecidas**.
+4,827 lines checked against the corpus: **100% match, zero unknown keys**.
 
-Ele é gravado **a cada rodada** do jogo — provado no IL do `Assembly-CSharp.dll`:
-`FlushLogStream` só é chamado por `GameController::CoroutineEndRound` e pelo save. Então
-**não serve de gatilho ao vivo**, mas é oráculo exato para validar o matcher e gera
-fixtures de graça.
+It is written **every round** of the game — proven in the IL of `Assembly-CSharp.dll`:
+`FlushLogStream` is only called by `GameController::CoroutineEndRound` and by the save. So
+it **does not serve as a live trigger**, but it is an exact oracle for validating the
+matcher and it generates fixtures for free.
 
-### 2. A tela é a concatenação de várias chaves
+### 2. The screen is the concatenation of several keys
 
-O jogo injeta chaves como parâmetro de templates genéricos:
+The game injects keys as a parameter of generic templates:
 
 ```
 corpus  PLACE_PERSON   = "{0}\n\nColoque uma ficha de pessoa conforme indicado."
-param   {0}            = A2_M1_T1_PLACE = "[prosa narrativa do bloco]"
+                               (English: "{0}\n\nPlace a person token as indicated.")
+param   {0}            = A2_M1_T1_PLACE = "[narrative prose of the block]"
 ```
 
-Casar a tela inteira contra um bloco isolado falha exatamente nesses casos. Por isso o
-matcher trabalha **por parágrafo**.
+Matching the whole screen against a single block fails in exactly these cases. That is why
+the matcher works **per paragraph**.
 
-### 3. Um quarto do corpus tinha lixo que o TTS não sabia ler
+### 3. A quarter of the corpus had garbage the TTS could not read
 
-2.363 blocos (25,9%) contêm caracteres da **Private Use Area** — os ícones da fonte do
-jogo, gravados como caracteres literais e não como tags `<sprite=>`, então a limpeza de
-marcação não os enxergava. O TTS recebia `"Cada herói testa ; 2"`, sem dizer qual
-atributo testar.
+2,363 blocks (25.9%) contain **Private Use Area** characters — the icons of the game's
+font, written as literal characters and not as `<sprite=>` tags, so the markup cleanup did
+not see them. The TTS received `"Cada herói testa ; 2"`, without saying which attribute
+to test.
 
-`glifos.py` resolve derivando o mapa das 24 chaves `main:GLYPH_*` que o próprio jogo
-publica. Como essas chaves são idênticas nos 13 idiomas, **adicionar um idioma é
-preencher ~21 palavras**, não reinvestigar o jogo.
+`glyphs.py` solves this by deriving the map from the 24 `main:GLYPH_*` keys the game
+itself publishes. Since these keys are identical across the 13 languages, **adding a
+language means filling in ~21 words**, not re-investigating the game.
 
-Uma armadilha: `GLYPH_FOCUS` é o nome interno de **Agilidade**. Nada no nome sugere isso;
-a prova veio de duas chaves independentes cujo único glifo de atributo é `FOCUS`.
+A pitfall: `GLYPH_FOCUS` is the internal name for **Agility**. Nothing in the name suggests
+it; the proof came from two independent keys whose only attribute glyph is `FOCUS`.
 
-E os **números** eram lidos em espanhol ("uno" em vez de "um") mesmo com
-`language_id="pt"` — afetava 38,8% do corpus. Corrigido escrevendo por extenso antes de
-sintetizar.
-
----
-
-## Armadilhas já pagas
-
-Não as redescubra.
-
-1. **`setuptools>=81` quebra o `perth`** (marca d'água do Chatterbox) e o modelo **nem
-   carrega**. Pinar `setuptools<81`.
-2. **Python 3.14 não tem wheels do PyTorch.** Use 3.12 ou 3.13.
-3. **O ffmpeg do Homebrew não traz o filtro `rubberband`.** O renderizador detecta e cai
-   num equivalente com `asetrate`+`atempo`; o `DSP_VERSION` muda para não misturar cache.
-4. **A velocidade entra no `DSP_VERSION`.** Mudar de ideia depois joga fora o render
-   inteiro — decida antes de gastar as horas.
-5. **No macOS 26 Tahoe**, `CGWindowListCreateImage` e `screencapture` devolvem só o
-   wallpaper. Captura exige **ScreenCaptureKit** num `.app` assinado com Team ID real.
-6. **O Unity não expõe texto à acessibilidade.** Medido: o `UnityPlayer.dylib` tem 1.353
-   seletores Objective-C e **zero** de acessibilidade. Confirmado também no Gloomhaven,
-   ou seja, é propriedade da engine. Não perca tempo com `AXStaticText`.
-7. **Estimar RTF por it/s engana.** 18 it/s no MPS parecia ótimo e o RTF real deu 2-3.
-   Meça relógio contra duração de áudio, e **pareado**.
-8. **Nunca clonar dublador famoso.** No Brasil a voz é direito da personalidade (CF art.
-   5º XXVIII-a; CC arts. 20–21) e o uso não autorizado é acionável mesmo sem violação de
-   direito autoral. O enquadramento é "**um** mago velho", não "*aquele* narrador". A
-   referência usada é do LibriVox, domínio público.
+And the **numbers** were read in Spanish ("uno" instead of "um") even with
+`language_id="pt"` — it affected 38.8% of the corpus. Fixed by spelling them out before
+synthesizing.
 
 ---
 
-## O que falta
+## Pitfalls already paid for
 
-1. **`trigger.py`** — absdiff → dhash → estabilidade → dedupe com TTL. Desenvolvível com
-   imagens salvas, sem captura real.
-2. **Harness de OCR com CER real** — hoje o ruído é sintético. Medir Apple Vision contra
-   as fixtures diz se estamos na faixa de 1-3%, onde o matcher acerta 97%.
-3. **`player.py`** — fila de áudio, repetir/pausar/pular, hotkeys.
-4. **Captura no macOS** — ScreenCaptureKit num `.app` assinado. É o item caro (meio dia
-   mais a conta de desenvolvedor) e o último a fazer, porque tudo acima roda sem ele.
-5. **Piper para os blocos com `{0}`** — 622 blocos só se completam em tempo de jogo.
-   Atenção: o Piper **não está instalado** e o `legado/render_piper.py` quebra neste
-   ffmpeg (usa `rubberband` incondicionalmente).
-6. **Revisar a heurística `narration`** — a dica `_OPTION` descarta 74 blocos de narração
-   real (867 palavras); as outras nove dicas de UI juntas descartam 29 palavras.
-7. **Decidir sobre prosa × instrução mecânica** — 38,2% dos blocos misturam narrativa e
-   regra (prosa, quebra de parágrafo, e então a regra). Separáveis
-   por quebra de parágrafo; outros 8% têm a instrução embutida no meio.
+Do not rediscover them.
+
+1. **`setuptools>=81` breaks `perth`** (Chatterbox's watermark) and the model **does not
+   even load**. Pin `setuptools<81`.
+2. **Python 3.14 has no PyTorch wheels.** Use 3.12 or 3.13.
+3. **Homebrew's ffmpeg does not ship the `rubberband` filter.** The renderer detects it and
+   falls back to an equivalent with `asetrate`+`atempo`; `DSP_VERSION` changes so caches do not mix.
+4. **The speed goes into the `DSP_VERSION`.** Changing your mind later throws away the
+   whole render — decide before spending the hours.
+5. **On macOS 26 Tahoe**, `CGWindowListCreateImage` and `screencapture` return only the
+   wallpaper. Capture requires **ScreenCaptureKit** in a `.app` signed with a real Team ID.
+6. **Unity does not expose text to accessibility.** Measured: `UnityPlayer.dylib` has 1,353
+   Objective-C selectors and **zero** accessibility ones. Confirmed in Gloomhaven too, i.e.
+   it is a property of the engine. Do not waste time with `AXStaticText`.
+7. **Estimating RTF from it/s misleads.** 18 it/s on MPS looked great and the real RTF came
+   out at 2-3. Measure wall clock against audio duration, and **paired**.
+8. **Never clone a famous voice actor.** In Brazil the voice is a personality right (CF art.
+   5 XXVIII-a; CC arts. 20–21) and unauthorized use is actionable even without copyright
+   infringement. The framing is "**an** old wizard", not "*that* narrator". The reference
+   used is from LibriVox, public domain.
 
 ---
 
-## Licença
+## What is missing
 
-O código é MIT (veja `LICENSE`). O conteúdo do jogo não é distribuído por este
-repositório e não é coberto por ela.
+1. **`trigger.py`** — absdiff → dhash → stability → dedupe with TTL. Developable with
+   saved images, without real capture.
+2. **OCR harness with real CER** — today the noise is synthetic. Measuring Apple Vision
+   against the fixtures tells whether we are in the 1-3% range, where the matcher is 97% correct.
+3. **`player.py`** — audio queue, repeat/pause/skip, hotkeys.
+4. **Capture on macOS** — ScreenCaptureKit in a signed `.app`. It is the expensive item (half
+   a day plus the developer account) and the last to do, because everything above runs without it.
+5. **Piper for the blocks with `{0}`** — 622 blocks are only completed at game time.
+   Note: Piper **is not installed** and `legacy/render_piper.py` breaks on this ffmpeg
+   (it uses `rubberband` unconditionally).
+6. **Review the `narration` heuristic** — the `_OPTION` hint discards 74 blocks of real
+   narration (867 words); the other nine UI hints together discard 29 words.
+7. **Decide on prose vs. mechanical instruction** — 38.2% of the blocks mix narrative and
+   rule (prose, paragraph break, and then the rule). Separable
+   by paragraph break; another 8% have the instruction embedded in the middle.
+
+---
+
+## License
+
+The code is MIT (see `LICENSE`). The game content is not distributed by this repository
+and is not covered by it.

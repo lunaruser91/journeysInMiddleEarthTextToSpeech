@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-jime_extract.py — Fase 1 do projeto Narrador JiME.
+jime_extract.py — Phase 1 of the JiME Narrator project.
 
-Extrai texto dos assets Unity do app "The Lord of the Rings: Journeys in Middle-earth"
-(build Steam desktop, Unity + Mono). Multiplataforma: macOS, Windows, Linux.
+Extracts text from the Unity assets of the app "The Lord of the Rings: Journeys in
+Middle-earth" (Steam desktop build, Unity + Mono). Multiplatform: macOS, Windows, Linux.
 
-Subcomandos:
-  scan   <data_dir>            inventário de objetos por tipo/arquivo (barato, roda primeiro)
-  dump   <data_dir> -o out/    exporta TextAsset (raw + tentativa de decode) e MonoBehaviour
-  key    <Assembly-CSharp.dll> procura constantes candidatas de (des)obfuscação no IL
-  deobf  <arquivo.bin>         tenta N heurísticas de desobfuscação e mostra o que virou texto
+Subcommands:
+  scan   <data_dir>            inventory of objects by type/file (cheap, run it first)
+  dump   <data_dir> -o out/    exports TextAsset (raw + decode attempt) and MonoBehaviour
+  key    <Assembly-CSharp.dll> looks for candidate (de)obfuscation constants in the IL
+  deobf  <file.bin>            tries N deobfuscation heuristics and shows what became text
 
-Dependências: pip install UnityPy dnfile
+Dependencies: pip install UnityPy dnfile
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 # --------------------------------------------------------------------------- #
-# localização dos assets
+# asset location
 # --------------------------------------------------------------------------- #
 
 DATA_DIR_HINTS = [
@@ -52,15 +52,15 @@ def find_data_dir(explicit: str | None) -> Path:
     if explicit:
         p = Path(os.path.expanduser(explicit))
         if not p.is_dir():
-            sys.exit(f"[erro] não é um diretório: {p}")
+            sys.exit(f"[error] not a directory: {p}")
         return p
     for hint in DATA_DIR_HINTS:
         p = Path(os.path.expanduser(hint))
         if p.is_dir():
-            print(f"[ok] Data dir encontrado automaticamente: {p}")
+            print(f"[ok] Data dir found automatically: {p}")
             return p
     sys.exit(
-        "[erro] não achei o diretório Data do jogo. Passe o caminho explicitamente.\n"
+        "[error] could not find the game's Data directory. Pass the path explicitly.\n"
         "  macOS:   '.../Journeys in Middle-earth.app/Contents/Resources/Data'\n"
         "  Windows: '...\\Journeys in Middle-earth\\JiME_Data'"
     )
@@ -72,7 +72,7 @@ def asset_files(data_dir: Path) -> list[Path]:
         for f in data_dir.glob(pat):
             if f.is_file() and not f.name.endswith((".resS", ".resource", ".info")):
                 seen[str(f)] = f
-    # StreamingAssets costuma ser texto plano — vale listar à parte
+    # StreamingAssets is usually plain text — worth listing separately
     return sorted(seen.values(), key=lambda p: -p.stat().st_size)
 
 
@@ -85,13 +85,13 @@ def cmd_scan(args) -> None:
 
     data_dir = find_data_dir(args.data_dir)
     files = asset_files(data_dir)
-    print(f"\n[scan] {len(files)} arquivo(s) de asset em {data_dir}\n")
+    print(f"\n[scan] {len(files)} asset file(s) in {data_dir}\n")
 
     sa = data_dir / "StreamingAssets"
     if sa.is_dir():
         plain = [p for p in sa.rglob("*") if p.is_file()]
-        print(f"[!] StreamingAssets existe com {len(plain)} arquivo(s) — "
-              f"conteúdo aqui costuma ser texto plano, sem precisar de ripper:")
+        print(f"[!] StreamingAssets exists with {len(plain)} file(s) — "
+              f"content here is usually plain text, no ripper needed:")
         for p in plain[:25]:
             print(f"      {p.relative_to(sa)}  ({p.stat().st_size:,} B)")
         print()
@@ -101,19 +101,19 @@ def cmd_scan(args) -> None:
         try:
             env = UnityPy.load(str(f))
         except Exception as e:  # noqa: BLE001
-            print(f"  {f.name:<28} ERRO: {type(e).__name__}: {e}")
+            print(f"  {f.name:<28} ERROR: {type(e).__name__}: {e}")
             continue
         types = Counter(o.type.name for o in env.objects)
         grand.update(types)
         interesting = {k: v for k, v in types.items()
                        if k in ("TextAsset", "MonoBehaviour", "MonoScript", "AudioClip")}
         print(f"  {f.name:<28} {f.stat().st_size/1e6:7.1f} MB  "
-              f"{sum(types.values()):6d} objetos  {interesting}")
+              f"{sum(types.values()):6d} objects  {interesting}")
 
-    print("\n[total por tipo]")
+    print("\n[total by type]")
     for t, n in grand.most_common(20):
         print(f"  {t:<28} {n}")
-    print("\nSe houver TextAsset em quantidade, rode:  jime_extract.py dump <data_dir> -o out/")
+    print("\nIf there are many TextAssets, run:  jime_extract.py dump <data_dir> -o out/")
 
 
 # --------------------------------------------------------------------------- #
@@ -124,7 +124,7 @@ PT_HINTS = ("você", "não", "ção", "os vivos", "espectro", "herdeiro", "avent
 
 
 def looks_like_text(b: bytes) -> tuple[bool, str]:
-    """Heurística: parece texto legível em utf-8/latin-1?"""
+    """Heuristic: does this look like readable text in utf-8/latin-1?"""
     for enc in ("utf-8-sig", "utf-8", "utf-16", "latin-1"):
         try:
             s = b.decode(enc)
@@ -188,7 +188,7 @@ def cmd_dump(args) -> None:
                     stats["mono_sem_typetree"] += 1
                     continue
                 blob = json.dumps(tree, ensure_ascii=False, default=str)
-                # só guarda o que tem string longa (candidato a narrativa)
+                # only keep what has a long string (narration candidate)
                 if re.search(r'"[^"]{80,}"', blob):
                     (out / "mono" / f"{obj.path_id}.json").write_text(blob, encoding="utf-8")
                     stats["mono_com_texto"] += 1
@@ -196,22 +196,22 @@ def cmd_dump(args) -> None:
     (out / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print("\n[resumo]")
+    print("\n[summary]")
     for k, v in stats.most_common():
         print(f"  {k:<24} {v}")
     legiveis = [m for m in manifest if m["readable"]]
-    print(f"\n  TextAssets: {len(manifest)} | legíveis: {len(legiveis)} | "
-          f"com pista de pt-BR: {sum(m['pt_hint'] for m in manifest)}")
+    print(f"\n  TextAssets: {len(manifest)} | readable: {len(legiveis)} | "
+          f"with pt-BR hint: {sum(m['pt_hint'] for m in manifest)}")
     print(f"  manifest: {out/'manifest.json'}")
     for m in sorted(manifest, key=lambda m: -m["bytes"])[:15]:
-        flag = "TEXTO" if m["readable"] else "obfus"
+        flag = "TEXT" if m["readable"] else "obfs"
         print(f"   {flag}  {m['bytes']:>10,} B  {m['name']}  ({m['file']})")
     if stats["textasset_obfuscado"]:
-        print("\n  → há assets obfuscados. Rode 'key' no Assembly-CSharp.dll e depois 'deobf'.")
+        print("\n  → obfuscated assets found. Run 'key' on Assembly-CSharp.dll, then 'deobf'.")
 
 
 # --------------------------------------------------------------------------- #
-# key — procura a constante de obfuscação no IL
+# key — looks for the obfuscation constant in the IL
 # --------------------------------------------------------------------------- #
 
 NAME_HINTS = ("obfusc", "deobfusc", "decrypt", "encrypt", "scramble", "xor",
@@ -220,13 +220,13 @@ NAME_HINTS = ("obfusc", "deobfusc", "decrypt", "encrypt", "scramble", "xor",
 
 def cmd_key(args) -> None:
     import dnfile
-    from dnfile.mdtable import MethodDefRow  # noqa: F401  (import p/ clareza)
+    from dnfile.mdtable import MethodDefRow  # noqa: F401  (imported for clarity)
 
     dll = Path(os.path.expanduser(args.dll))
     pe = dnfile.dnPE(str(dll))
-    print(f"[key] {dll.name}: {pe.net.mdtables.MethodDef.rows if pe.net.mdtables.MethodDef else 0} métodos\n")
+    print(f"[key] {dll.name}: {pe.net.mdtables.MethodDef.rows if pe.net.mdtables.MethodDef else 0} methods\n")
 
-    # 1) métodos com nome suspeito
+    # 1) methods with a suspicious name
     hits = []
     md = pe.net.mdtables.MethodDef
     if md:
@@ -234,28 +234,28 @@ def cmd_key(args) -> None:
             nm = str(row.Name).lower()
             if any(h in nm for h in NAME_HINTS):
                 hits.append((i, str(row.Name)))
-    print(f"[1] métodos com nome suspeito: {len(hits)}")
+    print(f"[1] methods with a suspicious name: {len(hits)}")
     for i, nm in hits[:40]:
         print(f"      #{i}  {nm}")
 
-    # 2) inteiros grandes hardcoded no blob de código (heurística ldc.i4 <imm32>)
+    # 2) large hardcoded integers in the code blob (ldc.i4 <imm32> heuristic)
     data = dll.read_bytes()
     cands = Counter()
     for m in re.finditer(rb"\x20(....)", data, re.S):  # 0x20 = ldc.i4 <int32>
         val = int.from_bytes(m.group(1), "little", signed=True)
         if 1_000_000 <= val <= 2_000_000_000:
             cands[val] += 1
-    print(f"\n[2] constantes int32 candidatas (ldc.i4), mais frequentes:")
+    print(f"\n[2] candidate int32 constants (ldc.i4), most frequent:")
     for v, n in cands.most_common(25):
-        note = "  <-- chave conhecida do Mansions of Madness" if v == 68264378 else ""
+        note = "  <-- known key from Mansions of Madness" if v == 68264378 else ""
         print(f"      {v:>12}  0x{v & 0xFFFFFFFF:08X}  x{n}{note}")
-    print("\n  Guarde os 5-10 primeiros e teste com 'deobf --keys'.")
-    print("  Para leitura direta do C#, abra o DLL no ILSpy/dnSpy e procure por "
+    print("\n  Keep the first 5-10 and test them with 'deobf --keys'.")
+    print("  To read the C# directly, open the DLL in ILSpy/dnSpy and look for "
           "TextAsset/Localization/Deobfuscate.")
 
 
 # --------------------------------------------------------------------------- #
-# deobf — heurísticas
+# deobf — heuristics
 # --------------------------------------------------------------------------- #
 
 def _score(b: bytes) -> float:
@@ -277,7 +277,7 @@ def cmd_deobf(args) -> None:
 
     add("raw", blob)
 
-    # zlib / gzip / deflate cru
+    # raw zlib / gzip / deflate
     for label, fn in (("zlib", lambda d: zlib.decompress(d)),
                       ("deflate", lambda d: zlib.decompress(d, -15)),
                       ("gzip", lambda d: zlib.decompress(d, 16 + zlib.MAX_WBITS))):
@@ -286,17 +286,17 @@ def cmd_deobf(args) -> None:
         except Exception:  # noqa: BLE001
             pass
 
-    # XOR de 1 byte
+    # 1-byte XOR
     for k in range(256):
         add(f"xor1:{k}", bytes(c ^ k for c in blob[:8000]))
 
-    # XOR com os 4 bytes do int (LE e BE) + variação "chave rolante"
+    # XOR with the int's 4 bytes (LE and BE) + "rolling key" variation
     for key in keys:
         for order in ("little", "big"):
             kb = key.to_bytes(4, order, signed=False)
             add(f"xor4:{key}:{order}",
                 bytes(c ^ kb[i % 4] for i, c in enumerate(blob[:8000])))
-        # PRNG estilo System.Random(seed) — igual ao padrão de apps FFG
+        # System.Random(seed)-style PRNG — same as the pattern in FFG apps
         try:
             rnd = _net_random(key)
             add(f"netrandom:{key}",
@@ -304,13 +304,13 @@ def cmd_deobf(args) -> None:
         except Exception:  # noqa: BLE001
             pass
 
-    # soma/subtração constante
+    # constant addition/subtraction
     for k in (1, 2, 3, 7, 13, 42, 128):
         add(f"sub:{k}", bytes((c - k) & 0xFF for c in blob[:8000]))
         add(f"add:{k}", bytes((c + k) & 0xFF for c in blob[:8000]))
 
     results.sort(key=lambda t: -t[0])
-    print(f"[deobf] {args.file} ({len(blob):,} B) — top 8 hipóteses:\n")
+    print(f"[deobf] {args.file} ({len(blob):,} B) — top 8 hypotheses:\n")
     for score, label, data in results[:8]:
         ok, s = looks_like_text(data)
         preview = (s[:220].replace("\n", " ⏎ ") if ok else data[:60].hex(" "))
@@ -318,15 +318,15 @@ def cmd_deobf(args) -> None:
     best = results[0]
     if best[0] > 0.2 and args.out:
         Path(args.out).write_bytes(best[2])
-        print(f"\n  melhor hipótese ({best[1]}) salva em {args.out}")
+        print(f"\n  best hypothesis ({best[1]}) saved to {args.out}")
     elif best[0] <= 0.2:
-        print("\n  Nenhuma heurística funcionou → a lógica está no Assembly-CSharp.dll.\n"
-              "  Abra no ILSpy e procure a função que lê o TextAsset.")
+        print("\n  No heuristic worked → the logic lives in Assembly-CSharp.dll.\n"
+              "  Open it in ILSpy and look for the function that reads the TextAsset.")
 
 
 class _net_random:
-    """Reimplementação de System.Random do .NET (Knuth subtractive), usada por
-    esquemas de obfuscação de apps FFG. Serve para gerar o keystream."""
+    """Reimplementation of .NET's System.Random (Knuth subtractive), used by the
+    obfuscation schemes of FFG apps. Serves to generate the keystream."""
 
     def __init__(self, seed: int) -> None:
         MBIG, MSEED = 2147483647, 161803398
@@ -372,24 +372,24 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("scan", help="inventário dos assets")
+    s = sub.add_parser("scan", help="asset inventory")
     s.add_argument("data_dir", nargs="?")
     s.set_defaults(func=cmd_scan)
 
-    d = sub.add_parser("dump", help="exporta TextAsset/MonoBehaviour")
+    d = sub.add_parser("dump", help="exports TextAsset/MonoBehaviour")
     d.add_argument("data_dir", nargs="?")
     d.add_argument("-o", "--out", default="out")
-    d.add_argument("--mono", action="store_true", help="também dumpar MonoBehaviour com texto longo")
+    d.add_argument("--mono", action="store_true", help="also dump MonoBehaviour with long text")
     d.set_defaults(func=cmd_dump)
 
-    k = sub.add_parser("key", help="acha constantes de obfuscação no Assembly-CSharp.dll")
+    k = sub.add_parser("key", help="finds obfuscation constants in Assembly-CSharp.dll")
     k.add_argument("dll")
     k.set_defaults(func=cmd_key)
 
-    o = sub.add_parser("deobf", help="testa heurísticas de desobfuscação num .bin")
+    o = sub.add_parser("deobf", help="tests deobfuscation heuristics on a .bin")
     o.add_argument("file")
-    o.add_argument("--keys", help="lista de inteiros candidatos, separados por vírgula")
-    o.add_argument("--out", help="salvar a melhor hipótese neste arquivo")
+    o.add_argument("--keys", help="comma-separated list of candidate integers")
+    o.add_argument("--out", help="save the best hypothesis to this file")
     o.set_defaults(func=cmd_deobf)
 
     args = ap.parse_args()

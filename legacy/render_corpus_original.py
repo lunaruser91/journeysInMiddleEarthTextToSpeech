@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
 """
-render_corpus.py — Fase 2 do Narrador JiME.
+render_corpus.py — Phase 2 of the JiME Narrator.
 
-Pré-renderiza o corpus pt-BR em áudio de narrador ("mago velho"), usando
-Chatterbox Multilingual com clonagem de voz + cadeia de DSP no ffmpeg.
+Pre-renders the pt-BR corpus into narrator audio ("old wizard"), using
+Chatterbox Multilingual with voice cloning + a DSP chain in ffmpeg.
 
-Projetado para rodar horas sem supervisão:
-  • cache por hash (modelo|voz|dsp|params|texto) — retomável a qualquer momento
-  • pula blocos com placeholder {0} (esses vão para TTS ao vivo na Fase 3)
-  • quebra por frase, com pausa entre frases e entre parágrafos
-  • grava manifest.json incremental + índice normalizado para o matching da Fase 3
-  • --dry-run estima o tempo total antes de você deixar a noite inteira rodando
+Designed to run for hours unattended:
+  • hash-based cache (model|voice|dsp|params|text) — resumable at any point
+  • skips blocks with a {0} placeholder (those go to live TTS in Phase 3)
+  • splits by sentence, with a pause between sentences and between paragraphs
+  • writes an incremental manifest.json + normalized index for Phase 3 matching
+  • --dry-run estimates the total time before you leave it running all night
 
-Uso típico (no Mac, Apple Silicon):
+Typical usage (on a Mac, Apple Silicon):
     python3 render_corpus.py corpus/corpus_pt.json -o audio/ \
         --ref ref/REF_paginasrecolhidas.wav --device mps
 
     python3 render_corpus.py corpus/corpus_pt.json --dry-run
     python3 render_corpus.py corpus/corpus_pt.json --campaign bonesofarnor
 
-Requisitos:
+Requirements:
     pip install chatterbox-tts torch torchaudio "setuptools<81"
-    ffmpeg compilado com librubberband  (brew install ffmpeg)
+    ffmpeg compiled with librubberband  (brew install ffmpeg)
 """
 from __future__ import annotations
 
@@ -37,12 +37,12 @@ import unicodedata
 from pathlib import Path
 
 # --------------------------------------------------------------------------- #
-# receita de voz — mude DSP_VERSION sempre que mexer na cadeia, senão o cache
-# devolve áudio velho e você passa horas depurando um fantasma
+# voice recipe — bump DSP_VERSION whenever you touch the chain, otherwise the
+# cache hands back stale audio and you spend hours debugging a ghost
 # --------------------------------------------------------------------------- #
 
-PITCH = 0.95   # 1.0 = sem mudança; menor = mais grave (formantes acompanham)
-TEMPO = 0.96   # menor = mais lento
+PITCH = 0.95   # 1.0 = no change; lower = deeper (formants follow along)
+TEMPO = 0.96   # lower = slower
 
 _CORPO = (
     "equalizer=f=110:t=q:w=0.9:g=3.5,"
@@ -69,27 +69,27 @@ DSP_VERSION = "mago-v1" if HAS_RB else "mago-v1f"
 
 
 def wizard_chain(sr: int) -> str:
-    """Cadeia de mago. Usa rubberband se existir; senão, o truque do asetrate,
-    que desloca pitch e formantes juntos — sonicamente equivalente a
-    'formant=shifted' — seguido de atempo para restaurar a duração."""
+    """Wizard chain. Uses rubberband if available; otherwise the asetrate trick,
+    which shifts pitch and formants together — sonically equivalent to
+    'formant=shifted' — followed by atempo to restore the duration."""
     if HAS_RB:
         return (f"rubberband=pitch={PITCH}:formant=shifted:tempo={TEMPO}"
                 f":pitchq=quality:transients=smooth,{_CORPO}")
-    # asetrate baixa pitch+formantes e ALONGA a duração em 1/PITCH.
-    # queremos duração final de 1/TEMPO, logo atempo = (1/PITCH) / (1/TEMPO) = TEMPO/PITCH.
+    # asetrate lowers pitch+formants and STRETCHES the duration by 1/PITCH.
+    # we want a final duration of 1/TEMPO, so atempo = (1/PITCH) / (1/TEMPO) = TEMPO/PITCH.
     atempo = TEMPO / PITCH
     return (f"asetrate={int(sr * PITCH)},aresample={sr},"
             f"atempo={atempo:.5f},{_CORPO}")
 
-PAUSA_FRASE = 0.30      # segundos entre frases
-PAUSA_PARAGRAFO = 0.45  # segundos extras entre parágrafos
+PAUSA_FRASE = 0.30      # seconds between sentences
+PAUSA_PARAGRAFO = 0.45  # extra seconds between paragraphs
 SEED = 1234
 
 SENT_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 
 
 def normalize_for_match(s: str) -> str:
-    """Mesma normalização que a Fase 3 vai usar no OCR: sem acento, sem pontuação."""
+    """Same normalization Phase 3 will apply to the OCR: no accents, no punctuation."""
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = s.casefold()
@@ -122,12 +122,12 @@ def load_blocks(corpus_path: Path, campaign: str | None, include_dynamic: bool) 
 
 def estimate(blocks: dict, rtf: float) -> None:
     words = sum(v["words"] for v in blocks.values())
-    audio_h = words / 140 / 60          # ~140 palavras/min num narrador pausado
-    print(f"  blocos ................ {len(blocks):,}")
-    print(f"  palavras .............. {words:,}")
-    print(f"  áudio estimado ........ {audio_h:.1f} h")
-    print(f"  tempo de render ....... {audio_h * rtf:.1f} h  (RTF assumido {rtf})")
-    print(f"  tamanho em opus 48k ... ~{audio_h * 3600 * 6 / 1024:.0f} MB")
+    audio_h = words / 140 / 60          # ~140 words/min for an unhurried narrator
+    print(f"  blocks ................ {len(blocks):,}")
+    print(f"  words ................. {words:,}")
+    print(f"  estimated audio ....... {audio_h:.1f} h")
+    print(f"  render time ........... {audio_h * rtf:.1f} h  (assumed RTF {rtf})")
+    print(f"  size in opus 48k ...... ~{audio_h * 3600 * 6 / 1024:.0f} MB")
 
 
 def main() -> None:
@@ -135,30 +135,30 @@ def main() -> None:
     ap.add_argument("corpus", type=Path)
     ap.add_argument("-o", "--out", type=Path, default=Path("audio"))
     ap.add_argument("--ref", type=Path, default=Path("ref/REF_paginasrecolhidas.wav"),
-                    help="clipe de referência para clonagem (10-15 s, limpo)")
+                    help="reference clip for cloning (10-15 s, clean)")
     ap.add_argument("--device", default="auto", choices=["auto", "mps", "cuda", "cpu"])
-    ap.add_argument("--campaign", help="renderizar só uma campanha")
-    ap.add_argument("--limit", type=int, help="parar depois de N blocos (teste)")
+    ap.add_argument("--campaign", help="render only one campaign")
+    ap.add_argument("--limit", type=int, help="stop after N blocks (testing)")
     ap.add_argument("--exaggeration", type=float, default=0.45,
-                    help="0.3-0.7; mais baixo = leitura mais contida/narrativa")
+                    help="0.3-0.7; lower = more restrained/narrative reading")
     ap.add_argument("--cfg-weight", type=float, default=0.35,
-                    help="mais baixo = ritmo mais lento e deliberado")
+                    help="lower = slower, more deliberate pace")
     ap.add_argument("--include-dynamic", action="store_true",
-                    help="renderizar também blocos com {0} (não recomendado)")
+                    help="also render blocks with {0} (not recommended)")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--rtf", type=float, default=0.45, help="RTF assumido no --dry-run")
+    ap.add_argument("--rtf", type=float, default=0.45, help="RTF assumed by --dry-run")
     args = ap.parse_args()
 
     blocks = load_blocks(args.corpus, args.campaign, args.include_dynamic)
     if args.limit:
         blocks = dict(list(blocks.items())[:args.limit])
 
-    print(f"[plano] {args.corpus}" + (f" | campanha={args.campaign}" if args.campaign else ""))
+    print(f"[plan] {args.corpus}" + (f" | campaign={args.campaign}" if args.campaign else ""))
     estimate(blocks, args.rtf)
     if args.dry_run:
         return
     if not args.ref.exists():
-        sys.exit(f"[erro] referência não encontrada: {args.ref}")
+        sys.exit(f"[error] reference not found: {args.ref}")
 
     import torch
     import torchaudio as ta
@@ -168,13 +168,13 @@ def main() -> None:
     if device == "auto":
         device = ("mps" if torch.backends.mps.is_available()
                   else "cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[dsp] {'rubberband' if HAS_RB else 'asetrate (fallback, sem rubberband)'} "
-          f"| versão {DSP_VERSION}")
-    print(f"[modelo] carregando em {device} ...")
+    print(f"[dsp] {'rubberband' if HAS_RB else 'asetrate (fallback, no rubberband)'} "
+          f"| version {DSP_VERSION}")
+    print(f"[model] loading on {device} ...")
     t0 = time.time()
     model = ChatterboxMultilingualTTS.from_pretrained(device=device)
     torch.manual_seed(SEED)
-    print(f"[modelo] pronto em {time.time()-t0:.0f}s")
+    print(f"[model] ready in {time.time()-t0:.0f}s")
 
     params = {"exaggeration": args.exaggeration, "cfg_weight": args.cfg_weight,
               "pausa": [PAUSA_FRASE, PAUSA_PARAGRAFO], "seed": SEED}
@@ -231,18 +231,18 @@ def main() -> None:
                 eta = (total - i) / max(rate, 1e-6) / 3600
                 manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1),
                                          encoding="utf-8")
-                print(f"  [{i}/{total}] {key[:44]:<44} {v['words']:>4}p {dt:5.0f}s "
-                      f"| feitos {done} pulados {skipped} | ETA {eta:.1f} h", flush=True)
+                print(f"  [{i}/{total}] {key[:44]:<44} {v['words']:>4}w {dt:5.0f}s "
+                      f"| done {done} skipped {skipped} | ETA {eta:.1f} h", flush=True)
         except KeyboardInterrupt:
-            print("\n[interrompido] o cache preserva tudo — é só rodar de novo.")
+            print("\n[interrupted] the cache keeps everything — just run it again.")
             break
         except Exception as e:  # noqa: BLE001
             failed += 1
-            print(f"  [falha] {key}: {type(e).__name__}: {e}", flush=True)
+            print(f"  [failure] {key}: {type(e).__name__}: {e}", flush=True)
 
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"\n[fim] renderizados {done} | em cache {skipped} | falhas {failed}")
-    print(f"      {manifest_path}  ({len(manifest)} entradas)")
+    print(f"\n[end] rendered {done} | cached {skipped} | failures {failed}")
+    print(f"      {manifest_path}  ({len(manifest)} entries)")
 
 
 if __name__ == "__main__":

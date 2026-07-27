@@ -1,49 +1,49 @@
 #!/usr/bin/env python3
 """
-matcher.py — casa o texto lido da tela (OCR) com o bloco correto do corpus.
+matcher.py — matches the text read off the screen (OCR) with the right corpus block.
 
-## O problema, como ele realmente é
+## The problem, as it really is
 
-A tela do JiME **não** mostra um bloco do corpus. Mostra a composição de vários:
-o jogo pega um template e injeta outras chaves de localização como parâmetros.
-Exemplo real, capturado do log do jogo:
+The JiME screen does **not** show one corpus block. It shows several composed
+together: the game takes a template and injects other localization keys into it as
+parameters. A real example, captured from the game log:
 
-    corpus  PLACE_PERSON     = "{0}\\n\\nColoque uma ficha de pessoa conforme indicado."
-    corpus  A2_M1_T1_PLACE   = "Você vê a centelha de uma pequena fogueira e uma mulher
-                                vestida nos trajes dos Guardiões do Norte. (...)"
-    tela    = A2_M1_T1_PLACE + "\\n\\n" + "Coloque uma ficha de pessoa conforme indicado."
+    corpus  PLACE_PERSON     = "{0}\\n\\nPlace a person token as indicated."
+    corpus  A2_M1_T1_PLACE   = "You see the spark of a small campfire and a woman
+                                dressed in the garb of the Wardens of the North. (...)"
+    screen  = A2_M1_T1_PLACE + "\\n\\n" + "Place a person token as indicated."
 
-Casar a tela inteira contra um bloco isolado falha exatamente nesses casos — e
-eles não são raros. Por isso o matcher trabalha em dois níveis:
+Matching the whole screen against an isolated block fails in exactly these cases —
+and they are not rare. That is why the matcher works at two levels:
 
-  1. **por parágrafo** — cada parágrafo da tela é casado separadamente. É o modo
-     que respeita a composição, e é o que alimenta a reprodução: toca-se o áudio
-     do parágrafo de prosa, e opcionalmente o da instrução.
-  2. **tela inteira** — como verificação e para telas de um parágrafo só.
+  1. **per paragraph** — each paragraph of the screen is matched separately. This
+     is the mode that respects composition, and it is the one that feeds playback:
+     the prose paragraph's audio is played, and optionally the instruction's.
+  2. **whole screen** — as a check, and for single-paragraph screens.
 
-## Escopo
+## Scope
 
-O save (`SavedGame*`, JSON puro) diz `CampaignId` e `CurrentAdventureId`. Isso
-reduz os candidatos, mas menos do que parece: medido no corpus, a aventura 3 de
-Bones of Arnor tem 44 chaves de história (`A2_*`) e ~2.358 chaves genéricas
-(`UI_*`, `PLACE_*`, `ENEMY_*`, `TERRAIN_*`...) que podem aparecer em qualquer
-aventura. De 9.740 para ~2.402 — uma redução de 4x, não de 100x.
+The save (`SavedGame*`, plain JSON) tells us `CampaignId` and `CurrentAdventureId`.
+That narrows the candidates down, but less than it looks: measured on the corpus,
+adventure 3 of Bones of Arnor has 44 story keys (`A2_*`) and ~2,358 generic keys
+(`UI_*`, `PLACE_*`, `ENEMY_*`, `TERRAIN_*`...) that can show up in any adventure.
+From 9,740 to ~2,402 — a 4x reduction, not a 100x one.
 
-O escopo ajuda, mas quem desambigua de verdade é o casamento por parágrafo somado
-às travas.
+Scope helps, but what really disambiguates is per-paragraph matching plus the
+guards.
 
-## Travas (valem mais que o limiar)
+## Guards (worth more than the threshold)
 
-- **razão de comprimento** — sem ela, um fragmento de 10 chars casa 100 com um
-  parágrafo de 200 via `partial_ratio`, e narra o bloco errado.
-- **margem sobre o segundo colocado** — se os dois primeiros empatam, é melhor
-  não narrar do que narrar o errado.
+- **length ratio** — without it, a 10-char fragment scores 100 against a 200-char
+  paragraph via `partial_ratio`, and narrates the wrong block.
+- **margin over the runner-up** — if the top two tie, it is better not to narrate
+  than to narrate the wrong thing.
 
-## Normalização
+## Normalization
 
-Os dois lados passam pela mesma função: sem acento, sem pontuação, minúsculas, e
-**sem os glifos da fonte do jogo** (U+E000–U+F8FF). Isso é essencial: 25,9% dos
-blocos contêm ícones que o OCR não lê como texto nenhum. Ver `glifos.py`.
+Both sides go through the same function: no accents, no punctuation, lowercase, and
+**without the game font's glyphs** (U+E000–U+F8FF). This is essential: 25.9% of the
+blocks contain icons that OCR does not read as text at all. See `glyphs.py`.
 """
 from __future__ import annotations
 
@@ -58,25 +58,25 @@ try:
 except ImportError:  # noqa: BLE001
     import sys as _sys
     raise SystemExit(
-        f"[erro] rapidfuzz não está neste interpretador ({_sys.executable}).\n"
-        f"       As dependências do projeto vivem no venv. Rode assim:\n\n"
-        f"         ~/jime-venv/bin/python {' '.join(_sys.argv) or 'demo.py ...'}\n\n"
-        f"       (ou instale aqui:  {_sys.executable} -m pip install rapidfuzz)")
+        f"[error] rapidfuzz is not in this interpreter ({_sys.executable}).\n"
+        f"        The project's dependencies live in the venv. Run it like this:\n\n"
+        f"          ~/jime-venv/bin/python {' '.join(_sys.argv) or 'demo.py ...'}\n\n"
+        f"        (or install it here:  {_sys.executable} -m pip install rapidfuzz)")
 
-import glifos
+import glyphs
 
-# Atenção: desde o RapidFuzz 3.0 nada é pré-processado por padrão (diferente do
-# fuzzywuzzy). A normalização abaixo é obrigatória nos dois lados.
+# Careful: since RapidFuzz 3.0 nothing is pre-processed by default (unlike
+# fuzzywuzzy). The normalization below is mandatory on both sides.
 
-PREFIXO_HISTORIA = re.compile(r"^([AB]\d+)_")
-_DIGITOS = re.compile(r"\d+")
-PARAGRAFO = re.compile(r"\n\s*\n|\n")
+STORY_PREFIX = re.compile(r"^([AB]\d+)_")
+_DIGITS = re.compile(r"\d+")
+PARAGRAPH = re.compile(r"\n\s*\n|\n")
 
 
-def normalizar(s: str) -> str:
-    """Mesma normalização dos dois lados: corpus e OCR."""
-    s = glifos.PUA.sub(" ", s)
-    s = re.sub(r"\{\d+\}", " ", s)          # placeholders não aparecem na tela
+def normalize(s: str) -> str:
+    """Same normalization on both sides: corpus and OCR."""
+    s = glyphs.PUA.sub(" ", s)
+    s = re.sub(r"\{\d+\}", " ", s)          # placeholders do not show on screen
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = s.casefold()
@@ -84,238 +84,241 @@ def normalizar(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-def paragrafos(texto: str) -> list[str]:
-    """Divide a tela em parágrafos. Cada um tende a ser uma chave do corpus."""
-    return [p.strip() for p in PARAGRAFO.split(texto) if p.strip()]
+def paragraphs(text: str) -> list[str]:
+    """Splits the screen into paragraphs. Each tends to be one corpus key."""
+    return [p.strip() for p in PARAGRAPH.split(text) if p.strip()]
 
 
 @dataclass
-class Resultado:
-    chave: str | None
+class Result:
+    key: str | None
     score: float
-    margem: float
-    razao_compr: float
-    aceito: bool
-    motivo: str
-    texto: str = ""
-    segundo: str | None = None
+    margin: float
+    length_ratio: float
+    accepted: bool
+    reason: str
+    text: str = ""
+    runner_up: str | None = None
 
 
 @dataclass
 class Matcher:
-    """Índice de casamento, opcionalmente escopado por campanha e aventura."""
+    """Matching index, optionally scoped by campaign and adventure."""
 
     corpus: dict
-    campanha: str | None = None
-    aventura_prefixo: str | None = None
-    limiar: float = 82.0
-    limiar_seguro: float = 92.0
-    razao_min: float = 0.75
-    margem_min: float = 5.0
-    _chaves: list[str] = field(default_factory=list, init=False)
-    _normas: list[str] = field(default_factory=list, init=False)
-    _fragmento: list[bool] = field(default_factory=list, init=False)
+    campaign: str | None = None
+    adventure_prefix: str | None = None
+    threshold: float = 82.0
+    safe_threshold: float = 92.0
+    min_length_ratio: float = 0.75
+    min_margin: float = 5.0
+    _keys: list[str] = field(default_factory=list, init=False)
+    _norms: list[str] = field(default_factory=list, init=False)
+    _is_fragment: list[bool] = field(default_factory=list, init=False)
 
     def __post_init__(self) -> None:
         for k, v in self.corpus.items():
             if not v.get("narration"):
                 continue
-            camp, chave = k.split(":", 1)
-            if self.campanha and camp not in (self.campanha, "main"):
+            camp, key = k.split(":", 1)
+            if self.campaign and camp not in (self.campaign, "main"):
                 continue
-            if self.aventura_prefixo:
-                m = PREFIXO_HISTORIA.match(chave)
-                # aceita as chaves da aventura atual + todas as genéricas
-                if m and m.group(1) != self.aventura_prefixo:
+            if self.adventure_prefix:
+                m = STORY_PREFIX.match(key)
+                # accepts the current adventure's keys + all the generic ones
+                if m and m.group(1) != self.adventure_prefix:
                     continue
-            # Indexa o bloco inteiro E cada parágrafo dele.
+            # Index the whole block AND each of its paragraphs.
             #
-            # Sem isso, a trava de razão de comprimento rejeita o casamento
-            # correto sempre que a tela mostra UM parágrafo de um bloco que tem
-            # vários: 150 chars contra 300 dá razão 0,50 e cai na trava. Medido:
-            # 471 das 536 recusas vinham daí. Cada parágrafo aponta de volta para
-            # a chave do bloco, então o áudio tocado continua sendo o do bloco.
-            partes = [v["text"]]
-            ps = paragrafos(v["text"])
+            # Without this, the length-ratio guard rejects the correct match
+            # whenever the screen shows ONE paragraph of a block that has
+            # several: 150 chars against 300 gives a ratio of 0.50 and trips the
+            # guard. Measured: 471 of the 536 refusals came from that. Each
+            # paragraph points back to the block's key, so the audio played is
+            # still the block's.
+            parts = [v["text"]]
+            ps = paragraphs(v["text"])
             if len(ps) > 1:
-                partes += ps
-            for i, parte in enumerate(partes):
-                n = normalizar(parte)
-                if len(n) < 8:      # curto demais para casar com segurança
+                parts += ps
+            for i, part in enumerate(parts):
+                n = normalize(part)
+                if len(n) < 8:      # too short to match safely
                     continue
-                self._chaves.append(k)
-                self._normas.append(n)
-                self._fragmento.append(i > 0)   # 0 = bloco inteiro
+                self._keys.append(k)
+                self._norms.append(n)
+                self._is_fragment.append(i > 0)   # 0 = whole block
 
     def __len__(self) -> int:
-        return len(self._chaves)
+        return len(self._keys)
 
-    def casar(self, texto_ocr: str) -> Resultado:
-        """Casa um trecho já lido da tela contra o escopo."""
-        alvo = normalizar(texto_ocr)
-        if len(alvo) < 8:
-            return Resultado(None, 0, 0, 0, False, "trecho curto demais")
+    def match_text(self, ocr_text: str) -> Result:
+        """Matches an excerpt already read off the screen against the scope."""
+        target = normalize(ocr_text)
+        if len(target) < 8:
+            return Result(None, 0, 0, 0, False, "excerpt too short")
 
-        # score_cutoff poda candidatos ruins e acelera muito; um segundo colocado
-        # abaixo do corte significa margem larga, que é o caso favorável mesmo.
-        achados = process.extract(alvo, self._normas, scorer=fuzz.partial_ratio,
-                                  limit=20, score_cutoff=self.limiar - 12)
-        if not achados:
-            return Resultado(None, 0, 0, 0, False, "nenhum candidato acima do corte")
-        return self._escolher(alvo, [(sc, i) for _t, sc, i in achados])
+        # score_cutoff prunes bad candidates and speeds this up a lot; a runner-up
+        # below the cutoff means a wide margin, which is the favorable case anyway.
+        found = process.extract(target, self._norms, scorer=fuzz.partial_ratio,
+                                limit=20, score_cutoff=self.threshold - 12)
+        if not found:
+            return Result(None, 0, 0, 0, False, "no candidate above the cutoff")
+        return self._choose(target, [(sc, i) for _t, sc, i in found])
 
-        # --- as travas ---
-        if razao < self.razao_min:
-            return Resultado(chave, melhor_score, margem, razao, False,
-                             f"razão de comprimento {razao:.2f} < {self.razao_min}",
-                             melhor_txt, segundo)
-        if melhor_score >= self.limiar_seguro:
-            return Resultado(chave, melhor_score, margem, razao, True,
-                             "acima do limiar seguro", melhor_txt, segundo)
-        if melhor_score >= self.limiar and margem >= self.margem_min:
-            return Resultado(chave, melhor_score, margem, razao, True,
-                             "acima do limiar, com margem", melhor_txt, segundo)
-        if melhor_score < self.limiar:
-            return Resultado(chave, melhor_score, margem, razao, False,
-                             f"score {melhor_score:.0f} < {self.limiar}",
-                             melhor_txt, segundo)
-        return Resultado(chave, melhor_score, margem, razao, False,
-                         f"margem {margem:.0f} < {self.margem_min}", melhor_txt, segundo)
+        # --- the guards ---
+        if ratio < self.min_length_ratio:
+            return Result(key, best_score, margin, ratio, False,
+                          f"length ratio {ratio:.2f} < {self.min_length_ratio}",
+                          best_txt, runner_up)
+        if best_score >= self.safe_threshold:
+            return Result(key, best_score, margin, ratio, True,
+                          "above the safe threshold", best_txt, runner_up)
+        if best_score >= self.threshold and margin >= self.min_margin:
+            return Result(key, best_score, margin, ratio, True,
+                          "above the threshold, with margin", best_txt, runner_up)
+        if best_score < self.threshold:
+            return Result(key, best_score, margin, ratio, False,
+                          f"score {best_score:.0f} < {self.threshold}",
+                          best_txt, runner_up)
+        return Result(key, best_score, margin, ratio, False,
+                      f"margin {margin:.0f} < {self.min_margin}", best_txt, runner_up)
 
-    def casar_lote(self, trechos: list[str]) -> list[Resultado]:
-        """Casa muitos trechos de uma vez, usando todos os núcleos.
+    def match_batch(self, excerpts: list[str]) -> list[Result]:
+        """Matches many excerpts at once, using every core.
 
-        `process.extract` é serial e fica caro quando se avalia um harness
-        inteiro (centenas de telas x milhares de candidatos). `cdist` calcula a
-        matriz completa em paralelo; os scores cabem em uint8 porque vão de 0 a
-        100. O resultado é idêntico ao de chamar `casar` num laço.
+        `process.extract` is serial and gets expensive when evaluating a whole
+        harness (hundreds of screens x thousands of candidates). `cdist` computes
+        the full matrix in parallel; the scores fit in uint8 because they range
+        from 0 to 100. The result is identical to calling `match_text` in a loop.
         """
         import numpy as np
         from rapidfuzz.process import cdist
 
-        alvos = [normalizar(t) for t in trechos]
-        validos = [i for i, a in enumerate(alvos) if len(a) >= 8]
-        saida: list[Resultado] = [
-            Resultado(None, 0, 0, 0, False, "trecho curto demais") for _ in alvos]
-        if not validos:
-            return saida
+        targets = [normalize(t) for t in excerpts]
+        valid = [i for i, a in enumerate(targets) if len(a) >= 8]
+        out: list[Result] = [
+            Result(None, 0, 0, 0, False, "excerpt too short") for _ in targets]
+        if not valid:
+            return out
 
-        m = cdist([alvos[i] for i in validos], self._normas,
+        m = cdist([targets[i] for i in valid], self._norms,
                   scorer=fuzz.partial_ratio, dtype=np.uint8, workers=-1)
-        k = min(20, len(self._normas))
-        for linha, i in enumerate(validos):
-            row = m[linha]
+        k = min(20, len(self._norms))
+        for row_idx, i in enumerate(valid):
+            row = m[row_idx]
             top = np.argpartition(row, -k)[-k:]
             top = top[np.argsort(row[top])][::-1]
-            saida[i] = self._escolher(alvos[i], [(float(row[j]), int(j)) for j in top])
-        return saida
+            out[i] = self._choose(targets[i], [(float(row[j]), int(j)) for j in top])
+        return out
 
-    def _escolher(self, alvo: str, cands: list[tuple[float, int]]) -> Resultado:
-        """Escolhe entre os candidatos do topo e calcula a margem por CHAVE.
+    def _choose(self, target: str, cands: list[tuple[float, int]]) -> Result:
+        """Picks among the top candidates and computes the margin per KEY.
 
-        Duas sutilezas que só apareceram no primeiro teste com OCR real:
+        Two subtleties that only showed up in the first test with real OCR:
 
-        1. **Desempate pela razão de comprimento.** Um bloco e um parágrafo dele
-           dão os dois score 100 no `partial_ratio`; se o desempate for arbitrário
-           e cair no bloco inteiro, a razão fica em 0,64 e a trava recusa um
-           acerto perfeito. Entre scores iguais, vence quem tem a razão melhor.
-        2. **A margem é entre CHAVES distintas, não entre entradas.** O bloco e
-           seus parágrafos são a mesma chave; medir margem entre eles daria 0 e
-           reprovaria todo casamento bom.
+        1. **Tie-break by length ratio.** A block and one of its paragraphs both
+           score 100 on `partial_ratio`; if the tie-break is arbitrary and lands
+           on the whole block, the ratio comes out at 0.64 and the guard refuses
+           a perfect hit. Between equal scores, the better ratio wins.
+        2. **The margin is between distinct KEYS, not between entries.** The
+           block and its paragraphs are the same key; measuring the margin
+           between them would give 0 and fail every good match.
         """
-        def razao_de(j: int) -> float:
-            t = self._normas[j]
-            return min(len(alvo), len(t)) / max(len(alvo), len(t))
+        def ratio_of(j: int) -> float:
+            t = self._norms[j]
+            return min(len(target), len(t)) / max(len(target), len(t))
 
-        # descarta cedo quem tem número conflitante: senão um candidato errado
-        # com score alto rouba a vaga de um certo com score um pouco menor
-        limpos = [(sc, j) for sc, j in cands
-                  if not self._numeros_conflitam(alvo, self._normas[j])]
-        cands = limpos or cands
+        # discard early anything with a conflicting number: otherwise a wrong
+        # candidate with a high score steals the slot from a right one scoring
+        # slightly lower
+        clean = [(sc, j) for sc, j in cands
+                 if not self._numbers_conflict(target, self._norms[j])]
+        cands = clean or cands
 
-        melhor_score = max(sc for sc, _ in cands)
-        empatados = [j for sc, j in cands if sc == melhor_score]
-        j1 = max(empatados, key=razao_de)
-        chave = self._chaves[j1]
+        best_score = max(sc for sc, _ in cands)
+        tied = [j for sc, j in cands if sc == best_score]
+        j1 = max(tied, key=ratio_of)
+        key = self._keys[j1]
 
-        # melhor score entre candidatos de OUTRA chave
-        outros = [(sc, j) for sc, j in cands if self._chaves[j] != chave]
-        s2, j2 = max(outros, default=(0.0, j1))
-        return self._decidir(alvo, melhor_score, s2, j1, j2)
+        # best score among candidates from ANOTHER key
+        others = [(sc, j) for sc, j in cands if self._keys[j] != key]
+        s2, j2 = max(others, default=(0.0, j1))
+        return self._decide(target, best_score, s2, j1, j2)
 
     @staticmethod
-    def _numeros_conflitam(alvo: str, cand: str) -> bool:
-        """Os números do candidato contradizem os da tela?
+    def _numbers_conflict(target: str, cand: str) -> bool:
+        """Do the candidate's numbers contradict the ones on screen?
 
-        Trava descoberta com telas reais: o bloco `A11_SECTION_0` contém
-        "Coloque a peça 205B conforme indicado", e a tela mostrava 208B. Um
-        caractere de diferença dá partial_ratio 97,3 e razão 1,00 — passa em
-        todas as outras travas e narra o bloco errado.
+        Guard discovered with real screens: the block `A11_SECTION_0` contains
+        "Place tile 205B as indicated", and the screen was showing 208B. One
+        character of difference gives partial_ratio 97.3 and ratio 1.00 — it
+        passes every other guard and narrates the wrong block.
 
-        Números são semanticamente decisivos aqui: identificam a peça do mapa, a
-        quantidade de dano, a dificuldade do teste. Errar o número é pior que
-        calar, porque o jogador age sobre ele.
+        Numbers are semantically decisive here: they identify the map tile, the
+        amount of damage, the difficulty of the test. Getting the number wrong is
+        worse than staying silent, because the player acts on it.
 
-        A regra é assimétrica de propósito: só bloqueia quando o CANDIDATO tem
-        dígitos literais. Os templates do jogo trazem `{0}`, que a normalização
-        remove, e eles precisam continuar casando com a tela que mostra o valor.
+        The rule is asymmetric on purpose: it only blocks when the CANDIDATE has
+        literal digits. The game's templates carry `{0}`, which normalization
+        strips, and they need to keep matching the screen that shows the value.
         """
-        n_cand = set(_DIGITOS.findall(cand))
+        n_cand = set(_DIGITS.findall(cand))
         if not n_cand:
             return False
-        n_alvo = set(_DIGITOS.findall(alvo))
-        if not n_alvo:
+        n_target = set(_DIGITS.findall(target))
+        if not n_target:
             return False
-        return n_cand != n_alvo
+        return n_cand != n_target
 
-    def _decidir(self, alvo: str, s1: float, s2: float, j1: int, j2: int) -> Resultado:
-        """Aplica limiar e travas. Compartilhado por `casar` e `casar_lote`."""
-        margem = s1 - s2
-        melhor_txt = self._normas[j1]
-        razao = min(len(alvo), len(melhor_txt)) / max(len(alvo), len(melhor_txt))
-        chave, segundo = self._chaves[j1], self._chaves[j2]
-        if self._numeros_conflitam(alvo, melhor_txt):
-            return Resultado(chave, s1, margem, razao, False,
-                             "números não batem com os da tela", melhor_txt, segundo)
-        # Um fragmento (parágrafo solto de um bloco) casa mais fácil e erra mais:
-        # indexá-los subiu o acerto de 80% para 86%, mas dobrou o erro de 0,4%
-        # para 1,0%. Exigir deles o limiar seguro recupera a precisão sem perder
-        # o ganho de cobertura.
-        if self._fragmento[j1] and s1 < self.limiar_seguro:
-            return Resultado(chave, s1, margem, razao, False,
-                             f"fragmento com score {s1:.0f} < {self.limiar_seguro}",
-                             melhor_txt, segundo)
-        if razao < self.razao_min:
-            return Resultado(chave, s1, margem, razao, False,
-                             f"razão de comprimento {razao:.2f} < {self.razao_min}",
-                             melhor_txt, segundo)
-        if s1 >= self.limiar_seguro:
-            return Resultado(chave, s1, margem, razao, True,
-                             "acima do limiar seguro", melhor_txt, segundo)
-        if s1 >= self.limiar and margem >= self.margem_min:
-            return Resultado(chave, s1, margem, razao, True,
-                             "acima do limiar, com margem", melhor_txt, segundo)
-        if s1 < self.limiar:
-            return Resultado(chave, s1, margem, razao, False,
-                             f"score {s1:.0f} < {self.limiar}", melhor_txt, segundo)
-        return Resultado(chave, s1, margem, razao, False,
-                         f"margem {margem:.0f} < {self.margem_min}", melhor_txt, segundo)
+    def _decide(self, target: str, s1: float, s2: float, j1: int, j2: int) -> Result:
+        """Applies threshold and guards. Shared by `match_text` and `match_batch`."""
+        margin = s1 - s2
+        best_txt = self._norms[j1]
+        ratio = min(len(target), len(best_txt)) / max(len(target), len(best_txt))
+        key, runner_up = self._keys[j1], self._keys[j2]
+        if self._numbers_conflict(target, best_txt):
+            return Result(key, s1, margin, ratio, False,
+                          "numbers do not match those on screen", best_txt, runner_up)
+        # A fragment (a loose paragraph of a block) matches more easily and gets it
+        # wrong more often: indexing them raised the hit rate from 80% to 86%, but
+        # doubled the error rate from 0.4% to 1.0%. Requiring the safe threshold of
+        # them recovers the precision without losing the coverage gain.
+        if self._is_fragment[j1] and s1 < self.safe_threshold:
+            return Result(key, s1, margin, ratio, False,
+                          f"fragment with score {s1:.0f} < {self.safe_threshold}",
+                          best_txt, runner_up)
+        if ratio < self.min_length_ratio:
+            return Result(key, s1, margin, ratio, False,
+                          f"length ratio {ratio:.2f} < {self.min_length_ratio}",
+                          best_txt, runner_up)
+        if s1 >= self.safe_threshold:
+            return Result(key, s1, margin, ratio, True,
+                          "above the safe threshold", best_txt, runner_up)
+        if s1 >= self.threshold and margin >= self.min_margin:
+            return Result(key, s1, margin, ratio, True,
+                          "above the threshold, with margin", best_txt, runner_up)
+        if s1 < self.threshold:
+            return Result(key, s1, margin, ratio, False,
+                          f"score {s1:.0f} < {self.threshold}", best_txt, runner_up)
+        return Result(key, s1, margin, ratio, False,
+                      f"margin {margin:.0f} < {self.min_margin}", best_txt, runner_up)
 
-    def casar_tela(self, texto_ocr: str) -> list[Resultado]:
-        """Casa uma tela inteira, parágrafo a parágrafo.
+    def match_screen(self, ocr_text: str) -> list[Result]:
+        """Matches a whole screen, paragraph by paragraph.
 
-        É este o modo que respeita a composição do jogo: a prosa costuma vir de
-        uma chave e a instrução de outra. Devolve um resultado por parágrafo, na
-        ordem — que é também a ordem em que o áudio deve tocar.
+        This is the mode that respects the game's composition: the prose usually
+        comes from one key and the instruction from another. Returns one result
+        per paragraph, in order — which is also the order in which the audio
+        should play.
         """
-        return [self.casar(p) for p in paragrafos(texto_ocr)]
+        return [self.match_text(p) for p in paragraphs(ocr_text)]
 
 
-def escopo_do_save(save_path: Path) -> tuple[str | None, int | None]:
-    """Lê campanha e aventura atuais do save do jogo (JSON puro)."""
+def scope_from_save(save_path: Path) -> tuple[str | None, int | None]:
+    """Reads the current campaign and adventure from the game save (plain JSON)."""
     j = json.loads(Path(save_path).read_text(encoding="utf-8"))
     return j.get("CampaignId"), j.get("CurrentAdventureId")
 
 
-def carregar_corpus(caminho: Path) -> dict:
-    return json.loads(Path(caminho).read_text(encoding="utf-8"))
+def load_corpus(path: Path) -> dict:
+    return json.loads(Path(path).read_text(encoding="utf-8"))

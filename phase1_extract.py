@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-jime_corpus.py — Fase 1 do Narrador JiME (versão final, pós-descoberta).
+jime_corpus.py — Phase 1 of the JiME Narrator (final version, post-discovery).
 
-O app guarda a localização em AssetBundles Unity, um por campanha e idioma,
-mapeados em StreamingAssets/bundles/manifest.dat (JSON puro). Dentro de cada
-bundle há um único TextAsset em CSV: "KEY,<Idioma>".
+The app keeps the localization in Unity AssetBundles, one per campaign and
+language, mapped in StreamingAssets/bundles/manifest.dat (plain JSON). Inside
+each bundle there is a single TextAsset in CSV form: "KEY,<Language>".
 
-Este script:
-  1. lê o manifest.dat
-  2. seleciona os bundles do idioma escolhido (padrão: pt)
-  3. extrai o CSV de cada um com UnityPy
-  4. limpa a marcação do jogo ([i], [b], <sprite=...>, etc.)
-  5. gera corpus.json + um .csv por campanha + estatísticas
+This script:
+  1. reads manifest.dat
+  2. selects the bundles of the chosen language (default: pt)
+  3. extracts the CSV from each one with UnityPy
+  4. cleans the game markup ([i], [b], <sprite=...>, etc.)
+  5. generates corpus.json + one .csv per campaign + statistics
 
-Uso:
-  python3 jime_corpus.py <dir_dos_bundles> -o corpus/ [--lang pt] [--keep-markup]
+Usage:
+  python3 jime_corpus.py <bundles_dir> -o corpus/ [--lang pt] [--keep-markup]
 
-Dependência: pip install UnityPy
+Dependency: pip install UnityPy
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ RICHTEXT_RE = re.compile(r"</?[a-zA-Z][^>]{0,60}>")            # <sprite=...> <c
 PLACEHOLDER_RE = re.compile(r"\{[0-9A-Za-z_]{1,30}\}")         # {0} {HERO_NAME}
 WS_RE = re.compile(r"[ \t]+")
 
-# chaves que claramente não são narrativa lida em voz alta
+# keys that are clearly not narration read out loud
 UI_KEY_HINTS = ("_BUTTON", "_BTN", "_TOOLTIP", "_LABEL", "_TITLE_SHORT", "_ERROR",
                 "_MENU", "_SETTINGS", "_OPTION", "_HUD")
 
@@ -49,7 +49,7 @@ def clean(text: str, keep_markup: bool = False) -> str:
 
 
 def is_narration(key: str, text: str) -> bool:
-    """Heurística: o bloco parece texto de leitura em voz alta?"""
+    """Heuristic: does the block look like text to be read out loud?"""
     if any(h in key.upper() for h in UI_KEY_HINTS):
         return False
     words = len(text.split())
@@ -57,7 +57,7 @@ def is_narration(key: str, text: str) -> bool:
 
 
 def extract_bundle(path: Path) -> tuple[str, str]:
-    """Devolve (nome_do_textasset, conteúdo_csv)."""
+    """Returns (textasset_name, csv_content)."""
     import UnityPy
 
     env = UnityPy.load(str(path))
@@ -70,12 +70,12 @@ def extract_bundle(path: Path) -> tuple[str, str]:
         if isinstance(raw, str):
             raw = raw.encode("utf-8", "surrogateescape")
         return name, raw.decode("utf-8-sig", errors="replace")
-    raise RuntimeError(f"nenhum TextAsset em {path}")
+    raise RuntimeError(f"no TextAsset in {path}")
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("bundles_dir", help="pasta StreamingAssets/bundles")
+    ap.add_argument("bundles_dir", help="StreamingAssets/bundles folder")
     ap.add_argument("-o", "--out", default="corpus")
     ap.add_argument("--lang", default="pt")
     ap.add_argument("--keep-markup", action="store_true")
@@ -86,20 +86,20 @@ def main() -> None:
     wanted = [b for b in manifest["bundleInfos"]
               if b["name"].startswith("localization/") and b["name"].endswith(f"/{args.lang}")]
     if not wanted:
-        sys.exit(f"[erro] nenhum bundle de localização para '{args.lang}'")
+        sys.exit(f"[error] no localization bundle for '{args.lang}'")
 
     out = Path(args.out)
     (out / "csv").mkdir(parents=True, exist_ok=True)
 
     corpus: dict[str, dict] = {}
     stats = Counter()
-    faltando: list[str] = []
+    missing: list[str] = []
 
     for b in sorted(wanted, key=lambda b: b["name"]):
         campaign = b["name"].split("/")[1]
         f = bdir / b["filename"]
         if not f.exists():
-            faltando.append(f"{campaign} ({b['filename']})")
+            missing.append(f"{campaign} ({b['filename']})")
             continue
         name, csv_text = extract_bundle(f)
 
@@ -126,9 +126,9 @@ def main() -> None:
             corpus[f"{campaign}:{key}"] = {k: v for k, v in entry.items() if v is not None}
             n_camp += 1
             stats["total"] += 1
-            stats["narracao"] += entry["narration"]
-            stats["com_placeholder"] += bool(entry["placeholders"])
-            stats["palavras"] += entry["words"]
+            stats["narration"] += entry["narration"]
+            stats["with_placeholder"] += bool(entry["placeholders"])
+            stats["words"] += entry["words"]
 
         with (out / "csv" / f"{campaign}_{args.lang}.csv").open("w", newline="", encoding="utf-8") as fh:
             w = csv.writer(fh)
@@ -137,18 +137,18 @@ def main() -> None:
                 if e["campaign"] == campaign:
                     w.writerow([e["key"], int(e["narration"]),
                                 "|".join(e.get("placeholders", [])), e["words"], e["text"]])
-        print(f"  {campaign:<16} {name:<28} {n_camp:>5} chaves  (header={header})")
+        print(f"  {campaign:<16} {name:<28} {n_camp:>5} keys  (header={header})")
 
     (out / f"corpus_{args.lang}.json").write_text(
         json.dumps(corpus, ensure_ascii=False, indent=1), encoding="utf-8")
 
-    print("\n[resumo]")
-    print(f"  chaves totais .......... {stats['total']:,}")
-    print(f"  blocos de narração ..... {stats['narracao']:,}")
-    print(f"  com placeholder {{}} .... {stats['com_placeholder']:,}")
-    print(f"  palavras (tudo) ........ {stats['palavras']:,}")
-    if faltando:
-        print(f"  ⚠ bundles ausentes: {', '.join(faltando)}")
+    print("\n[summary]")
+    print(f"  total keys ............. {stats['total']:,}")
+    print(f"  narration blocks ....... {stats['narration']:,}")
+    print(f"  with placeholder {{}} ... {stats['with_placeholder']:,}")
+    print(f"  words (all) ............ {stats['words']:,}")
+    if missing:
+        print(f"  ⚠ missing bundles: {', '.join(missing)}")
     print(f"\n  → {out / f'corpus_{args.lang}.json'}")
 
 

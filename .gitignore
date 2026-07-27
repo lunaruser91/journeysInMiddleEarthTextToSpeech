@@ -1,25 +1,25 @@
 # ---------------------------------------------------------------------------
-# Conteúdo do jogo e derivados — NUNCA versionar.
+# Game content and derivatives — NEVER commit these.
 #
-# Os Termos da Asmodee Digital (§5.3/§5.4) proíbem extrair o conteúdo, e o texto
-# é obra protegida (FFG + Middle-earth Enterprises). O áudio gerado é obra
-# derivada. Este repositório publica UM EXTRATOR E UM RENDERIZADOR — cada pessoa
-# roda a extração sobre a própria instalação do jogo.
+# The Asmodee Digital Terms (§5.3/§5.4) forbid extracting the content, and the text
+# is a protected work (FFG + Middle-earth Enterprises). The generated audio is a
+# derivative work. This repository publishes AN EXTRACTOR AND A RENDERER — each
+# person runs the extraction against their own installation of the game.
 # ---------------------------------------------------------------------------
 
-# corpus extraído (texto do jogo, em qualquer formato)
+# extracted corpus (game text, in any format)
 corpus/
 *.csv
 
-# manifest do renderizador: guarda "text" e "norm" de cada bloco, ou seja,
-# é o corpus inteiro com outro nome. O .gitignore do briefing esquecia dele.
+# renderer manifest: it stores "text" and "norm" for every block, which means
+# it is the whole corpus under another name. The briefing's .gitignore missed it.
 manifest.json
 manifest*.json
 
-# tudo que é gerado vive aqui — áudio, manifests, fixtures, medições
-saida/
+# everything generated lives here — audio, manifests, fixtures, measurements
+output/
 
-# áudio renderizado, em qualquer formato e qualquer lugar
+# rendered audio, any format, anywhere
 audio/
 audio_piper/
 entrega/
@@ -33,7 +33,7 @@ validacao_clone/
 *.ogg
 *.caf
 
-# uma pasta de áudio por campanha, na raiz (saída do render)
+# one audio folder per campaign, at the root (render output)
 /bonesofarnor/
 /embercrown/
 /shadowedpaths/
@@ -42,17 +42,17 @@ validacao_clone/
 /poisonpromise/
 /main/
 
-# assets crus do jogo
+# raw game assets
 Data/
 *.dat
 *.bundle
 
 # ---------------------------------------------------------------------------
-# Referência de voz
+# Voice reference
 # ---------------------------------------------------------------------------
-# REF_paginasrecolhidas.wav vem do LibriVox (domínio público), então distribuí-lo
-# seria legalmente possível. Fica ignorado por padrão para manter o repositório
-# livre de binários; para versioná-lo, descomente a linha abaixo.
+# REF_paginasrecolhidas.wav comes from LibriVox (public domain), so distributing
+# it would be legally possible. It stays ignored by default to keep the repository
+# free of binaries; to commit it, uncomment the line below.
 # !ref/REF_paginasrecolhidas.wav
 
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ venv/
 .Trashes
 
 # ---------------------------------------------------------------------------
-# Trabalho local
+# Local work
 # ---------------------------------------------------------------------------
 bench_results.json
 *.log

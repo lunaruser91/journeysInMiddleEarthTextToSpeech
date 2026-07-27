@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-render_piper.py — trilha provisória / voz de fallback da Fase 3.
+render_piper.py — provisional track / fallback voice for Phase 3.
 
-Mesma estrutura do render_corpus.py (mesmo cache, mesmo manifest, mesma cadeia
-de DSP), mas sintetizando com Piper em vez do Chatterbox. É ~90x mais rápido e
-não precisa de GPU — serve para (a) ter áudio jogável já, (b) ser a voz do TTS
-ao vivo dos blocos com {0} na Fase 3.
+Same structure as render_corpus.py (same cache, same manifest, same DSP
+chain), but synthesizing with Piper instead of Chatterbox. It is ~90x faster
+and needs no GPU — it serves to (a) already have playable audio, (b) be the
+voice of the live TTS for the blocks with {0} in Phase 3.
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ def main() -> None:
 
     t0, done, skipped = time.time(), 0, 0
     total = len(blocks)
-    print(f"[piper] {total} blocos | voz={Path(args.voice).stem}", flush=True)
+    print(f"[piper] {total} blocks | voice={Path(args.voice).stem}", flush=True)
 
     for i, (key, v) in enumerate(blocks.items(), 1):
         ck = hashlib.blake2b(
@@ -79,11 +79,11 @@ def main() -> None:
         if done % 50 == 0:
             mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
             el = time.time() - t0
-            print(f"  [{i}/{total}] feitos {done} | {el/60:.1f} min | "
+            print(f"  [{i}/{total}] done {done} | {el/60:.1f} min | "
                   f"ETA {(total-i)/max(done/el,1e-6)/60:.1f} min", flush=True)
 
     mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"[fim] {done} renderizados, {skipped} em cache, {time.time()-t0:.0f}s")
+    print(f"[end] {done} rendered, {skipped} cached, {time.time()-t0:.0f}s")
 
 
 if __name__ == "__main__":

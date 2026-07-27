@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
 """
-test_matcher.py — mede a precisão do matcher com telas reais e ruído de OCR.
+test_matcher.py — measures the matcher's accuracy on real screens and OCR noise.
 
-## De onde vem a verdade fundamental
+## Where the ground truth comes from
 
-Do próprio jogo. O `LogA.txt` registra a chave exata de cada bloco exibido, com
-os parâmetros. Reconstruindo `template + parâmetros` obtém-se **o texto que
-esteve na tela**, com a chave correta ao lado — sem transcrever nada à mão.
+From the game itself. `LogA.txt` records the exact key of every block that was
+displayed, along with its parameters. Rebuilding `template + parameters` yields
+**the text that was on the screen**, with the correct key next to it — without
+transcribing anything by hand.
 
-Para as telas compostas, a verdade é uma LISTA de chaves, na ordem dos
-parágrafos. Exemplo real:
+For composite screens the truth is a LIST of keys, in paragraph order. A real
+example:
 
     log     [3|1|PLACE_PERSON|1|8|0|A2_M1_T1_PLACE|0]
-    tela    parágrafo 1 = texto de A2_M1_T1_PLACE   (a prosa)
-            parágrafo 2 = "Coloque uma ficha de pessoa conforme indicado."
-    verdade [A2_M1_T1_PLACE, PLACE_PERSON]
+    screen  paragraph 1 = text of A2_M1_T1_PLACE   (the prose)
+            paragraph 2 = "Place a person token as indicated."
+    truth   [A2_M1_T1_PLACE, PLACE_PERSON]
 
-## O ruído
+## The noise
 
-O OCR erra de formas específicas, e ruído aleatório uniforme não representa isso.
-As confusões abaixo são as clássicas de OCR em texto serifado claro sobre fundo
-escuro, que é exatamente o caso do JiME. Acentos e pontuação não entram porque a
-normalização já os remove dos dois lados.
+OCR fails in specific ways, and uniform random noise does not represent that.
+The confusions below are the classic OCR ones for light serif text on a dark
+background, which is exactly the JiME case. Accents and punctuation are left out
+because normalization already strips them from both sides.
 
-    python3 test_matcher.py                 # roda a bateria completa
-    python3 test_matcher.py --verboso       # mostra cada erro
+    python3 test_matcher.py                 # runs the full battery
+    python3 test_matcher.py --verbose       # shows each error
 """
 from __future__ import annotations
 
@@ -38,225 +39,226 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-import glifos  # noqa: E402
-from matcher import Matcher, carregar_corpus, normalizar, paragrafos  # noqa: E402
+import glyphs  # noqa: E402
+from matcher import Matcher, load_corpus, normalize, paragraphs  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "corpus" / "corpus_pt.json"
 LOGS = Path(os.path.expanduser(
     "~/Library/Application Support/com.fantasyflightgames.jime/SavedGames"))
-LINHA = re.compile(r"^\[([^|]*)\|([^|]*)\|([^|\]]+)((?:\|[^\]]*)*)\]$")
+LINE_RE = re.compile(r"^\[([^|]*)\|([^|]*)\|([^|\]]+)((?:\|[^\]]*)*)\]$")
 
-# confusões de OCR observadas em texto serifado: pares visualmente próximos
-CONFUSOES = {
+# OCR confusions observed in serif text: visually close pairs
+CONFUSIONS = {
     "m": "rn", "rn": "m", "l": "i", "i": "l", "c": "e", "e": "c",
     "o": "0", "0": "o", "a": "o", "s": "5", "u": "v", "v": "u",
     "d": "cl", "h": "b", "b": "h", "t": "f", "f": "t", "g": "q", "q": "g",
 }
 
 
-def degradar(texto: str, taxa: float, rnd: random.Random) -> str:
-    """Aplica ruído de OCR: substituições visuais, quedas e junções de palavra."""
-    if taxa <= 0:
-        return texto
-    saida = []
-    for ch in texto:
+def degrade(text: str, rate: float, rnd: random.Random) -> str:
+    """Applies OCR noise: visual substitutions, drops and word joins."""
+    if rate <= 0:
+        return text
+    out = []
+    for ch in text:
         r = rnd.random()
-        if r < taxa * 0.6 and ch.lower() in CONFUSOES:
-            saida.append(CONFUSOES[ch.lower()])
-        elif r < taxa * 0.85:
-            continue                       # caractere perdido
-        elif r < taxa:
-            saida.append(ch + ch)          # caractere duplicado
+        if r < rate * 0.6 and ch.lower() in CONFUSIONS:
+            out.append(CONFUSIONS[ch.lower()])
+        elif r < rate * 0.85:
+            continue                       # dropped character
+        elif r < rate:
+            out.append(ch + ch)            # duplicated character
         else:
-            saida.append(ch)
-    s = "".join(saida)
-    # junção de palavras: o OCR às vezes come o espaço
-    if rnd.random() < taxa * 4:
+            out.append(ch)
+    s = "".join(out)
+    # word join: OCR sometimes eats the space
+    if rnd.random() < rate * 4:
         s = re.sub(r" ", "", s, count=1)
     return s
 
 
-def parse_params(resto: str) -> list[tuple[str, str]]:
-    campos = [c for c in resto.split("|") if c != ""]
-    if not campos or not campos[0].isdigit():
+def parse_params(rest: str) -> list[tuple[str, str]]:
+    fields = [c for c in rest.split("|") if c != ""]
+    if not fields or not fields[0].isdigit():
         return []
-    n = int(campos[0])
-    corpo = campos[1:]
-    if len(corpo) < 4 * n:
+    n = int(fields[0])
+    body = fields[1:]
+    if len(body) < 4 * n:
         return []
-    return [(corpo[i * 4], corpo[i * 4 + 2]) for i in range(n)]
+    return [(body[i * 4], body[i * 4 + 2]) for i in range(n)]
 
 
-def montar_fixtures(corpus: dict) -> list[dict]:
-    """Reconstrói as telas a partir dos logs: (texto_na_tela, chaves_esperadas)."""
+def build_fixtures(corpus: dict) -> list[dict]:
+    """Rebuilds the screens from the logs: (text_on_screen, expected_keys)."""
     idx = {}
     for k, v in corpus.items():
         idx.setdefault(k.split(":", 1)[1], (k, v))
 
-    fixtures, vistos = [], set()
+    fixtures, seen = [], set()
     for log in sorted(LOGS.glob("*/Log*.txt")):
-        for linha in log.read_text(encoding="utf-8", errors="replace").splitlines():
-            m = LINHA.match(linha.strip())
+        for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = LINE_RE.match(line.strip())
             if not m:
                 continue
-            _av, _rd, chave, resto = m.groups()
-            kv = idx.get(chave)
+            _adv, _rd, key, rest = m.groups()
+            kv = idx.get(key)
             if not kv:
                 continue
-            chave_full, v = kv
+            full_key, v = kv
             if not v.get("narration"):
                 continue
 
-            texto = v["text"]
-            esperadas: list[str] = []
-            # resolve os parâmetros como o jogo faz
-            for tipo, valor in parse_params(resto):
-                ref = idx.get(valor)
-                if tipo == "8" and ref:
-                    texto = texto.replace("{0}", ref[1]["text"], 1)
+            text = v["text"]
+            expected: list[str] = []
+            # resolve the parameters the way the game does
+            for kind, value in parse_params(rest):
+                ref = idx.get(value)
+                if kind == "8" and ref:
+                    text = text.replace("{0}", ref[1]["text"], 1)
                     if ref[1].get("narration"):
-                        esperadas.append(ref[0])
+                        expected.append(ref[0])
                 else:
-                    texto = re.sub(r"\{\d\}", valor, texto, count=1)
+                    text = re.sub(r"\{\d\}", value, text, count=1)
 
-            if not esperadas:
-                esperadas = [chave_full]
+            if not expected:
+                expected = [full_key]
             else:
-                esperadas.append(chave_full)   # o template vem depois da prosa
+                expected.append(full_key)   # the template comes after the prose
 
-            assinatura = normalizar(texto)
-            if len(assinatura) < 20 or assinatura in vistos:
+            signature = normalize(text)
+            if len(signature) < 20 or signature in seen:
                 continue
-            vistos.add(assinatura)
-            pre = re.match(r"^([AB]\d+)_", chave)
-            fixtures.append({"tela": texto, "esperadas": esperadas,
-                             "chave_log": chave_full, "aventura": _av,
-                             "prefixo": pre.group(1) if pre else None,
-                             "composta": len(esperadas) > 1})
+            seen.add(signature)
+            pre = re.match(r"^([AB]\d+)_", key)
+            fixtures.append({"screen": text, "expected": expected,
+                             "log_key": full_key, "adventure": _adv,
+                             "prefix": pre.group(1) if pre else None,
+                             "composite": len(expected) > 1})
     return fixtures
 
 
-def avaliar(m: Matcher, fixtures: list[dict], taxa: float, seed: int,
-            verboso: bool) -> dict:
+def evaluate(m: Matcher, fixtures: list[dict], rate: float, seed: int,
+             verbose: bool) -> dict:
     rnd = random.Random(seed)
-    total = acertos = aceitos = falsos = recusas = 0
-    erros = []
-    # monta todos os trechos de uma vez para casar em paralelo
-    trechos, mapa = [], []
+    total = hits = accepted = wrong = refusals = 0
+    errors = []
+    # build every chunk at once so they can be matched in parallel
+    chunks, mapping = [], []
     for fi, f in enumerate(fixtures):
-        sujo = degradar(f["tela"], taxa, rnd)
-        for pi, para in enumerate(paragrafos(sujo)):
-            trechos.append(para)
-            mapa.append((fi, pi))
-    todos = m.casar_lote(trechos)
-    por_fixture: dict[int, list] = {}
-    for (fi, _pi), res in zip(mapa, todos):
-        por_fixture.setdefault(fi, []).append(res)
+        dirty = degrade(f["screen"], rate, rnd)
+        for pi, para in enumerate(paragraphs(dirty)):
+            chunks.append(para)
+            mapping.append((fi, pi))
+    all_results = m.match_batch(chunks)
+    by_fixture: dict[int, list] = {}
+    for (fi, _pi), res in zip(mapping, all_results):
+        by_fixture.setdefault(fi, []).append(res)
 
     for fi, f in enumerate(fixtures):
-        resultados = por_fixture.get(fi, [])
-        # MÉTRICA POR TELA, não por parágrafo. É o que importa para a reprodução:
-        # a tela teve seu bloco de PROSA identificado? Contar cada parágrafo
-        # separadamente pune o matcher por casar "Coloque uma ficha de busca
-        # conforme indicado" com outro bloco que tem a mesma instrução — o que é
-        # inevitável e irrelevante, porque quem se narra é o bloco de prosa.
-        principal = f["esperadas"][0]
-        norm_ok = {normalizar(m.corpus[k]["text"]) for k in f["esperadas"]
+        results = by_fixture.get(fi, [])
+        # PER-SCREEN METRIC, not per paragraph. That is what matters for
+        # playback: did the screen get its PROSE block identified? Counting each
+        # paragraph separately punishes the matcher for matching "Place a search
+        # token as indicated" with another block that carries the same
+        # instruction — which is inevitable and irrelevant, because the one that
+        # gets narrated is the prose block.
+        primary = f["expected"][0]
+        norm_ok = {normalize(m.corpus[k]["text"]) for k in f["expected"]
                    if k in m.corpus}
-        aceitas = [r.chave for r in resultados if r.aceito]
+        accepted_keys = [r.key for r in results if r.accepted]
         total += 1
-        if not aceitas:
-            recusas += 1
+        if not accepted_keys:
+            refusals += 1
             continue
-        aceitos += 1
-        acertou = principal in aceitas
-        if not acertou:
-            # blocos duplicados no corpus produzem o mesmo áudio: não é erro
-            acertou = any(k in m.corpus and normalizar(m.corpus[k]["text"]) in norm_ok
-                          for k in aceitas)
-        if acertou:
-            acertos += 1
+        accepted += 1
+        hit = primary in accepted_keys
+        if not hit:
+            # duplicate blocks in the corpus produce the same audio: not an error
+            hit = any(k in m.corpus and normalize(m.corpus[k]["text"]) in norm_ok
+                      for k in accepted_keys)
+        if hit:
+            hits += 1
         else:
-            falsos += 1
-            if verboso and len(erros) < 6:
-                erros.append((principal, resultados[0]))
+            wrong += 1
+            if verbose and len(errors) < 6:
+                errors.append((primary, results[0]))
 
-    motivos = collections.Counter()
-    for res in todos:
-        if not res.aceito:
-            motivos[res.motivo.split(" ")[0] + " " + res.motivo.split(" ")[1]
-                    if len(res.motivo.split(" ")) > 1 else res.motivo] += 1
-    return {"taxa": taxa, "total": total, "acertos": acertos, "aceitos": aceitos,
-            "falsos": falsos, "recusas": recusas, "erros": erros,
-            "motivos": motivos}
+    reasons = collections.Counter()
+    for res in all_results:
+        if not res.accepted:
+            reasons[res.reason.split(" ")[0] + " " + res.reason.split(" ")[1]
+                    if len(res.reason.split(" ")) > 1 else res.reason] += 1
+    return {"rate": rate, "total": total, "hits": hits, "accepted": accepted,
+            "wrong": wrong, "refusals": refusals, "errors": errors,
+            "reasons": reasons}
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--verboso", action="store_true")
+    ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--corpus", type=Path, default=CORPUS)
     args = ap.parse_args()
 
-    corpus = carregar_corpus(args.corpus)
-    fixtures = montar_fixtures(corpus)
-    compostas = sum(1 for f in fixtures if f["composta"])
-    print(f"[fixtures] {len(fixtures)} telas reconstruídas dos logs do jogo "
-          f"({compostas} compostas de 2+ chaves)\n")
+    corpus = load_corpus(args.corpus)
+    fixtures = build_fixtures(corpus)
+    composite = sum(1 for f in fixtures if f["composite"])
+    print(f"[fixtures] {len(fixtures)} screens rebuilt from the game logs "
+          f"({composite} composite of 2+ keys)\n")
 
-    escopos = [
-        ("corpus inteiro", Matcher(corpus)),
-        ("campanha bonesofarnor+main", Matcher(corpus, campanha="bonesofarnor")),
-        ("campanha + aventura A2", Matcher(corpus, campanha="bonesofarnor",
-                                           aventura_prefixo="A2")),
+    scopes = [
+        ("whole corpus", Matcher(corpus)),
+        ("campaign bonesofarnor+main", Matcher(corpus, campaign="bonesofarnor")),
+        ("campaign + adventure A2", Matcher(corpus, campaign="bonesofarnor",
+                                            adventure_prefix="A2")),
     ]
-    for nome, m in escopos:
-        print(f"  escopo {nome:<30} {len(m):>6,} candidatos")
+    for name, m in scopes:
+        print(f"  scope {name:<30} {len(m):>6,} candidates")
 
-    # escopo correto: cada fixture contra o conjunto da SUA aventura
-    print("\n[escopo por aventura] cada tela casada contra o prefixo dela + genéricos")
-    porpre = collections.defaultdict(list)
+    # correct scope: each fixture against the set from ITS OWN adventure
+    print("\n[per-adventure scope] each screen matched against its prefix + generics")
+    by_prefix = collections.defaultdict(list)
     for f in fixtures:
-        porpre[f["prefixo"]].append(f)
-    for taxa in (0.0, 0.05):
-        tot = ac = fa = re_ = 0
-        for pre, fs in porpre.items():
+        by_prefix[f["prefix"]].append(f)
+    for rate in (0.0, 0.05):
+        tot = hi = wr = rf = 0
+        for pre, fs in by_prefix.items():
             if pre is None:
-                mm = escopos[1][1]          # genéricas: escopo de campanha
+                mm = scopes[1][1]           # generic ones: campaign scope
             else:
-                mm = Matcher(corpus, campanha="bonesofarnor", aventura_prefixo=pre)
-            r = avaliar(mm, fs, taxa, seed=1234, verboso=False)
-            tot += r["total"]; ac += r["acertos"]; fa += r["falsos"]; re_ += r["recusas"]
+                mm = Matcher(corpus, campaign="bonesofarnor", adventure_prefix=pre)
+            r = evaluate(mm, fs, rate, seed=1234, verbose=False)
+            tot += r["total"]; hi += r["hits"]; wr += r["wrong"]; rf += r["refusals"]
         tot = max(tot, 1)
-        print(f"  {'por aventura (correto)':<28} {taxa*100:>5.0f}% "
-              f"{100*ac/tot:>7.1f}% {'':>8} {100*fa/tot:>5.1f}% {100*re_/tot:>6.1f}%")
+        print(f"  {'by adventure (correct)':<28} {rate*100:>5.0f}% "
+              f"{100*hi/tot:>7.1f}% {'':>8} {100*wr/tot:>5.1f}% {100*rf/tot:>6.1f}%")
 
-    print(f"\n{'escopo':<28} {'ruído':>6} {'acerto':>8} {'aceita':>8} "
-          f"{'ERRA':>6} {'recusa':>7}")
+    print(f"\n{'scope':<28} {'noise':>6} {'hit':>8} {'accept':>8} "
+          f"{'WRONG':>6} {'refuse':>7}")
     print("  " + "-" * 72)
-    for nome, m in escopos:
-        for taxa in (0.0, 0.02, 0.05, 0.10):
-            print(f"    ... {nome} @ {taxa*100:.0f}%", end="\r", flush=True)
-            r = avaliar(m, fixtures, taxa, seed=1234, verboso=args.verboso)
+    for name, m in scopes:
+        for rate in (0.0, 0.02, 0.05, 0.10):
+            print(f"    ... {name} @ {rate*100:.0f}%", end="\r", flush=True)
+            r = evaluate(m, fixtures, rate, seed=1234, verbose=args.verbose)
             t = max(r["total"], 1)
-            print(f"  {nome:<28} {taxa*100:>5.0f}% "
-                  f"{100*r['acertos']/t:>7.1f}% {100*r['aceitos']/t:>7.1f}% "
-                  f"{100*r['falsos']/t:>5.1f}% {100*r['recusas']/t:>6.1f}%")
-            if args.verboso and r["erros"]:
-                for esperada, res in r["erros"]:
-                    print(f"      ESPERADO {esperada}")
-                    print(f"      OBTIDO   {res.chave} (score {res.score:.0f}, "
-                          f"margem {res.margem:.0f}, razão {res.razao_compr:.2f})")
+            print(f"  {name:<28} {rate*100:>5.0f}% "
+                  f"{100*r['hits']/t:>7.1f}% {100*r['accepted']/t:>7.1f}% "
+                  f"{100*r['wrong']/t:>5.1f}% {100*r['refusals']/t:>6.1f}%")
+            if args.verbose and r["errors"]:
+                for expected_key, res in r["errors"]:
+                    print(f"      EXPECTED {expected_key}")
+                    print(f"      GOT      {res.key} (score {res.score:.0f}, "
+                          f"margin {res.margin:.0f}, ratio {res.length_ratio:.2f})")
         print()
 
-    r = avaliar(escopos[1][1], fixtures, 0.05, seed=1234, verboso=False)
-    print("motivos de recusa (escopo de campanha, 5% de ruído):")
-    for mot, n in r["motivos"].most_common(6):
-        print(f"  {n:>5}  {mot}")
+    r = evaluate(scopes[1][1], fixtures, 0.05, seed=1234, verbose=False)
+    print("refusal reasons (campaign scope, 5% noise):")
+    for reason, n in r["reasons"].most_common(6):
+        print(f"  {n:>5}  {reason}")
     print()
-    print("Leitura: 'ERRA' é o que importa — narrar o bloco errado é pior que")
-    print("ficar calado, porque o jogador age sobre o que ouve. 'recusa' é o")
-    print("silêncio seguro, que o TTS ao vivo pode cobrir.")
+    print("How to read it: 'WRONG' is what matters — narrating the wrong block is")
+    print("worse than staying quiet, because the player acts on what they hear.")
+    print("'refuse' is the safe silence, which live TTS can cover.")
 
 
 if __name__ == "__main__":
