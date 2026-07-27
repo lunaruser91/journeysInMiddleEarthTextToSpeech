@@ -306,12 +306,57 @@ def cmd_play(args: argparse.Namespace) -> int:
 
 
 def cmd_test(args: argparse.Namespace) -> int:
+    if args.capture:
+        return _probe_capture(args)
     if args.video:
         return _run("narrator.py", ["--from-video", str(args.video), "--no-audio",
                                     "--corpus", str(corpus_path(args.lang))])
     if args.images:
         return _run("batch.py", [str(i) for i in args.images])
     return _run("narrator.py", ["--list-windows"])
+
+
+def _probe_capture(args: argparse.Namespace) -> int:
+    """Grab one frame and prove the window really was captured.
+
+    Seeing a window in the list is not the same as getting its pixels. Unity
+    renders through the GPU, and the classic macOS capture APIs return the
+    wallpaper for exactly this kind of window — which is the whole reason this
+    project uses ScreenCaptureKit. A uniform frame is what that failure looks
+    like, so the check is whether the pixels actually vary.
+    """
+    import numpy as np
+
+    from capture.base import CaptureError, open_window
+
+    try:
+        cap = open_window("", "Journeys")
+    except CaptureError as exc:
+        return _fail(str(exc))
+
+    frame = cap.grab()
+    cap.close()
+    if frame is None:
+        return _fail("the capture returned nothing — did the window close?")
+
+    spread = float(frame.std())
+    distinct = int(np.unique(frame[::7, ::7]).size)
+    print(f"  frame          {frame.shape[1]}x{frame.shape[0]}")
+    print(f"  brightness     mean {frame.mean():.0f}, std {spread:.1f}")
+    print(f"  distinct tones {distinct}")
+
+    out = ROOT / "output" / "capture-probe.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    from PIL import Image
+    Image.fromarray(frame).save(out)
+
+    if spread < 3 or distinct < 8:
+        return _fail(
+            "the frame is essentially uniform — this is what a blocked capture "
+            "looks like.\n"
+            f"Saved anyway to {out} so you can look at it.")
+    print(f"\n{GREEN}the window really was captured{RESET} — {out}")
+    return 0
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -394,6 +439,8 @@ def main() -> None:
     p.add_argument("--lang", default="pt")
     p.add_argument("--video", type=Path, help="replay a recording")
     p.add_argument("--images", type=Path, nargs="+", help="screenshots")
+    p.add_argument("--capture", action="store_true",
+                   help="grab one frame from the game and prove it has pixels")
     p.set_defaults(func=cmd_test)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")
