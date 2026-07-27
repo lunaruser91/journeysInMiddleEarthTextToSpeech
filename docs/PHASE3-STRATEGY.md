@@ -8,11 +8,11 @@
 > with no need to save — tested on 2026-07-27, see §5. As a per-screen trigger,
 > it arrives far too late; as live context, it is perfect.
 >
-> What it delivers is better than a trigger: **scope**. Knowing the current
-> adventure, OCR matching picks among ~80 blocks instead of 9,740 — a 156×
-> reduction that defuses the ambiguity the briefing feared. More: the log is free
-> ground truth for the OCR harness, and it decodes how the game assembles the text
-> on screen (§5b).
+> What it delivers instead is **free ground truth** for the OCR harness — 626
+> labelled screens without transcribing any by hand — and it decodes how the game
+> assembles the text on screen (§5b). It also narrows the candidate set through the
+> save file, though measurement later showed that narrowing matters far less than
+> it seemed at first (§5c, §5f).
 
 ## 1. The discovery
 
@@ -52,7 +52,7 @@ The OCR path has problems that **I measured in this corpus**, not ones I assume:
 | blocks with normalized text identical to another | 153 groups, **346 blocks** |
 | blocks sharing the first 40 characters | **1,194 (13.1%)** |
 | short blocks (< 60 chars), the ones that confuse the most | 627 (6.9%) |
-| blocks with icons the OCR does not read as text | **2,363 (25.9%)** |
+| blocks with icons the OCR does not read as text | **2,396 (26.1%)** |
 
 Add to that what the briefing already listed: on macOS 26 Tahoe the classic
 capture APIs return only the wallpaper, the valid path requires ScreenCaptureKit
@@ -92,7 +92,7 @@ watcher on SavedGame*        -> reads CurrentAdventureId  [SCOPE: ~80 candidates
 game window capture          -> ScreenCaptureKit, 5-10 Hz
  -> absdiff -> dhash -> stability (3 frames)         [trigger]
  -> OCR (Apple Vision, pt-BR)
- -> matching with rapidfuzz AGAINST THE ~80 BLOCKS OF THE ADVENTURE, not against 9,740
+ -> matching with rapidfuzz AGAINST THE ~80 BLOCKS OF THE ADVENTURE, not against 9,814
  -> plays the .opus from the manifest
  -> at the end of the session: checks what was narrated against LogA.txt and measures the real hit rate
 ```
@@ -189,12 +189,17 @@ the existing logs, how many distinct narration blocks appear in each adventure:
 | 5–6 | 84 each |
 | 7–10 | 18 to 57 |
 
-**Between 18 and 115 candidates, against 9,740 for the entire corpus — a ~156×
-reduction.** The briefing feared the ambiguity of fuzzy matching, and rightly so:
-I measured 13.1% of blocks sharing the first 40 characters. But that ambiguity
-was measured on the WHOLE corpus. Within one adventure, with ~80 candidates, the
-matching becomes practically infallible — and the length and margin guards from
-§6 of the briefing become slack, not necessity.
+**Careful with what this table means.** These are the blocks *observed in the
+logs* for each adventure, not the candidate set a matcher has to choose from. The
+real scope is larger: adventure 3 of Bones of Arnor has 44 story keys (`A2_*`) plus
+~2,358 generic ones (`UI_*`, `PLACE_*`, `ENEMY_*`, `TERRAIN_*`) that can show up in
+any adventure. From 9,814 down to ~2,402 — a 4× reduction, not 100×.
+
+And measurement went further, in §5f: scoping barely changes the outcome at all.
+The whole corpus scores 97.6%, the campaign 98.2%, the adventure 98.7%. What
+actually does the work are the guards and the paragraph-level matching. The scope
+is still worth keeping — it is free, since the save file is already there, and it
+cuts CPU cost — but it is not the lever it first appeared to be.
 
 ## 5d. And the log gains three new roles
 
@@ -260,9 +265,9 @@ oracle to measure the hit rate.
 
 ## 5f. The matcher: built and measured
 
-`matcher.py` + `test_matcher.py`, measured against **626 real screens
+`matcher.py` + `test_matcher.py`, measured against **627 real screens
 reconstructed from the game logs** (107 of them composed of 2+ keys). The
-briefing asked for "30-50 real transcribed screenshots"; these 626 came out
+briefing asked for "30-50 real transcribed screenshots"; these 627 came out
 without transcribing any.
 
 Synthetic OCR noise with the classic confusions of serif text
@@ -276,23 +281,23 @@ irrelevant, because what gets narrated is the prose.
 
 | scope | noise | hit rate | **wrong** | refusal |
 |---|---:|---:|---:|---:|
-| campaign + main (7,299 cand.) | 0% | **88.2%** | 2.4% | 9.4% |
-| campaign + main | 2% | 87.5% | 2.2% | 10.2% |
-| campaign + main | 5% | 86.7% | 2.9% | 10.4% |
-| campaign + main | 10% | 67.3% | 5.4% | 27.3% |
-| entire corpus (21,476 cand.) | 0% | 87.5% | 2.4% | 10.1% |
-| by adventure | 0% | 87.9% | 2.1% | 10.1% |
+| campaign + main (7,314 cand.) | 0% | **98.2%** | 1.0% | 0.8% |
+| campaign + main | 2% | 95.5% | 1.3% | 3.2% |
+| campaign + main | 5% | 93.0% | 2.1% | 4.9% |
+| campaign + main | 10% | 73.0% | 4.6% | 22.3% |
+| entire corpus (21,559 cand.) | 0% | 97.6% | 1.0% | 1.4% |
+| by adventure | 0% | 98.7% | 0.6% | 0.6% |
 
 ### Three conclusions, one of them against what I assumed
 
-1. **Scope barely matters.** The entire corpus gives 87.5%; the campaign gives
-   88.2%; the adventure gives 87.9%. I had bet on scope as the big lever — it is
+1. **Scope barely matters.** The entire corpus gives 97.6%; the campaign gives
+   98.2%; the adventure gives 98.7%. I had bet on scope as the big lever — it is
    not. What does the work are the guards and the per-paragraph matching. Scope
    is still worth it for being free (the save is already there) and for cutting
    the CPU cost.
 
 2. **Robust up to ~5% CER, collapses at 10%.** Between 0% and 5% the hit rate
-   drops only 1.5 points. At 10% it drops 20 points. Since Apple Vision usually
+   drops about 5 points. At 10% it drops 20 points. Since Apple Vision usually
    gives 1-3% on clean text, the margin is comfortable — but it is the image
    pre-processing (§6 of the briefing) that keeps the CER in that range, and it
    is not optional.

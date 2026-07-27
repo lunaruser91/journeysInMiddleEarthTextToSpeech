@@ -143,7 +143,7 @@ minute, zero failures.
 | hauntingofdale | 1,212 | 45,415 | 6.0 h | 18.9 h |
 | embercrown | 1,056 | 43,575 | 5.7 h | 18.2 h |
 | shadowedpaths | 924 | 34,878 | 4.6 h | 14.5 h |
-| **total** | **9,118** | **341,646** | **44.8 h** | **142.3 h** |
+| **total** | **9,192** | **342,513** | **44.8 h** | **142.3 h** |
 
 The whole corpus remains unfeasible in one go. **One campaign is not.**
 
@@ -212,7 +212,7 @@ Conclusions, in this order of confidence:
 
 ## 6c. Game icons in the text — fixed in `glifos.py`
 
-**2,363 of the 9,118 blocks (25.9%)** contain 3,303 Private Use Area characters
+**2,396 of the 9,192 blocks (26.1%)** contain 3,303 Private Use Area characters
 (U+F460–U+F47A): the symbols of the game's font. The Phase 1 cleanup removes
 `<sprite=>` tags but does not see literal characters, so they were reaching the
 TTS.

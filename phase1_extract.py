@@ -35,8 +35,24 @@ PLACEHOLDER_RE = re.compile(r"\{[0-9A-Za-z_]{1,30}\}")         # {0} {HERO_NAME}
 WS_RE = re.compile(r"[ \t]+")
 
 # keys that are clearly not narration read out loud
+# Key fragments that mark a block as interface rather than narration.
+#
+# `_OPTION` used to be on this list and was removed after measurement: it vetoed
+# 320 blocks, of which 74 (867 words) were real narration — dialogue choices such
+# as `A46_FARMER_TALK_2_OPTION_2_RESPONSE`, which are read out loud. With the hint
+# gone those 320 fall through to the text test below, which correctly keeps the 74
+# and rejects the other 246 (too short, or no sentence punctuation).
+#
+# Measured on the pt-BR corpus, the remaining hints veto almost nothing: `_MENU`
+# catches 5 blocks and `_BUTTON`/`_SETTINGS` one each; the other six catch zero.
+# They are kept because they cost nothing and may earn their place in the other
+# twelve localisations.
+#
+# `_MENU` is knowingly imperfect: it vetoes one genuine scene description
+# (`A54_KING_BAIN_ASK_MENU`) along with one true interface string. Carving out an
+# exception for a single block would be overfitting, so it stays.
 UI_KEY_HINTS = ("_BUTTON", "_BTN", "_TOOLTIP", "_LABEL", "_TITLE_SHORT", "_ERROR",
-                "_MENU", "_SETTINGS", "_OPTION", "_HUD")
+                "_MENU", "_SETTINGS", "_HUD")
 
 
 def clean(text: str, keep_markup: bool = False) -> str:

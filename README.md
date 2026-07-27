@@ -24,9 +24,9 @@ and that is what this project replaces.
 
 | Phase | What it does | Status |
 |---|---|---|
-| 1 | app assets → pt-BR corpus | **done** — 13,018 keys, 9,740 narration blocks |
+| 1 | app assets → pt-BR corpus | **done** — 13,018 keys, 9,814 narration blocks |
 | 2 | corpus → pre-rendered audio | **works and is measured** — RTF 3.17; one campaign in ~19 h |
-| 3 | screen → OCR → matching → plays the audio | **matcher done and measured (97.8%)**; capture, trigger and player still missing |
+| 3 | screen → OCR → matching → plays the audio | **matcher done and measured (98.2%)**; capture, trigger and player still missing |
 
 ---
 
@@ -135,7 +135,7 @@ legacy/          original scripts, kept for comparison
 | `glyphs.py` | game icons → spoken words; numbers spelled out; multi-language |
 | `check_pace.py` | detects blocks whose pace strays from the median, for regeneration |
 | `matcher.py` | matches the text read from the screen against the corpus block |
-| `test_matcher.py` | harness: 626 real screens + synthetic OCR noise |
+| `test_matcher.py` | harness: 627 real screens + synthetic OCR noise |
 | `demo.py` | full cycle on one screen: image → OCR → matcher → audio |
 | `batch.py` | the same across several screens, with hit rate |
 | `watch_log.py` | reads the game's event log |
@@ -177,15 +177,15 @@ A methodological pitfall: the variation between two identical runs on this Mac r
 
 ### Screen recognition
 
-Measured against **626 real screens** reconstructed from the game's logs — without
+Measured against **627 real screens** reconstructed from the game's logs — without
 transcribing any of them by hand.
 
 | OCR noise | hit rate | **wrong** | refusal |
 |---:|---:|---:|---:|
-| 0% | **97.8%** | 0.6% | 1.6% |
-| 2% | 95.5% | 1.4% | 3.0% |
-| 5% | 94.4% | 1.9% | 3.7% |
-| 10% | 67% | 5% | 27% |
+| 0% | **98.2%** | 1.0% | 0.8% |
+| 2% | 95.5% | 1.3% | 3.2% |
+| 5% | 93.0% | 2.1% | 4.9% |
+| 10% | 73.0% | 4.6% | 22.3% |
 
 Refusing is the right behavior: silence is recoverable with live TTS; narrating the wrong
 block is not, because the player acts on what they hear.
@@ -233,7 +233,7 @@ the matcher works **per paragraph**.
 
 ### 3. A quarter of the corpus had garbage the TTS could not read
 
-2,363 blocks (25.9%) contain **Private Use Area** characters — the icons of the game's
+2,396 blocks (26.1%) contain **Private Use Area** characters — the icons of the game's
 font, written as literal characters and not as `<sprite=>` tags, so the markup cleanup did
 not see them. The TTS received `"Cada herói testa ; 2"`, without saying which attribute
 to test.
