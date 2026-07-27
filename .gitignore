@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# Conteúdo do jogo e derivados — NUNCA versionar.
+#
+# Os Termos da Asmodee Digital (§5.3/§5.4) proíbem extrair o conteúdo, e o texto
+# é obra protegida (FFG + Middle-earth Enterprises). O áudio gerado é obra
+# derivada. Este repositório publica UM EXTRATOR E UM RENDERIZADOR — cada pessoa
+# roda a extração sobre a própria instalação do jogo.
+# ---------------------------------------------------------------------------
+
+# corpus extraído (texto do jogo, em qualquer formato)
+corpus/
+*.csv
+
+# manifest do renderizador: guarda "text" e "norm" de cada bloco, ou seja,
+# é o corpus inteiro com outro nome. O .gitignore do briefing esquecia dele.
+manifest.json
+manifest*.json
+
+# tudo que é gerado vive aqui — áudio, manifests, fixtures, medições
+saida/
+
+# áudio renderizado, em qualquer formato e qualquer lugar
+audio/
+audio_piper/
+entrega/
+validacao_clone/
+*.opus
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.aac
+*.ogg
+*.caf
+
+# uma pasta de áudio por campanha, na raiz (saída do render)
+/bonesofarnor/
+/embercrown/
+/shadowedpaths/
+/spreadingwar/
+/hauntingofdale/
+/poisonpromise/
+/main/
+
+# assets crus do jogo
+Data/
+*.dat
+*.bundle
+
+# ---------------------------------------------------------------------------
+# Referência de voz
+# ---------------------------------------------------------------------------
+# REF_paginasrecolhidas.wav vem do LibriVox (domínio público), então distribuí-lo
+# seria legalmente possível. Fica ignorado por padrão para manter o repositório
+# livre de binários; para versioná-lo, descomente a linha abaixo.
+# !ref/REF_paginasrecolhidas.wav
+
+# ---------------------------------------------------------------------------
+# Python / macOS
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# ---------------------------------------------------------------------------
+# Trabalho local
+# ---------------------------------------------------------------------------
+bench_results.json
+*.log
+.tmp_*

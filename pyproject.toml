@@ -1,0 +1,27 @@
+[project]
+name = "jime-narrador"
+version = "0.1.0"
+description = "Narrador automático offline em pt-BR para o app de Journeys in Middle-earth"
+requires-python = ">=3.12,<3.14"   # 3.14 não tem wheels do PyTorch
+license = { text = "MIT" }
+
+dependencies = [
+    "UnityPy",              # fase 1: extrair o corpus dos AssetBundles
+    "rapidfuzz>=3.0",       # fase 3: casamento difuso
+    "num2words",            # números por extenso (senão o TTS lê em espanhol)
+    "pillow",               # recorte de imagem antes do OCR
+]
+
+[project.optional-dependencies]
+# Síntese de voz. Pesado: ~3 GB de pesos, precisa de GPU (MPS/CUDA) para ser viável.
+tts = [
+    "chatterbox-tts",
+    "torch>=2.6",
+    "torchaudio>=2.6",
+    "setuptools<81",        # >=81 quebra o perth e o modelo nem carrega
+]
+# OCR nativo do macOS (Apple Vision). Offline, pt-BR, ~150 ms.
+ocr = ["ocrmac"]
+
+[tool.setuptools]
+py-modules = ["glifos", "matcher", "check_ritmo", "demo", "lote", "ver_log"]
