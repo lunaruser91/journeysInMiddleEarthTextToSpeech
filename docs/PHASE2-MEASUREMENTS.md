@@ -164,6 +164,37 @@ order of cost:
    0 of the batch. I estimate 150 delicate lines. **Not measured; it is a
    project, not a tweak.**
 
+## 6a. Two render processes at once are 55% SLOWER than one
+
+The obvious way to go faster is to run several renders side by side. Measured, it
+is not merely useless — it costs more than half the throughput again.
+
+| arm | wall clock | decode only | spread |
+|---|---|---|---|
+| one process, 8 blocks | 115.2 / 121.1 s | 108.2 s | 5% |
+| two processes, 4 blocks each | 181.0 / 184.9 s | 172.5 s | 2% |
+
+**0.63x.** Both arms rendered the same 8 blocks and the same 96 words; the halves
+were interleaved by length so each process carried 48 words. Order was ABBA
+(seq, par, par, seq) because two identical runs on this machine have differed by
+30% before, and each run wrote to its own output directory — the renderer skips a
+block whose file already exists, so a repeated run would have measured nothing.
+Model load, ~10 s, is reported separately: the parallel arm pays it twice, which
+is a real cost of the approach but not evidence about decode.
+
+The effect is far larger than the spread within either arm, so it is not drift.
+
+This is what §6's memory-bound claim predicts, and then some. Each process reads
+its own 2.14 GB of weights per step, so two of them double the demand on a single
+memory system without doubling the bandwidth. Going *below* 1.0x on top of that
+is what unified memory adds: two full copies of the weights compete for the same
+pool the CPU uses, and MPS has to switch contexts between them.
+
+The conclusion is not "parallelism does not help here". It is that the sharing
+has to happen **inside** one process, where those same 2.14 GB serve 8-16 rows at
+once instead of being read once per row. That is item 3 below, and this
+measurement is the argument for it.
+
 ## 6b. The degenerate block: the cause was the seed, not the token ceiling
 
 `bonesofarnor:A1_THREAT_1` came out at 43.2 s for 43 words in the old renderer
