@@ -247,19 +247,34 @@ def main() -> None:
 
 
 def synthesize_and_play(key: str, corpus: dict, corpus_path: Path) -> None:
-    """Renders a single block on demand, reusing the production renderer."""
-    campaign = key.split(":", 1)[0]
-    out = Path(__file__).resolve().parent / "output" / "on-demand"
+    """Renders a single block on demand, reusing the production renderer.
+
+    Uses the renderer's `--key`, which renders exactly the requested block. An
+    earlier version passed `--limit 1` instead, which silently rendered the first
+    block of the campaign — the wrong audio, played with no warning. That was
+    written before `--key` existed and never revisited.
+    """
+    # Blocks with a {0} placeholder only resolve at play time, so the renderer
+    # skips them by design. Saying so beats reporting a generic failure.
+    if corpus.get(key, {}).get("placeholders"):
+        print(f"{YELLOW}[dynamic]{RESET} {key} carries "
+              f"{corpus[key]['placeholders']} — the value only exists during play, "
+              f"so it cannot be pre-rendered. This is one of the blocks that needs "
+              f"live TTS in phase 3.")
+        return
+
+    root = Path(__file__).resolve().parent
+    out = root / "output" / "on-demand"
     out.mkdir(parents=True, exist_ok=True)
-    cmd = [sys.executable, "phase2_render.py", str(corpus_path), "-o", str(out),
-           "--ref", os.path.expanduser("~/jime/ref/REF_paginasrecolhidas.wav"),
-           "--campaign", campaign]
-    print(f"{GRAY}      {' '.join(cmd[:4])} ...{RESET}")
-    # the renderer has no single-key filter; the cache makes the rest cheap
-    subprocess.run(cmd + ["--limit", "1"], check=False)
+    cmd = [sys.executable, str(root / "phase2_render.py"), str(corpus_path),
+           "-o", str(out), "--key", key]
+    subprocess.run(cmd, check=False, cwd=root)
     p = find_audio(key, [out])
     if p:
         play(p)
+    else:
+        print(f"{YELLOW}[failed]{RESET} {key} was not rendered — run "
+              f"phase2_render.py --key '{key}' by hand to see the error")
 
 
 if __name__ == "__main__":
