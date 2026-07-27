@@ -112,6 +112,16 @@ class Matcher:
     safe_threshold: float = 92.0
     min_length_ratio: float = 0.75
     min_margin: float = 5.0
+    # Minimum gap over the runner-up key, applied even above `safe_threshold`.
+    # Guards against generic phrases that score 100 against many blocks at once.
+    min_tie_margin: float = 1.0
+    # The tie guard only applies below this length. Measured by sweeping it: at 40
+    # the harness is unchanged (98.2% hit, 1.0% wrong) while the real-world false
+    # positive disappears; at 60 the hit rate already drops to 96.8%. A long
+    # paragraph that ties is rare and the length-ratio tie-break usually resolves
+    # it correctly — a short one that ties is a generic instruction that
+    # identifies nothing.
+    tie_guard_chars: int = 40
     _keys: list[str] = field(default_factory=list, init=False)
     _norms: list[str] = field(default_factory=list, init=False)
     _is_fragment: list[bool] = field(default_factory=list, init=False)
@@ -164,24 +174,6 @@ class Matcher:
         if not found:
             return Result(None, 0, 0, 0, False, "no candidate above the cutoff")
         return self._choose(target, [(sc, i) for _t, sc, i in found])
-
-        # --- the guards ---
-        if ratio < self.min_length_ratio:
-            return Result(key, best_score, margin, ratio, False,
-                          f"length ratio {ratio:.2f} < {self.min_length_ratio}",
-                          best_txt, runner_up)
-        if best_score >= self.safe_threshold:
-            return Result(key, best_score, margin, ratio, True,
-                          "above the safe threshold", best_txt, runner_up)
-        if best_score >= self.threshold and margin >= self.min_margin:
-            return Result(key, best_score, margin, ratio, True,
-                          "above the threshold, with margin", best_txt, runner_up)
-        if best_score < self.threshold:
-            return Result(key, best_score, margin, ratio, False,
-                          f"score {best_score:.0f} < {self.threshold}",
-                          best_txt, runner_up)
-        return Result(key, best_score, margin, ratio, False,
-                      f"margin {margin:.0f} < {self.min_margin}", best_txt, runner_up)
 
     def match_batch(self, excerpts: list[str]) -> list[Result]:
         """Matches many excerpts at once, using every core.
@@ -290,6 +282,16 @@ class Matcher:
         if ratio < self.min_length_ratio:
             return Result(key, s1, margin, ratio, False,
                           f"length ratio {ratio:.2f} < {self.min_length_ratio}",
+                          best_txt, runner_up)
+        # A tie is a tie, however high the score. `partial_ratio` gives 100 to a
+        # short generic phrase against every block that contains it — "Ganhe 1
+        # inspiração." appears in dozens — so a perfect score with zero margin
+        # means the text does not identify a block at all. Caught on a real frame
+        # where that phrase was accepted as A1_M1_E3_PASS with score 100 and
+        # margin 0, which would have narrated an unrelated scene out loud.
+        if margin < self.min_tie_margin and len(target) < self.tie_guard_chars:
+            return Result(key, s1, margin, ratio, False,
+                          f"short text tying with another key (margin {margin:.0f})",
                           best_txt, runner_up)
         if s1 >= self.safe_threshold:
             return Result(key, s1, margin, ratio, True,
