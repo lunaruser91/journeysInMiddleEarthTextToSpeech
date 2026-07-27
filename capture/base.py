@@ -76,14 +76,15 @@ def list_windows(app_hint: str = "") -> list[Window]:
     return _backend().list_windows(app_hint)
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
+def open_window(title_hint: str = "", app_hint: str = "Journeys",
+                wait: float = 0.0) -> Capture:
     """Open a capture on the first window matching the hints.
 
     The default hint targets the game. Raises `CaptureError` with something the
     user can act on when nothing matches — a silent empty capture would look
     exactly like a game that is simply not showing text.
     """
-    return _backend().open_window(title_hint, app_hint)
+    return _backend().open_window(title_hint, app_hint, wait)
 
 
 def open_display(index: int = 0) -> Capture:

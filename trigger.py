@@ -131,7 +131,11 @@ class Trigger:
 
     _prev: np.ndarray | None = field(default=None, init=False)
     _quiet: int = field(default=0, init=False)
-    _dirty: bool = field(default=False, init=False)
+    # Starts dirty so the screen already on display when the narrator launches
+    # gets read. Otherwise the first screen is only ever announced after the
+    # player changes it — which is precisely the screen they are still sitting
+    # on, waiting to hear. The hash and TTL gates below stop it repeating.
+    _dirty: bool = field(default=True, init=False)
     _settled_hash: int | None = field(default=None, init=False)
     _recent: list[Seen] = field(default_factory=list, init=False)
     _last_norm: str = field(default="", init=False)

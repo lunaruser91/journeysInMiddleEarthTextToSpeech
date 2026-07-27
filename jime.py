@@ -75,8 +75,16 @@ def audio_dir(lang: str) -> Path:
 
 
 def _run(module: str, argv: list[str]) -> int:
-    """Delegate to a module's own CLI, so options never diverge from the docs."""
-    return subprocess.call([sys.executable, str(ROOT / module), *argv])
+    """Delegate to a module's own CLI, so options never diverge from the docs.
+
+    Ctrl+C reaches the child directly — it is in the same process group — and the
+    child already exits cleanly on it. The KeyboardInterrupt raised here as well
+    would only add a traceback on top of a normal stop, so it is swallowed.
+    """
+    try:
+        return subprocess.call([sys.executable, str(ROOT / module), *argv])
+    except KeyboardInterrupt:
+        return 0
 
 
 def find_assets() -> Path | None:
@@ -201,7 +209,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         game = [w for w in windows if "journey" in w.app.lower()]
         print(f"  {GREEN if game else YELLOW}{'✓' if game else '!'}{RESET} "
               f"{'game window':<34} {GRAY}"
-              f"{game[0] if game else 'game not running'}{RESET}")
+              f"{game[0] if game else 'not visible from here'}{RESET}")
+        if not game:
+            # Do not let this read as "the game is not running". A fullscreen
+            # game gets a Space of its own, and macOS does not draw a Space that
+            # is not in front — so from this terminal it looks identical to a
+            # game that was never launched. Saying so here saves the hour it
+            # otherwise costs to work out.
+            print(f"    {GRAY}Either it is not running, or it is fullscreen on "
+                  f"its own Space —\n    which looks exactly the same from here, "
+                  f"because macOS does not draw\n    an inactive Space. For a "
+                  f"fullscreen game use display capture:\n"
+                  f"      jime play --display        (jime test --capture "
+                  f"--display to check){RESET}")
     except Exception as exc:  # noqa: BLE001
         first = str(exc).split("\n")[0]
         check("screen capture", False, first)
@@ -278,6 +298,8 @@ def cmd_render(args: argparse.Namespace) -> int:
         argv += ["--limit", str(args.limit)]
     for key in args.key or []:
         argv += ["--key", key]
+    if getattr(args, "keys_from", None):
+        argv += ["--keys-from", str(args.keys_from)]
     return _run("phase2_render.py", argv)
 
 
@@ -288,12 +310,31 @@ def cmd_play(args: argparse.Namespace) -> int:
     if not corpus.exists():
         return _fail(f"no corpus for {args.lang!r}. Run: jime extract --lang {args.lang}")
 
+    argv = ["--corpus", str(corpus)]
     folder = audio_dir(args.lang)
-    if not (folder / "manifest.json").exists():
-        print(f"{YELLOW}no audio rendered for {args.lang!r} yet — the narrator "
-              f"will recognise screens but stay silent.{RESET}")
-
-    argv = ["--corpus", str(corpus), "--audio", str(folder)]
+    if (folder / "manifest.json").exists():
+        argv += ["--audio", str(folder)]
+    else:
+        # Do not go silent just because the canonical folder is missing. Renders
+        # made during testing live in their own folders under output/, and using
+        # them proves the whole chain — capture, matching, playback — instead of
+        # leaving the player empty and the failure looking like a matcher bug.
+        spare = sorted(d for d in (ROOT / "output").glob("*")
+                       if (d / "manifest.json").exists())
+        if spare:
+            print(f"{YELLOW}{folder.name}/ has no render yet — falling back to "
+                  f"{len(spare)} test folder(s): "
+                  f"{', '.join(d.name for d in spare)}.\nExpect most screens to "
+                  f"be silent; render the campaign to fix that:\n"
+                  f"  jime render --campaign {args.campaign or '<campaign>'} "
+                  f"--lang {args.lang}{RESET}")
+            for d in spare:
+                argv += ["--audio", str(d)]
+        else:
+            print(f"{RED}nothing has been rendered for {args.lang!r}. The "
+                  f"narrator will recognise screens and stay completely "
+                  f"silent.\n  jime render --campaign "
+                  f"{args.campaign or '<campaign>'} --lang {args.lang}{RESET}")
     if args.campaign:
         argv += ["--campaign", args.campaign]
     if args.manual:
@@ -302,6 +343,10 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--no-audio"]
     if args.fps:
         argv += ["--fps", str(args.fps)]
+    if args.wait is not None:
+        argv += ["--wait", str(args.wait)]
+    if args.display is not None:
+        argv += ["--display", str(args.display)]
     return _run("narrator.py", argv)
 
 
@@ -330,7 +375,8 @@ def _probe_capture(args: argparse.Namespace) -> int:
     from capture.base import CaptureError, open_display, open_window
 
     try:
-        cap = open_display() if args.display else open_window("", "Journeys")
+        cap = (open_display() if args.display
+               else open_window("", "Journeys", wait=args.wait))
     except CaptureError as exc:
         return _fail(str(exc))
 
@@ -422,6 +468,9 @@ def main() -> None:
                    help="detect degenerate blocks and retry with another seed")
     p.add_argument("--limit", type=int)
     p.add_argument("--key", action="append", help="render only these blocks")
+    p.add_argument("--keys-from", type=Path,
+                   help="file with one key per line — renders in stages, and "
+                        "resumes rather than repeating on a later, wider run")
     p.add_argument("--dry-run", action="store_true", help="estimate, do not render")
     p.set_defaults(func=cmd_render)
 
@@ -433,6 +482,15 @@ def main() -> None:
                    help="hold each screen until a key is pressed")
     p.add_argument("--silent", action="store_true", help="recognise, do not speak")
     p.add_argument("--fps", type=float)
+    p.add_argument("--display", type=int, nargs="?", const=0, default=None,
+                   metavar="N",
+                   help="capture a whole display rather than the game window — "
+                        "use this when the game runs fullscreen, since a display "
+                        "shows whichever Space is active")
+    p.add_argument("--wait", type=float,
+                   help="with --display, seconds to switch to the game before "
+                        "watching starts; otherwise seconds to wait for the "
+                        "game window to appear (default 90)")
     p.set_defaults(func=cmd_play)
 
     p = sub.add_parser("test", help="exercise recognition without capturing")
@@ -443,6 +501,9 @@ def main() -> None:
                    help="grab one frame from the game and prove it has pixels")
     p.add_argument("--display", action="store_true",
                    help="capture the whole display instead of the game window")
+    p.add_argument("--wait", type=float, default=0.0,
+                   help="seconds to wait for the game window before giving up; "
+                        "use it to switch to a fullscreen game after starting")
     p.set_defaults(func=cmd_test)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")

@@ -114,7 +114,8 @@ class WindowsCapture(Capture):
                 pass
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
+def open_window(title_hint: str = "", app_hint: str = "Journeys",
+                wait: float = 0.0) -> Capture:
     hint = title_hint or app_hint
     matches = [w for w in list_windows("") if hint.lower() in w.title.lower()]
     if not matches:

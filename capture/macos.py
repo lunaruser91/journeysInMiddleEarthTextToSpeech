@@ -24,6 +24,7 @@ run unattended.
 from __future__ import annotations
 
 import threading
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -119,6 +120,7 @@ class MacCapture(Capture):
     window: Window
 
     def grab(self) -> np.ndarray | None:
+        import Quartz  # noqa: F401  — see _cgimage_to_gray: must precede capture
         import ScreenCaptureKit as SCK
 
         # Re-resolve the window every time. A cached SCWindow goes stale when the
@@ -156,7 +158,19 @@ class MacCapture(Capture):
 
 
 def _cgimage_to_gray(image) -> np.ndarray:
-    """CGImage → greyscale ndarray, without a round trip through PNG on disk."""
+    """CGImage → greyscale ndarray, without a round trip through PNG on disk.
+
+    **Quartz has to be imported before the capture call, not here.** pyobjc
+    bridges a callback argument using the types it knows at the moment the
+    callback fires. ScreenCaptureKit's own bindings do not describe `CGImageRef`,
+    so if Quartz has not been imported by then the image arrives as an opaque
+    `PyObjCPointer`. It looks healthy — width, height and stride all read back
+    correctly — but `CGDataProviderCopyData` returns None on it and the failure
+    surfaces here, far from its cause.
+
+    Importing Quartz inside this function is too late: the bridging already
+    happened. Hence the imports at the top of both grab() methods.
+    """
     import Quartz
 
     width = Quartz.CGImageGetWidth(image)
@@ -164,6 +178,11 @@ def _cgimage_to_gray(image) -> np.ndarray:
     provider = Quartz.CGImageGetDataProvider(image)
     data = Quartz.CGDataProviderCopyData(provider)
     stride = Quartz.CGImageGetBytesPerRow(image)
+    if data is None:
+        raise CaptureError(
+            "the captured image yielded no pixel data. This is the signature of "
+            "Quartz having been imported after the capture — see the note in "
+            "_cgimage_to_gray.")
 
     buf = np.frombuffer(data, dtype=np.uint8)
     # rows are padded to the stride, so reshape by stride and then trim
@@ -195,16 +214,29 @@ class DisplayCapture(Capture):
 
     index: int = 0
     _content: object | None = None
+    _display: object | None = None
+    _refreshed: float = 0.0
+
+    # Enumerating shareable content costs ~35 ms, a third of the frame budget at
+    # 10 Hz, and the display list barely ever changes. So it is reused, but only
+    # for a bounded time: a display that has been unplugged leaves a stale
+    # SCDisplay behind, and stale objects are what make SkyLight abort.
+    CONTENT_TTL = 2.0
 
     def grab(self) -> np.ndarray | None:
+        import Quartz  # noqa: F401  — see _cgimage_to_gray: must precede capture
         import ScreenCaptureKit as SCK
 
-        content = _shareable_content()
-        self._content = content            # keep alive while the filter exists
-        displays = content.displays()
-        if not displays or self.index >= len(displays):
-            return None
-        display = displays[self.index]
+        now = time.monotonic()
+        if self._display is None or now - self._refreshed > self.CONTENT_TTL:
+            content = _shareable_content()
+            displays = content.displays()
+            if not displays or self.index >= len(displays):
+                return None
+            # keep the content alive: the SCDisplay is only meaningful while it is
+            self._content, self._display = content, displays[self.index]
+            self._refreshed = now
+        display = self._display
 
         filt = SCK.SCContentFilter.alloc().initWithDisplay_excludingWindows_(
             display, [])
@@ -244,12 +276,40 @@ def open_display(index: int = 0) -> Capture:
     return DisplayCapture(index=index)
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys") -> Capture:
-    window = _find(title_hint, app_hint)
-    if window is None:
-        seen = list_windows("")
-        raise CaptureError(
-            f"no usable window matching app={app_hint!r} title={title_hint!r}.\n"
-            f"Is the game running and not minimised? Windows visible now:\n  "
-            + "\n  ".join(str(w) for w in seen[:12]))
-    return MacCapture(window=window)
+def open_window(title_hint: str = "", app_hint: str = "Journeys",
+                wait: float = 0.0) -> Capture:
+    """Open a capture, optionally waiting for the window to become visible.
+
+    Waiting is not a convenience — it is how this works at all when the game runs
+    fullscreen. **macOS does not render inactive Spaces.** A fullscreen game lives
+    on its own Space, and while you are looking at the terminal that Space is not
+    being composited: the window is not on screen, and nothing can capture it.
+
+    Which means the capture cannot be opened from the terminal you start it in.
+    Start the narrator, switch to the game, and it picks the window up as soon as
+    that Space becomes active.
+    """
+    deadline = time.monotonic() + wait
+    announced = False
+    while True:
+        window = _find(title_hint, app_hint)
+        if window is not None:
+            return MacCapture(window=window)
+        if time.monotonic() >= deadline:
+            break
+        if not announced:
+            print("waiting for the game window — switch to it now "
+                  "(fullscreen games live on their own Space, which macOS does "
+                  "not render while you are looking at another one)", flush=True)
+            announced = True
+        time.sleep(0.5)
+
+    seen = list_windows("")
+    raise CaptureError(
+        f"no usable window matching app={app_hint!r} title={title_hint!r}.\n\n"
+        f"If the game IS running, it is almost certainly fullscreen on another "
+        f"Space.\nmacOS does not render an inactive Space, so its window is not "
+        f"capturable\nfrom here. Start with --wait and switch to the game, or run "
+        f"the game windowed.\n\n"
+        f"Windows visible right now:\n  "
+        + "\n  ".join(str(w) for w in seen[:12]))

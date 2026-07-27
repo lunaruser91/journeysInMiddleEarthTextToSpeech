@@ -61,7 +61,7 @@ jime doctor                    # is this machine ready?
 jime languages                 # what each of the 13 localisations supports
 jime extract --lang pt         # game assets  ->  corpus
 jime render --campaign bonesofarnor --speed 1.30
-jime play --campaign bonesofarnor
+jime play --campaign bonesofarnor --display   # fullscreen game
 jime test --video recording.mp4
 ```
 
@@ -108,14 +108,34 @@ jime check_pace.py output/audio/manifest.json --mad 2.0
 ### Phase 3 — narrate a live game
 
 ```bash
-jime narrator.py                     # watches the game window
+jime narrator.py --display           # fullscreen game — the usual case
+jime narrator.py                     # windowed game, found by window title
 jime narrator.py --list-windows      # what the capture backend can see
 jime narrator.py --from-video FILE   # replay a recording, no permission needed
 ```
 
+**If the game runs fullscreen, use `--display`.** A fullscreen application on
+macOS gets a Space of its own, and macOS does not render a Space that is not in
+front: while you are looking at the terminal, the game's window is not merely
+hidden, it is not being drawn, and no capture API can reach it. Capturing the
+*display* sidesteps this entirely, because a display always shows whichever
+Space is active — which, while you are playing, is the game's.
+
+Window capture is still there for a windowed game, and it now waits (90 s by
+default, `--wait`) for the window to appear, so you can start it in the terminal
+and then switch to the game.
+
 On macOS the first capture triggers the system prompt. If it hangs instead,
 the permission is missing: System Settings → Privacy & Security → Screen
-Recording → tick your terminal, then **restart the terminal**.
+Recording → tick your terminal, then **restart the terminal**. Nothing needs to
+be signed or notarised: the grant attaches to the terminal and these scripts
+inherit it.
+
+Check that the pixels really arrive before trusting a session:
+
+```bash
+jime test --capture --display
+```
 
 ### Phase 3 — test the recognition
 

@@ -294,6 +294,11 @@ def main() -> None:
     ap.add_argument("--key", action="append", default=[],
                     help="render only these keys (may repeat). This is what "
                          "enables Phase 3's on-demand rendering.")
+    ap.add_argument("--keys-from", type=Path,
+                    help="file with one key per line, added to --key. Use it to "
+                         "render in stages: the run skips files that already "
+                         "exist, so a later, wider render resumes rather than "
+                         "repeating work.")
     ap.add_argument("--exaggeration", type=float, default=0.45,
                     help="0.3-0.7; lower = more restrained/narrative reading")
     ap.add_argument("--cfg-weight", type=float, default=0.35,
@@ -325,11 +330,22 @@ def main() -> None:
     SPEED = args.speed
 
     blocks = load_blocks(args.corpus, args.campaign, args.include_dynamic)
-    if args.key:
-        blocks = {k: v for k, v in blocks.items() if k in args.key}
-        missing = [k for k in args.key if k not in blocks]
+    wanted = list(args.key)
+    if args.keys_from:
+        # A staged render needs hundreds of keys, which is more than a command
+        # line should carry. Blank lines and # comments are allowed so the file
+        # can say where the list came from.
+        wanted += [ln.strip() for ln in
+                   args.keys_from.read_text(encoding="utf-8").splitlines()
+                   if ln.strip() and not ln.startswith("#")]
+    if wanted:
+        blocks = {k: v for k, v in blocks.items() if k in wanted}
+        missing = [k for k in wanted if k not in blocks]
         if missing:
-            print(f"[warning] key(s) not found or without narration: {missing}")
+            shown = ", ".join(missing[:6])
+            more = f" (and {len(missing) - 6} more)" if len(missing) > 6 else ""
+            print(f"[warning] {len(missing)} key(s) not found or without "
+                  f"narration: {shown}{more}")
     touched = prepare_speech(args.corpus, blocks, args.lang)
     print(f"[glyphs] {touched} of {len(blocks)} blocks had game icons in the text")
     if args.limit:

@@ -12,13 +12,22 @@ not to capture, and skipping them removes the most expensive item in the project
 
 ## Running it
 
-    python3 narrator.py                      # live, on the game window
+    python3 narrator.py --display            # fullscreen game (recommended)
+    python3 narrator.py                      # windowed game, by window title
     python3 narrator.py --from-video FILE    # replay a recording, no permission
     python3 narrator.py --list-windows       # what the capture backend can see
 
 The `--from-video` mode exists so the entire chain can be exercised without
 granting anything, and so a regression can be reproduced from a file rather than
 from a live game.
+
+## Fullscreen games, and why it waits
+
+macOS does not render an inactive Space. A game running fullscreen sits on its
+own Space, so while you are looking at the terminal there are no pixels of it to
+capture — the window does not even report itself as on screen. So this starts by
+waiting: run it, switch to the game, and it attaches as soon as that Space comes
+forward. `--wait 0` restores the old fail-immediately behaviour.
 
 ## First run on macOS
 
@@ -102,14 +111,37 @@ def frames_from_video(path: Path, fps: float):
     proc.wait()
 
 
-def frames_live(cap, fps: float):
-    """Yield frames from the live capture at roughly `fps`."""
+def frames_live(cap, fps: float, grace: float = 300.0):
+    """Yield frames from the live capture at roughly `fps`.
+
+    A missing frame is not the end. Switching away from the game's Space, or to
+    another application in fullscreen, makes the window stop being rendered and
+    `grab()` returns None — but the game has not quit and the session is not
+    over. Treating that as the end would stop the narrator every time you checked
+    something on another screen.
+
+    So absence is tolerated for `grace` seconds, and only a window that stays
+    gone that long ends the run.
+    """
     interval = 1.0 / fps
+    gone_since: float | None = None
     while True:
         started = time.monotonic()
         frame = cap.grab()
         if frame is None:
-            return
+            if gone_since is None:
+                gone_since = started
+                print(f"{GRAY}[waiting] the game window is not being rendered — "
+                      f"switch back to it{RESET}", flush=True)
+            elif started - gone_since > grace:
+                print(f"{GRAY}[done] the window stayed gone for "
+                      f"{grace:.0f}s{RESET}")
+                return
+            time.sleep(0.5)
+            continue
+        if gone_since is not None:
+            print(f"{GRAY}[resumed]{RESET}", flush=True)
+            gone_since = None
         yield frame
         time.sleep(max(0.0, interval - (time.monotonic() - started)))
 
@@ -129,13 +161,27 @@ def main() -> None:
                     help="vertical band of the dialogue box, as fractions")
     ap.add_argument("--window", default="", help="window title hint")
     ap.add_argument("--app", default="Journeys", help="application name hint")
+    ap.add_argument("--display", type=int, nargs="?", const=0, default=None,
+                    metavar="N",
+                    help="capture a whole display instead of the game window. "
+                         "This is the right choice for a fullscreen game: a "
+                         "display shows whichever Space is active, so it keeps "
+                         "working when the game has a Space of its own, where "
+                         "window capture cannot reach.")
+    ap.add_argument("--wait", type=float, default=90.0,
+                    help="seconds to wait for the game window to appear. A "
+                         "fullscreen game lives on its own Space, which macOS "
+                         "does not render while you are looking at another one, "
+                         "so the window only becomes capturable once you switch "
+                         "to it. Waiting is how you start here and play there.")
     ap.add_argument("--no-audio", action="store_true",
                     help="recognise and report, but stay silent")
     ap.add_argument("--manual", action="store_true",
                     help="hold each screen until a key is pressed")
     args = ap.parse_args()
 
-    from capture.base import CaptureError, list_windows, open_window
+    from capture.base import (CaptureError, list_windows, open_display,
+                              open_window)
 
     if args.list_windows:
         try:
@@ -168,10 +214,19 @@ def main() -> None:
         cap = None
     else:
         try:
-            cap = open_window(args.window, args.app)
+            if args.display is not None:
+                cap = open_display(args.display)
+                print(f"{GRAY}[source] display {args.display} — whichever Space "
+                      f"is in front{RESET}")
+                if args.wait:
+                    print(f"{YELLOW}switch to the game now — starting in "
+                          f"{args.wait:.0f}s{RESET}")
+                    time.sleep(args.wait)
+            else:
+                cap = open_window(args.window, args.app, wait=args.wait)
+                print(f"{GRAY}[source] {cap.window}{RESET}")  # type: ignore[attr-defined]
         except CaptureError as exc:
             sys.exit(f"{RED}{exc}{RESET}")
-        print(f"{GRAY}[source] {cap.window}{RESET}")   # type: ignore[attr-defined]
         source = frames_live(cap, args.fps)
 
     print(f"\n{GREEN}watching. Ctrl+C to stop.{RESET}\n")
