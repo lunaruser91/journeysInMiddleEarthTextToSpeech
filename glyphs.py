@@ -117,6 +117,9 @@ LEXICON: dict[str, dict[str, dict]] = {
         "SINGLE_HAND": {"official": "Item de Uma Mão",    "spoken": ("item de uma mão", "itens de uma mão")},
         "DOUBLE_HAND": {"official": "Item de Duas Mãos",  "spoken": ("item de duas mãos", "itens de duas mãos")},
         # --- not cross-checked against the legend yet ---
+        # The icon means a mount — confirmed in English (BGG 8420535). Whether
+        # the Portuguese manual prints "Montaria" is still unchecked, so this
+        # stays inferred: the meaning is settled, the word is not.
         "MOUNT":      {"official": "Montaria",   "spoken": ("montaria", "montarias"), "inferred": True},
         "PREPARED":   {"official": "Preparada",  "spoken": ("preparada", "preparadas"), "inferred": True},
         "CORRUPTION": {"official": "Corrupção",  "spoken": ("corrupção", "corrupção"), "inferred": True},
