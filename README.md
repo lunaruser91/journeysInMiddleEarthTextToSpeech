@@ -39,8 +39,9 @@ Otherwise this section assumes nothing.
 
 ### What you need first
 
-- **A Mac.** Windows support is written but has never been run; see
-  [What is missing](#what-is-missing).
+- **A Mac, or Windows.** The macOS path is the tested one; Windows is written
+  and installs, but see [What is missing](#what-is-missing) for what has not
+  been exercised there.
 - **The game installed on this same computer.** The narrator reads the game's own
   text files, so it has to find them. Steam or the standalone app both work.
 - **About 300 MB free** for the generated speech, per language.
@@ -159,12 +160,40 @@ The two most common answers:
 
 ## Installation
 
-For anyone who already has Python and Homebrew:
+**macOS**, for anyone who already has Python and Homebrew:
 
 ```bash
+brew install ffmpeg
 python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e '.[tts,ocr,capture-macos]'
-brew install ffmpeg
+```
+
+**Windows**, in PowerShell:
+
+```powershell
+winget install --id Python.Python.3.13 --id Git.Git --id Gyan.FFmpeg -e
+```
+
+Close and reopen PowerShell so the new commands are on PATH, then:
+
+```powershell
+git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git $HOME\jime
+cd $HOME\jime
+py -3.13 -m venv $HOME\jime-venv
+& $HOME\jime-venv\Scripts\pip install -e '.[tts,ocr,capture-windows]'
+```
+
+Note the extra: `capture-windows`, not `capture-macos`. It pulls
+`windows-capture`, which wraps Windows.Graphics.Capture — the only API that sees
+a Unity window, since BitBlt and PrintWindow return black frames for one.
+
+Windows needs no permission prompt for capture. Windows 11 draws a yellow border
+around a window being captured; that is cosmetic and cannot be switched off.
+
+Then check the machine before trusting it:
+
+```powershell
+& $HOME\jime-venv\Scripts\python selftest.py
 ```
 
 Synthesis is [Piper](https://github.com/OHF-Voice/piper1-gpl): a small ONNX model
