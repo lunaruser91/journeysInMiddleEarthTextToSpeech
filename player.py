@@ -124,6 +124,7 @@ class Player:
     _paused: bool = field(default=False, init=False)
     _last_screen: list[str] = field(default_factory=list, init=False)
     _spoken_at: dict[str, float] = field(default_factory=dict, init=False)
+    _why_silent: dict[str, str] = field(default_factory=dict, init=False)
     _stopping: bool = field(default=False, init=False)
     _worker: threading.Thread | None = field(default=None, init=False)
 
@@ -168,6 +169,10 @@ class Player:
                 continue
             playable.append(Track(key, audio))
 
+        # Keep the reasons where the caller can read them. The narrator builds
+        # the Player with verbose=False and prints its own line, and "skipped"
+        # with no reason is exactly what you cannot debug from.
+        self._why_silent = dict(skipped)
         if self.verbose:
             for key, why in skipped:
                 print(f"{YELLOW}[skipped]{RESET} {key} — {why}")
@@ -241,6 +246,10 @@ class Player:
     def pending(self) -> int:
         with self._lock:
             return len(self._queue)
+
+    def why_silent(self, key: str) -> str:
+        """Why the last enqueue did not play this key."""
+        return self._why_silent.get(key, "skipped")
 
     def register(self, key: str, path: Path) -> None:
         """Add audio the manifests did not have — a block synthesised mid-game.

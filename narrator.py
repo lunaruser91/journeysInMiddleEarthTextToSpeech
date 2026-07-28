@@ -294,10 +294,8 @@ def main() -> None:
                 spoken += len(played)
                 for key in keys:
                     if key not in played:
-                        why = ("the game narrates it" if "CUTSCENE" in key
-                               else "not rendered" if not player.known(key)
-                               else "skipped")
-                        print(f"{YELLOW}          silent: {why}{RESET}")
+                        print(f"{YELLOW}          silent: "
+                              f"{player.why_silent(key)}{RESET}")
     except KeyboardInterrupt:
         pass
     finally:
