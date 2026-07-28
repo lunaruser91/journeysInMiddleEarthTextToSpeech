@@ -250,6 +250,7 @@ def main() -> None:
             if not trigger.accept_text(text, normalize):
                 continue
 
+            fresh: set[str] = set()
             results = matcher.match_screen(text)
             keys = [r.key for r in results
                     if r.accepted and r.key and corpus.get(r.key, {}).get("narration")]
@@ -259,16 +260,11 @@ def main() -> None:
                 print(f"{YELLOW}[no match]{RESET} {GRAY}{snippet}{RESET}")
                 continue
 
-            for key in keys:
-                print(f"{GREEN}[screen]{RESET} {key}")
-                print(f"          {GRAY}"
-                      f"{' '.join(corpus[key]['text'].split())[:88]}{RESET}")
-            # Blocks with a {0} have no pre-rendered audio: the value only
-            # exists at the table. But the screen has already been drawn with it
-            # filled in, and the OCR just read it — so the corpus template
-            # supplies every word except that one, and the gap comes from the
-            # screen. Synthesis is well under a second; with the previous engine
-            # this was out of the question.
+            # Live synthesis first, so the report below can tell the truth
+            # about what will be heard. Blocks with a {0} have no pre-rendered
+            # audio — the value only exists at the table — but the screen was
+            # drawn with it filled in and the OCR just read it, so the template
+            # supplies every word but one and the gap comes from the screen.
             for key in keys:
                 if player.known(key) or "CUTSCENE" in key:
                     continue
@@ -278,8 +274,6 @@ def main() -> None:
                     live = LiveVoice(lang=args.lang)
                 filled = fill_template(corpus[key]["text"], text)
                 if filled is None:
-                    print(f"{YELLOW}          cannot align {key} with the "
-                          f"screen — staying silent{RESET}")
                     continue
                 # not `spoken`: that name is the counter this loop runs inside
                 say = glyphs.spell_out_numbers(
@@ -287,15 +281,27 @@ def main() -> None:
                 path = live.say(say)
                 if path:
                     player.register(key, path)
-                    print(f"{GRAY}          synthesised live{RESET}")
+                    fresh.add(key)
 
-            if not args.no_audio:
-                played = player.enqueue(keys)
-                spoken += len(played)
-                for key in keys:
-                    if key not in played:
-                        print(f"{YELLOW}          silent: "
-                              f"{player.why_silent(key)}{RESET}")
+            played = [] if args.no_audio else player.enqueue(keys)
+            spoken += len(played)
+
+            # One line per block, and it says what happens to it. Printing
+            # "[screen] KEY" for every match regardless of whether it plays made
+            # a de-duplicated repeat look exactly like a repeat.
+            for key in keys:
+                if key in played:
+                    mark = f"{GREEN}[speaking]{RESET}"
+                    why = f" {GRAY}(synthesised live){RESET}" if key in fresh else ""
+                elif args.no_audio:
+                    mark = f"{GRAY}[matched]{RESET}"
+                    why = ""
+                else:
+                    mark = f"{YELLOW}[silent]{RESET}"
+                    why = f" {YELLOW}— {player.why_silent(key)}{RESET}"
+                print(f"{mark} {key}{why}")
+                print(f"          {GRAY}"
+                      f"{' '.join(corpus[key]['text'].split())[:84]}{RESET}")
     except KeyboardInterrupt:
         pass
     finally:
