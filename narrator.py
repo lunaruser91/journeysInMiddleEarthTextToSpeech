@@ -62,7 +62,7 @@ import glyphs  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
 from matcher import paragraphs as mparagraphs  # noqa: E402
-from ocr.base import crop, group_paragraphs, open_ocr  # noqa: E402
+from ocr.base import crop, group_paragraphs, locales_for, open_ocr  # noqa: E402
 from player import Player  # noqa: E402
 from trigger import REGION, Trigger  # noqa: E402
 
@@ -237,7 +237,7 @@ def main() -> None:
     glyph_map = glyphs.glyph_map_from_corpus(corpus)
     live: LiveVoice | None = None
 
-    engine = open_ocr()
+    engine = open_ocr(languages=locales_for(args.lang))
     trigger = Trigger(region=(top, bottom))
     print(f"{GRAY}[ocr] {type(engine).__name__}{RESET}")
 

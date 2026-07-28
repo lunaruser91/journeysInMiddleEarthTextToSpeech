@@ -119,3 +119,31 @@ def open_ocr(prefer: str = "auto", languages: tuple[str, ...] = ("pt-BR",)) -> O
                 raise
     from .rapidocr_engine import RapidOcr
     return RapidOcr()
+
+
+# The game's language codes are not what the OCR engines want. Apple Vision
+# takes full locales and rejects a bare "de" with ValueError, so a session in any
+# language but Portuguese would have died on its first screen — or worse, run the
+# Portuguese recogniser over German text, which is the silent version.
+#
+# Measured against Vision's own supportedRecognitionLanguages on macOS 26:
+# twelve of the game's thirteen are there. Hungarian is not, at all.
+OCR_LOCALE = {
+    "cz": "cs-CZ", "de": "de-DE", "en": "en-US", "es": "es-ES", "fr": "fr-FR",
+    "it": "it-IT", "ko": "ko-KR", "pl": "pl-PL", "pt": "pt-BR", "ru": "ru-RU",
+    "uk": "uk-UA", "zh": "zh-Hans",
+    # "hu" is deliberately absent: Apple Vision has no Hungarian recogniser.
+}
+
+
+def locales_for(lang: str) -> tuple[str, ...]:
+    """OCR locales for a game language, best first.
+
+    English is appended as a second choice everywhere: the game's screens carry
+    proper nouns and interface words that read the same either way, and giving
+    the recogniser a fallback costs nothing.
+    """
+    primary = OCR_LOCALE.get(lang)
+    if primary is None:
+        return ("en-US",)
+    return (primary,) if primary == "en-US" else (primary, "en-US")

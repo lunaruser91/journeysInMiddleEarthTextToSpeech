@@ -68,14 +68,14 @@ def ocr(path: Path, region: tuple[float, float, float, float] | None) -> str:
     from PIL import Image
 
     from ocr.base import crop as crop_region
-    from ocr.base import group_paragraphs, open_ocr
+    from ocr.base import group_paragraphs, locales_for, open_ocr
 
     image = np.asarray(Image.open(path).convert("L"))
     if region:
         image = crop_region(image, region)
 
     t0 = time.perf_counter()
-    engine = open_ocr()
+    engine = open_ocr(languages=locales_for(getattr(args, 'lang', 'pt')))
     lines = engine.read(image)
     dt = (time.perf_counter() - t0) * 1000
     paragraphs = group_paragraphs(lines)
