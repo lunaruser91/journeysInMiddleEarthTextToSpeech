@@ -179,6 +179,16 @@ winget install --id Gyan.FFmpeg -e --accept-package-agreements
 
 One package per command — `winget` takes a single `--id`.
 
+`onnxruntime`, which Piper needs, will not load without the **Microsoft Visual
+C++ Redistributable**. A fresh Windows image often lacks it, and the failure
+names neither Piper nor the redistributable:
+
+    DLL load failed while importing onnxruntime_pybind11_state
+
+```powershell
+winget install --id Microsoft.VCRedist.2015+.x64 -e
+```
+
 Close and reopen PowerShell so the new commands are on PATH, then:
 
 ```powershell

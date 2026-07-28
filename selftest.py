@@ -84,7 +84,11 @@ def test_imports() -> None:
             __import__(mod)
             check(mod, True, why)
         except ImportError as exc:
-            check(mod, False, str(exc)[:48])
+            hint = str(exc)[:48]
+            if "DLL load failed" in str(exc) and mod == "piper":
+                # The message names neither Piper nor the missing piece.
+                hint = "install Microsoft.VCRedist.2015+.x64 — onnxruntime needs it"
+            check(mod, False, hint)
 
     for mod in ("jime", "matcher", "glyphs", "voices", "trigger",
                 "player", "live", "menu", "phase2_render"):
@@ -129,9 +133,14 @@ def test_assets(lang: str) -> Path | None:
           str(found) if found else f"tried {len(jime.ASSET_GUESSES)} places")
     if found is None:
         print(f"{GRAY}        install the game, or pass --bundles to extract{RESET}")
-    check("saves folder path", True, str(console.saves_dir()))
-    check("saves folder exists", console.saves_dir().exists(),
-          "only needed to auto-detect the campaign")
+    saves = console.saves_dir()
+    check("saves folder path", True, str(saves))
+    if saves.exists():
+        check("saves folder found", True, "campaign can be auto-detected")
+    else:
+        # Absent is not a failure: it appears the first time the game saves, and
+        # everything except picking the campaign for you works without it.
+        skip("saves folder found", "no save yet — pick the campaign manually")
     return found
 
 

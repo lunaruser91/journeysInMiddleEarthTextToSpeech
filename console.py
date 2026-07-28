@@ -27,8 +27,40 @@ import sys
 from pathlib import Path
 
 
+def _enable_ansi() -> None:
+    """Ask the Windows console to interpret escape sequences.
+
+    Without this the output is worse than uncoloured — every sequence is printed
+    literally, so a status line reads `←[92mpass←[0m` and the report is unusable.
+    Windows Terminal turns it on itself; the classic console host, which is what
+    a fresh VM opens, does not.
+
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING is 0x0004, and -11/-12 are the standard
+    output and error handles.
+    """
+    import platform
+
+    if platform.system() != "Windows":
+        return
+    try:
+        import ctypes
+
+        kernel32 = ctypes.windll.kernel32
+        for handle_id in (-11, -12):
+            handle = kernel32.GetStdHandle(handle_id)
+            mode = ctypes.c_uint32()
+            if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+                kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+    except Exception:  # noqa: BLE001
+        pass          # not a console, or an old build: colour is not worth failing over
+
+
 def setup() -> None:
-    """Force UTF-8 on stdout and stderr. Safe to call more than once."""
+    """Force UTF-8 on stdout and stderr, and colour on Windows.
+
+    Safe to call more than once.
+    """
+    _enable_ansi()
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is None:

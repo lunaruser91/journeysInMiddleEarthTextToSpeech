@@ -2,31 +2,37 @@
 """
 capture/windows.py — window capture through Windows.Graphics.Capture.
 
-**Untested.** Written against the `windows-capture` API and the constraints the
-project already knows, but nobody has run it on Windows yet. Treat every line as
-a hypothesis until it has been exercised, and please report what breaks.
-
 ## Why not the obvious APIs
 
 `BitBlt` and `PrintWindow` return **black frames for Unity windows**. The game
 renders through the GPU and never draws into the window's device context, so
-there is nothing for those APIs to copy. This is the same shape of problem as
-macOS returning only the wallpaper, and it has the same kind of answer: ask the
-compositor instead of the window.
+there is nothing for those APIs to copy. Windows.Graphics.Capture asks the
+compositor instead, which is the only thing holding the pixels.
 
-Windows.Graphics.Capture is that answer. `windows-capture` wraps it and can
-target a window by title, which is what this needs. `zbl` is an alternative with
-the same underlying API.
+`windows-capture` wraps it. No permission prompt is involved: on Windows 10 2004
+and later, capturing a named window needs no grant. Windows 11 draws a yellow
+border around a captured window; that is cosmetic and cannot be turned off.
 
-Unlike macOS there is no permission prompt: on Windows 10 2004 and later, capture
-of a named window needs no grant. Windows 11 shows a yellow border around a
-captured window, which is cosmetic and cannot be turned off.
+    pip install -e '.[capture]'
 
-    pip install windows-capture
+## Enumeration is ours, not the library's
+
+The first version of this file called `windows_capture.Window.enumerate()`. That
+method does not exist — the API had been written from memory and never run, and
+the first real Windows session said so in one line:
+
+    module 'windows_capture' has no attribute 'Window'
+
+The library captures; it does not list. Listing therefore goes through `user32`
+by ctypes, which adds no dependency and yields the owning process name as well —
+which is what the application hint needs to match against.
 """
 from __future__ import annotations
 
+import ctypes
 import threading
+import time
+from ctypes import wintypes
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -42,87 +48,171 @@ def _require():
             "windows-capture is not installed. It wraps Windows.Graphics.Capture, "
             "which is the only API that sees a Unity window — BitBlt and "
             "PrintWindow return black frames.\n"
-            "    pip install windows-capture") from exc
+            "    pip install -e '.[capture]'") from exc
     return windows_capture
 
 
-def list_windows(app_hint: str = "") -> list[Window]:
-    wc = _require()
-    out = []
-    for title in wc.Window.enumerate():
-        name = title if isinstance(title, str) else getattr(title, "title", "")
-        if app_hint and app_hint.lower() not in name.lower():
-            continue
-        out.append(Window(handle=name, title=name, app=name, width=0, height=0))
-    return out
+# -------------------------------------------------------------- enumeration --
 
+def _process_name(hwnd: int) -> str:
+    """The executable behind a window, or "" — what the app hint matches on."""
+    user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    if not pid.value:
+        return ""
+    # PROCESS_QUERY_LIMITED_INFORMATION: enough for the image name, and granted
+    # between processes at the same integrity level without elevation
+    handle = kernel32.OpenProcess(0x1000, False, pid.value)
+    if not handle:
+        return ""
+    try:
+        size = wintypes.DWORD(260)
+        buf = ctypes.create_unicode_buffer(size.value)
+        if kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+            return buf.value.rsplit("\\", 1)[-1]
+        return ""
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def list_windows(app_hint: str = "") -> list[Window]:
+    user32 = ctypes.windll.user32
+    found: list[Window] = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def each(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True                 # untitled: toolbars and hidden helpers
+        buf = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buf, length + 1)
+        title = buf.value
+
+        rect = wintypes.RECT()
+        user32.GetWindowRect(hwnd, ctypes.byref(rect))
+        width, height = rect.right - rect.left, rect.bottom - rect.top
+        if width < 1 or height < 1:
+            return True
+
+        app = _process_name(hwnd)
+        if app_hint and app_hint.lower() not in f"{app} {title}".lower():
+            return True
+        found.append(Window(handle=int(hwnd), title=title, app=app,
+                            width=width, height=height))
+        return True
+
+    user32.EnumWindows(each, 0)
+    return found
+
+
+# ------------------------------------------------------------------ capture --
 
 @dataclass
 class WindowsCapture(Capture):
     """Bridges a push API to the pull API the trigger expects.
 
     `windows-capture` delivers frames through a callback on its own thread,
-    whereas `grab()` has to block until a frame is available. The latest frame is
-    kept in `_latest` and handed over on demand; frames that arrive while nobody
-    is asking are dropped on purpose. The trigger samples at 10 Hz and the game
-    renders at 60 — keeping a queue would only build latency.
+    whereas `grab()` must return one on demand. The latest frame is kept and
+    handed over; frames arriving while nobody is asking are dropped deliberately.
+    The trigger samples at 10 Hz and the compositor runs at 60, so queueing them
+    would only build latency.
     """
 
-    title: str
+    title: str = ""
+    hwnd: int | None = None
+    monitor: int | None = None
     _latest: np.ndarray | None = field(default=None, init=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
     _ready: threading.Event = field(default_factory=threading.Event, init=False)
-    _session: object | None = field(default=None, init=False)
+    _control: object | None = field(default=None, init=False)
 
     def start(self) -> None:
         wc = _require()
-        session = wc.WindowsCapture(window_name=self.title,
-                                    cursor_capture=False, draw_border=False)
+        kwargs: dict = {"cursor_capture": False, "draw_border": False}
+        if self.monitor is not None:
+            kwargs["monitor_index"] = self.monitor
+        elif self.hwnd is not None:
+            kwargs["window_hwnd"] = self.hwnd
+        else:
+            kwargs["window_name"] = self.title
+        session = wc.WindowsCapture(**kwargs)
 
         @session.event
-        def on_frame_arrived(frame, control):        # noqa: ANN001
-            rgb = frame.frame_buffer[:, :, :3].astype(np.uint16)
-            gray = ((rgb[:, :, 2] * 77 + rgb[:, :, 1] * 150 + rgb[:, :, 0] * 29)
-                    >> 8).astype(np.uint8)
+        def on_frame_arrived(frame, capture_control):     # noqa: ANN001
+            # frame_buffer is BGRA. Rec. 601 luma in integer arithmetic, which
+            # keeps a 1920x1080 frame cheap at 10 Hz.
+            px = frame.frame_buffer
+            b = px[:, :, 0].astype(np.uint16)
+            g = px[:, :, 1].astype(np.uint16)
+            r = px[:, :, 2].astype(np.uint16)
             with self._lock:
-                self._latest = gray
+                self._latest = ((r * 77 + g * 150 + b * 29) >> 8).astype(np.uint8)
             self._ready.set()
 
         @session.event
-        def on_closed():                             # noqa: ANN001
+        def on_closed():                                  # noqa: ANN001
             with self._lock:
                 self._latest = None
             self._ready.set()
 
-        self._session = session
-        threading.Thread(target=session.start, daemon=True).start()
+        # free-threaded: plain start() blocks until the capture ends, which here
+        # would mean never returning
+        self._control = session.start_free_threaded()
 
     def grab(self) -> np.ndarray | None:
+        who = self.title or self.hwnd or f"monitor {self.monitor}"
         if not self._ready.wait(timeout=5.0):
             raise CaptureError(
-                f"no frame arrived from {self.title!r} within 5 s. Is the window "
-                f"minimised? Windows.Graphics.Capture stops delivering frames for "
-                f"a minimised window.")
+                f"no frame arrived from {who} within 5 s. Is the window "
+                f"minimised? Windows.Graphics.Capture stops delivering frames "
+                f"for a minimised window.")
         with self._lock:
             return self._latest
 
     def close(self) -> None:
-        if self._session is not None:
+        if self._control is not None:
             try:
-                self._session.stop()
+                self._control.stop()
             except Exception:  # noqa: BLE001
                 pass
 
 
 def open_window(title_hint: str = "", app_hint: str = "Journeys",
                 wait: float = 0.0) -> Capture:
-    hint = title_hint or app_hint
-    matches = [w for w in list_windows("") if hint.lower() in w.title.lower()]
-    if not matches:
-        seen = list_windows("")
-        raise CaptureError(
-            f"no window whose title contains {hint!r}. Is the game running?\n"
-            f"Visible windows:\n  " + "\n  ".join(w.title for w in seen[:12]))
-    cap = WindowsCapture(title=matches[0].title)
+    deadline = time.monotonic() + wait
+    announced = False
+    while True:
+        matches = [
+            w for w in list_windows("")
+            if (not title_hint or title_hint.lower() in w.title.lower())
+            and (not app_hint or app_hint.lower() in f"{w.app} {w.title}".lower())
+            and w.width > 200 and w.height > 200
+        ]
+        if matches:
+            best = max(matches, key=lambda w: w.width * w.height)
+            cap = WindowsCapture(title=best.title, hwnd=best.handle)
+            cap.start()
+            cap.window = best             # type: ignore[attr-defined]
+            return cap
+        if time.monotonic() >= deadline:
+            break
+        if not announced:
+            print("waiting for the game window — start it now", flush=True)
+            announced = True
+        time.sleep(0.5)
+
+    seen = list_windows("")
+    raise CaptureError(
+        f"no window matching app={app_hint!r} title={title_hint!r}.\n"
+        f"Is the game running and not minimised? Visible windows:\n  "
+        + "\n  ".join(str(w) for w in seen[:12]))
+
+
+def open_display(index: int = 0) -> Capture:
+    """Capture a whole monitor rather than one window."""
+    cap = WindowsCapture(monitor=index)
     cap.start()
     return cap
