@@ -18,15 +18,22 @@ recording, which meant thinking about whose voice it was. Piper synthesises from
 a published model with no reference at all, and covers all thirteen of the
 game's languages instead of ten.
 
-## The voice, and the wizard chain
+## The voice is the voice
 
-Piper alone sounds like a competent announcer. The character comes from the
-ffmpeg chain: pitch down a little, low end lifted, high end rolled off, and a
-slow tremolo that reads as an unsteady old voice.
+By default nothing is done to Piper's output beyond encoding it to Opus and
+slowing it to a narrator's pace: no pitch shift, no equalisation, no tremolo,
+no echo.
 
-Pace is Piper's own `length_scale`, never the DSP. Stretching audio after the
-fact smears transients; speaking slower costs nothing. The value is per voice
-and measured — see voices.py.
+There used to be a "wizard chain" here, carried over from the previous engine,
+and it was a mistake. It cut 2.5 dB at 6.5 kHz — where consonants live — lifted
+110 Hz by 3.5 dB, and added echo and tremolo on top. On a rich, expressive
+source that read as an old man's voice. On Piper, which is already thinner and
+flatter, it read as mush: soft, slow and hard to make out. Judged by ear, and
+the ear was right.
+
+`--effects` still applies it for anyone who wants to try, and `--length-scale`
+still changes the pace. Neither is on by default, because the default should be
+the voice the model actually produces.
 
 ## Resuming
 
@@ -88,7 +95,9 @@ def has_rubberband() -> bool:
 HAS_RB = has_rubberband()
 
 
-def dsp_version(voice: str, length_scale: float) -> str:
+def dsp_version(voice: str, length_scale: float, effects: bool) -> str:
+    if not effects:
+        return f"plain-{voice}-l{length_scale:.2f}"
     base = "wizard-v2" if HAS_RB else "wizard-v2f"
     return f"{base}-{voice}-l{length_scale:.2f}"
 
@@ -191,7 +200,12 @@ def main() -> None:
     ap.add_argument("--limit", type=int)
     ap.add_argument("--length-scale", type=float,
                     help="Piper's pacing; higher is slower. Defaults to the "
-                         "measured value for the voice.")
+                         "value chosen for the voice — 1.0 is the voice's own "
+                         "pace, which is faster than anyone narrates.")
+    ap.add_argument("--effects", action="store_true",
+                    help="apply the aged-voice chain: pitch down, low lift, "
+                         "high rolloff, tremolo, echo. Off by default — it costs "
+                         "more intelligibility than it buys character.")
     ap.add_argument("--include-dynamic", action="store_true",
                     help="also render blocks carrying a {0} placeholder")
     ap.add_argument("--dry-run", action="store_true")
@@ -248,9 +262,9 @@ def main() -> None:
                           noise_w_scale=1.0, volume=1.0)
     print(f"[model] {voice_name} ready in {time.time() - t_load:.1f}s")
 
-    version = dsp_version(voice_name, scale)
-    print(f"[dsp] {'rubberband' if HAS_RB else 'asetrate (fallback)'} "
-          f"| version {version} | length_scale {scale}")
+    version = dsp_version(voice_name, scale, args.effects)
+    print(f"[dsp] {'aged-voice chain' if args.effects else 'none — the voice as it is'}"
+          f" | version {version} | length_scale {scale}")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     mpath = out_dir / "manifest.json"
@@ -285,10 +299,11 @@ def main() -> None:
                 voice.synthesize_wav(v["speech"], fh, syn_config=cfg)
             with wave.open(str(tmp), "rb") as fh:
                 sr = fh.getframerate()
-            subprocess.run(
-                ["ffmpeg", "-v", "error", "-y", "-i", str(tmp),
-                 "-af", wizard_chain(sr), "-c:a", "libopus", "-b:a", "48k",
-                 str(dest)], check=True)
+            cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(tmp)]
+            if args.effects:
+                cmd += ["-af", wizard_chain(sr)]
+            cmd += ["-c:a", "libopus", "-b:a", "48k", str(dest)]
+            subprocess.run(cmd, check=True)
         except KeyboardInterrupt:
             # KeyboardInterrupt is not an Exception, so the clause below never
             # sees it. Letting it escape skips the manifest write after the loop

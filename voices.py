@@ -65,18 +65,26 @@ DEFAULT_VOICE = {
     "zh": "zh_CN-huayan-medium",
 }
 
-# Measured, not guessed. See the module docstring: swept until the median
-# matched, per voice, because the response to length_scale is not linear.
+# Chosen by ear, then measured. Piper's own pace for faber is 3.23 words per
+# second — 194 a minute, faster than anyone narrates — and the response to
+# length_scale is not linear, so this is swept rather than computed.
+#
+# The target is ~160 wpm, the bottom of the commercial audiobook range. An
+# earlier pass aimed at 2.14 w/s (130 wpm) to match the engine this replaced,
+# and that was wrong twice over: it was the old engine's number, and it was
+# heard as dragging. 1.35 was picked by listening to 1.00, 1.15, 1.25 and 1.35
+# on 125 words of prose, which is where pace is felt — a three-second
+# instruction does not reveal it.
+#
+# It is per *voice*: carrying one speaker's number to another is how a session
+# ends up with one screen rushing and the next not.
 CALIBRATION = {
-    "pt_BR-faber-medium": 1.61,   # measured 2.17 w/s on 40 blocks
-    "pt_BR-cadu-medium": 1.25,    # measured 2.10 w/s on the same 40
-    "en_GB-alan-medium": 1.32,    # measured 2.08 w/s on 25 blocks
+    "pt_BR-faber-medium": 1.35,   # 2.68 w/s, 161 wpm
 }
 
-# Reading pace to aim for, per language. Only pt is measured; the rest inherit
-# it, which is a guess that the calibrate command exists to replace.
-TARGET_WPS = {"pt": 2.14}
-DEFAULT_TARGET_WPS = 2.14
+# Reading pace to aim for, per language. Only pt is measured.
+TARGET_WPS = {"pt": 2.68}
+DEFAULT_TARGET_WPS = 2.68
 
 
 def voice_path(name: str) -> Path:
