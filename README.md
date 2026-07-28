@@ -32,11 +32,138 @@ All **thirteen** of the game's localisations can be narrated.
 
 ---
 
-## Installation
+## Getting started
+
+If you are comfortable in a terminal, skip to [Installation](#installation).
+Otherwise this section assumes nothing.
+
+### What you need first
+
+- **A Mac.** Windows support is written but has never been run; see
+  [What is missing](#what-is-missing).
+- **The game installed on this same computer.** The narrator reads the game's own
+  text files, so it has to find them. Steam or the standalone app both work.
+- **About 300 MB free** for the generated speech, per language.
+
+You do **not** need a fast machine, a graphics card, or an internet connection
+once it is set up.
+
+### Step 1 — open the Terminal
+
+Press `Cmd` + `Space`, type `Terminal`, press Enter. A window opens where you
+type commands. Every block below is one command: copy it, paste it, press Enter,
+wait for it to finish before the next.
+
+### Step 2 — install the tools it needs
+
+```bash
+xcode-select --install
+```
+
+A dialog may appear asking to install developer tools — accept it. If it says
+they are already installed, carry on.
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+That is [Homebrew](https://brew.sh), the usual way to install software on a Mac
+from the terminal. It will ask for your password. If you already have it, this
+says so and changes nothing.
+
+```bash
+brew install python@3.13 ffmpeg git
+```
+
+### Step 3 — download this project
+
+```bash
+git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
+cd ~/jime
+```
+
+That puts it in a folder called `jime` in your home directory. If you prefer not
+to use `git`, the green **Code** button on the GitHub page has *Download ZIP*;
+unzip it and `cd` into it instead.
+
+### Step 4 — set it up
 
 ```bash
 python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr]'
+~/jime-venv/bin/pip install -e '.[tts,ocr,capture-macos]'
+```
+
+The second one takes a few minutes and prints a lot. It is finished when your
+prompt comes back.
+
+`capture-macos` is what lets it see the screen — leaving it out gets you a
+working setup that cannot capture anything, which is a confusing way to find out.
+
+### Step 5 — let it see the screen
+
+The narrator reads what is on screen, and macOS requires permission for that.
+
+Open **System Settings → Privacy & Security → Screen Recording**, and switch on
+**Terminal**. Then **quit Terminal completely** (`Cmd` + `Q`) and open it again —
+the permission is only read when the program starts.
+
+Nothing here needs to be signed or notarised: the permission attaches to the
+Terminal, and this project runs inside it.
+
+### Step 6 — run it
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python jime.py
+```
+
+That opens the menu. There are no flags to remember; it asks.
+
+**The first time, in this order:**
+
+1. **Extract the corpus** — reads the game's own files and writes out the text.
+   Takes a minute. Nothing works before this.
+2. **Render audio** — turns that text into speech. About half an hour per
+   campaign. Pick your campaign, and say yes when it offers to add `main`.
+3. **Narrate a game** — open the game, then choose this. It watches, recognises
+   each screen and reads it aloud.
+
+Afterwards only step 3 matters, until you start a different campaign.
+
+### What each menu option does
+
+| Option | What it does | When you need it |
+|---|---|---|
+| **Narrate a game** | Watches the screen and reads each block aloud | Every session |
+| **Render audio** | Turns the extracted text into speech files | Once per campaign |
+| **Extract the corpus** | Reads the game's own files | Once per language |
+| **Status** | What is extracted, what is rendered, how much | To see where you left off |
+| **Check this machine** | Whether everything is installed and permitted | When something does not work |
+| **Voices** | Which voice speaks each language | To change or calibrate a voice |
+
+`b` goes back a question, `q` quits, and Enter takes the highlighted default.
+
+### If something goes wrong
+
+Run **Check this machine** first — it names what is missing rather than failing
+obscurely.
+
+The two most common answers:
+
+- **It finds no game window.** Use the fullscreen option. A fullscreen game on
+  macOS sits on its own Space, and macOS does not draw a Space that is not in
+  front, so it is invisible from the Terminal until you switch to it.
+- **It recognises screens but says nothing.** That campaign has no audio yet —
+  go back and render it. The menu offers this when it notices.
+
+---
+
+## Installation
+
+For anyone who already has Python and Homebrew:
+
+```bash
+python3.13 -m venv ~/jime-venv
+~/jime-venv/bin/pip install -e '.[tts,ocr,capture-macos]'
 brew install ffmpeg
 ```
 
