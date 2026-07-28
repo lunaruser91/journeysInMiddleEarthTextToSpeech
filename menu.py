@@ -227,11 +227,31 @@ def flow_play() -> list[str]:
                [(r[1], r[2]) for r in rows], default)
     campaign = rows[i][0]
 
-    if "not started" in rows[i][2]:
-        print(f"\n{YELLOW}  No audio has been rendered for {campaign}.{RESET} "
-              f"{GRAY}Screens will be recognised\n  and stay silent, except the "
-              f"blocks that are synthesised during play.{RESET}")
-        if not confirm("Carry on anyway?", False):
+    # Missing audio used to offer only "carry on anyway?", which is a dead end:
+    # the answer you want is almost always to render it, and being told to quit
+    # and come back is the thing this menu exists to avoid.
+    if "complete" not in rows[i][2]:
+        have = "partly rendered" if "not started" not in rows[i][2] else "no audio"
+        print(f"\n{YELLOW}  {campaign} has {have}.{RESET} {GRAY}Screens will be "
+              f"recognised and stay\n  silent, except the blocks synthesised "
+              f"during play.{RESET}")
+        missing = [campaign]
+        main_row = next((r for r in campaign_rows(lang) if r[0] == "main"), None)
+        if main_row and "complete" not in main_row[2]:
+            missing.append("main")
+        what = " and ".join(missing)
+        pick = choose("What now?", [
+            (f"Render {what} first",
+             "about half an hour per campaign, then it plays"),
+            ("Play anyway", "recognises the screens, speaks what it can"),
+            ("Pick another campaign", ""),
+        ], 0, allow_back=False)
+        if pick == 0:
+            for camp in missing:
+                print(f"\n{BOLD}=== {camp} ==={RESET}")
+                if _run(["render", "--lang", lang, "--campaign", camp]) != 0:
+                    raise Abort
+        elif pick == 2:
             raise Abort
 
     src = choose("How is the game running?", [
