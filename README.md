@@ -26,7 +26,7 @@ and that is what this project replaces.
 |---|---|---|
 | 1 | app assets → corpus, any of 13 languages | **done** — 13,018 keys in pt, 9,814 narration blocks |
 | 2 | corpus → pre-rendered audio | **works and is measured** — RTF 0.05; one campaign in ~20 min |
-| 3 | screen → OCR → matching → plays the audio | **built and verified piece by piece** — capture reads the real game, matcher 98.2%, player speaks, `{0}` blocks synthesise live. Never yet run end to end during an actual session |
+| 3 | screen → OCR → matching → plays the audio | **works during a real game** — capture, OCR, matcher (98.2%), playback, and live synthesis for `{0}` blocks, confirmed by ear across a session |
 
 ---
 
