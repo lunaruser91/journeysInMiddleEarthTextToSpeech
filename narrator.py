@@ -54,6 +54,10 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import console  # noqa: E402
+
+console.setup()
+
 import glyphs  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
@@ -68,8 +72,7 @@ GREEN, YELLOW, RED, GRAY, RESET = ("\033[92m", "\033[93m", "\033[91m",
 ROOT = Path(__file__).resolve().parent
 CAMPAIGNS = {1: "bonesofarnor", 2: "shadowedpaths", 3: "spreadingwar",
              4: "hauntingofdale", 5: "poisonpromise", 6: "embercrown"}
-SAVES = Path.home() / ("Library/Application Support/"
-                       "com.fantasyflightgames.jime/SavedGames")
+SAVES = console.saves_dir()
 
 
 def current_campaign() -> str | None:

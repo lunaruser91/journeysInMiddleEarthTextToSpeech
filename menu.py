@@ -21,6 +21,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
+import console  # noqa: E402
+
+console.setup()
+
 BOLD, GREEN, YELLOW, RED, GRAY, RESET = (
     "\033[1m", "\033[92m", "\033[93m", "\033[91m", "\033[90m", "\033[0m")
 

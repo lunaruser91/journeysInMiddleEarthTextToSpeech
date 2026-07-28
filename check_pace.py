@@ -32,6 +32,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import console  # noqa: E402
+
+console.setup()
+
 # these must match the render — if you change them there, change them here
 SENTENCE_PAUSE = 0.30
 PARAGRAPH_PAUSE = 0.45

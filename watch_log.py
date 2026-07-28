@@ -31,10 +31,15 @@ import os
 import re
 import time
 from collections import deque
+import sys
 from pathlib import Path
 
-SAVES = Path(os.path.expanduser(
-    "~/Library/Application Support/com.fantasyflightgames.jime/SavedGames"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import console  # noqa: E402
+
+console.setup()
+
+SAVES = console.saves_dir()
 DEFAULT_CORPUS = Path(__file__).resolve().parent / "corpus" / "corpus_pt.json"
 
 LINE_RE = re.compile(r"^\[([^|]*)\|([^|]*)\|([^|\]]+)((?:\|[^\]]*)*)\]$")

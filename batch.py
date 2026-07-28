@@ -22,6 +22,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import console  # noqa: E402
+
+console.setup()
+
 import demo  # noqa: E402
 from matcher import Matcher, load_corpus  # noqa: E402
 

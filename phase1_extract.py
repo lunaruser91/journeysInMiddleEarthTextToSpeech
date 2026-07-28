@@ -29,6 +29,11 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import console  # noqa: E402
+
+console.setup()
+
 MARKUP_RE = re.compile(r"\[/?[a-zA-Z][^\]]{0,30}\]")          # [i] [/i] [b] [color=x]
 RICHTEXT_RE = re.compile(r"</?[a-zA-Z][^>]{0,60}>")            # <sprite=...> <color> TMP
 PLACEHOLDER_RE = re.compile(r"\{[0-9A-Za-z_]{1,30}\}")         # {0} {HERO_NAME}

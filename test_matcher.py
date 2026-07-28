@@ -39,12 +39,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+
+import console  # noqa: E402
+
+console.setup()
 import glyphs  # noqa: E402
 from matcher import Matcher, load_corpus, normalize, paragraphs  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "corpus" / "corpus_pt.json"
-LOGS = Path(os.path.expanduser(
-    "~/Library/Application Support/com.fantasyflightgames.jime/SavedGames"))
+LOGS = console.saves_dir()
 LINE_RE = re.compile(r"^\[([^|]*)\|([^|]*)\|([^|\]]+)((?:\|[^\]]*)*)\]$")
 
 # OCR confusions observed in serif text: visually close pairs

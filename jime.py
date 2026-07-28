@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+
+import console  # noqa: E402
+
+console.setup()
 
 GREEN, YELLOW, RED, GRAY, BOLD, RESET = ("\033[92m", "\033[93m", "\033[91m",
                                          "\033[90m", "\033[1m", "\033[0m")
@@ -61,13 +66,37 @@ CAMPAIGNS = ["bonesofarnor", "embercrown", "hauntingofdale", "main",
 
 # Where the game keeps its assets, per platform. Used to guess so the user does
 # not have to type a path that is always in the same place.
-ASSET_GUESSES = [
-    Path.home() / "Library/Application Support/Steam/steamapps/common/"
-                  "Journeys in Middle-earth/JiME.app/Contents/Resources/Data/"
-                  "StreamingAssets/bundles",
-    Path("C:/Program Files (x86)/Steam/steamapps/common/"
-         "Journeys in Middle-earth/JiME_Data/StreamingAssets/bundles"),
-]
+def _asset_guesses() -> list[Path]:
+    """Where the game's data might be, per platform.
+
+    One hardcoded Windows path was not enough: Steam libraries land on whatever
+    drive had room, and a second library is the normal case once the first fills
+    up. So every drive letter is tried, plus the two usual Program Files roots
+    and the standalone (non-Steam) install.
+    """
+    import string
+
+    tail = Path("Journeys in Middle-earth/JiME_Data/StreamingAssets/bundles")
+    mac = (Path.home() / "Library/Application Support/Steam/steamapps/common"
+           / "Journeys in Middle-earth/JiME.app/Contents/Resources/Data"
+           / "StreamingAssets/bundles")
+    out = [mac]
+
+    if platform.system() == "Windows":
+        roots = [Path("C:/Program Files (x86)/Steam"), Path("C:/Program Files/Steam"),
+                 Path.home() / "scoop/apps/steam/current"]
+        roots += [Path(f"{d}:/SteamLibrary") for d in string.ascii_uppercase]
+        roots += [Path(f"{d}:/Steam") for d in string.ascii_uppercase]
+        out += [r / "steamapps/common" / tail for r in roots]
+        out += [Path(f"{d}:/Program Files/{tail}") for d in ("C", "D")]
+    else:
+        # Steam on Linux, including the Proton install of the Windows build
+        for base in (Path.home() / ".steam/steam", Path.home() / ".local/share/Steam"):
+            out.append(base / "steamapps/common" / tail)
+    return out
+
+
+ASSET_GUESSES = _asset_guesses()
 
 
 def corpus_path(lang: str) -> Path:

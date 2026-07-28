@@ -56,6 +56,11 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import console  # noqa: E402
+
+console.setup()
+
 GREEN, YELLOW, GRAY, RESET = "\033[92m", "\033[93m", "\033[90m", "\033[0m"
 
 # Keys the game narrates itself, with recorded voice. See the module docstring.
@@ -82,13 +87,32 @@ def _play_command(path: Path) -> list[str]:
     if shutil.which("ffplay"):
         return ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", str(path)]
 
+    # Every fallback below is WAV-only, and this project renders Opus. They are
+    # kept because a wrong file type is a clearer failure than a missing command,
+    # but none of them will actually play what is rendered here — which is why
+    # ffplay is checked first and why its absence is worth saying out loud.
+    #
+    # macOS taught this the hard way: afplay exits 0 after 1.9 s on a 33 s Opus
+    # file, so it looks like it worked. Windows' Media.SoundPlayer is the same
+    # kind of API and the same trap.
     system = platform.system()
     if system == "Darwin":
-        return ["afplay", str(path)]        # will NOT work for .opus, see above
+        return ["afplay", str(path)]
     if system == "Windows":
         return ["powershell", "-c",
                 f"(New-Object Media.SoundPlayer '{path}').PlaySync()"]
     return ["aplay", str(path)]
+
+
+def require_ffplay() -> str | None:
+    """Warn once if playback is about to be attempted without ffplay."""
+    if shutil.which("ffplay"):
+        return None
+    system = platform.system()
+    how = {"Windows": "winget install ffmpeg   (or: choco install ffmpeg)",
+           "Darwin": "brew install ffmpeg"}.get(system, "apt install ffmpeg")
+    return (f"ffplay was not found, and nothing else on {system} decodes Opus — "
+            f"the audio this renders.\n  Install ffmpeg and it will play:\n    {how}")
 
 
 @dataclass
@@ -141,6 +165,10 @@ class Player:
                 audio = Path(folder) / entry["file"]
                 if audio.exists():
                     self._index.setdefault(key, audio)
+        warning = require_ffplay()
+        if warning and self._index:
+            print(f"{YELLOW}[player] {warning}{RESET}", file=sys.stderr)
+
         if not self.manual:
             self._released.set()
         self._worker = threading.Thread(target=self._run, daemon=True)

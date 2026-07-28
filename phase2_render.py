@@ -57,6 +57,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import console  # noqa: E402
+
+console.setup()
+
 import glyphs  # noqa: E402
 import voices  # noqa: E402
 

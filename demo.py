@@ -41,11 +41,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import console  # noqa: E402
+
+console.setup()
+
 from matcher import Matcher, load_corpus, normalize, paragraphs  # noqa: E402
 
 CORPUS = Path(__file__).resolve().parent / "corpus" / "corpus_pt.json"
-SAVES = Path(os.path.expanduser(
-    "~/Library/Application Support/com.fantasyflightgames.jime/SavedGames"))
+SAVES = console.saves_dir()
 CAMPAIGNS = {1: "bonesofarnor", 2: "shadowedpaths", 3: "spreadingwar",
              4: "hauntingofdale", 5: "poisonpromise", 6: "embercrown"}
 

@@ -234,7 +234,10 @@ if __name__ == "__main__":
     import time
 
     sys.path.insert(0, str(ROOT))
+    import console
     import glyphs as G
+
+    console.setup()
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("key", help="a corpus key carrying a placeholder")
