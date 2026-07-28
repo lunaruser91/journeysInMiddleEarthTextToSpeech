@@ -9,7 +9,7 @@ a block that takes much longer than the text justifies. That was the case of
 
 This script measures words per second of speech for each rendered block and flags
 the ones that stray from the median. Use the output to regenerate the suspects with
-another seed.
+listening.
 
     python3 check_pace.py audio/manifest.json
     python3 check_pace.py audio/manifest.json --mad 3.5 --json suspects.json
@@ -84,6 +84,8 @@ def main() -> None:
 
     rows, unreadable = [], []
     for key, v in manifest.items():
+        if key.startswith("_"):
+            continue          # "_meta" and friends describe the render, not a block
         audio = root / v["file"]
         if not audio.exists():
             unreadable.append(key)
@@ -92,8 +94,13 @@ def main() -> None:
         if dur is None:
             unreadable.append(key)
             continue
-        # undo the DSP stretching and discount the inserted silence
-        speech = dur * TEMPO - embedded_pauses(v["text"])
+        # Duration is duration. This used to undo a DSP time-stretch and
+        # subtract the silence the renderer inserted between sentences, both of
+        # which the current one does neither: there is no chain by default, and
+        # a block is synthesised in a single call rather than joined from
+        # sentences. Keeping those corrections inflated the measured pace by 22%
+        # — the audit reported 188 wpm where the audio runs at 155.
+        speech = dur
         if speech <= 0.5:
             unreadable.append(key)
             continue
@@ -129,7 +136,7 @@ def main() -> None:
         print("\n[ok] no block outside the threshold.")
     else:
         print(f"\n[suspects] {len(suspects)} block(s) — "
-              "regenerate with another seed:\n")
+              "listen before trusting the flag:\n")
         print(f"  {'block':<46} {'w':>4} {'dur':>7} {'w/s':>6} {'z':>7}")
         for l in suspects:
             mark = "slow" if l["z"] < 0 else "fast"
