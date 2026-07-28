@@ -171,8 +171,12 @@ python3.13 -m venv ~/jime-venv
 **Windows**, in PowerShell:
 
 ```powershell
-winget install --id Python.Python.3.13 --id Git.Git --id Gyan.FFmpeg -e
+winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
+winget install --id Git.Git -e --accept-package-agreements
+winget install --id Gyan.FFmpeg -e --accept-package-agreements
 ```
+
+One package per command — `winget` takes a single `--id`.
 
 Close and reopen PowerShell so the new commands are on PATH, then:
 
