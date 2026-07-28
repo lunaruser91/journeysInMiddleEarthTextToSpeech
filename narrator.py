@@ -88,6 +88,30 @@ def current_campaign() -> str | None:
     return None
 
 
+# A paragraph counts as present when the screen nearly contains it. Exact
+# containment was the first attempt and it is too strict for OCR: Apple Vision
+# reads the game's icons as stray characters rather than as nothing, and a
+# single "m" read as "rn" is enough. Measured on the screen that exposed this,
+# a paragraph the OCR had plainly read scored 94-97 and was judged absent, so
+# only the first half of the block was spoken.
+#
+# 88 sits above the matcher's own 82 and below its safe 92: high enough that a
+# different paragraph does not pass, low enough to survive a misread icon.
+ON_SCREEN_SCORE = 88.0
+MIN_PARAGRAPH = 12
+
+
+def _on_screen(paragraph: str, norm_screen: str) -> bool:
+    from rapidfuzz import fuzz
+
+    norm = normalize(paragraph)
+    if len(norm) < MIN_PARAGRAPH:
+        # Too short to judge: "Continue." would match half the game. Treat it as
+        # present so the block is played whole rather than carved up.
+        return True
+    return fuzz.partial_ratio(norm, norm_screen) >= ON_SCREEN_SCORE
+
+
 def frames_from_video(path: Path, fps: float):
     """Yield greyscale frames from a recording, for --from-video."""
     import subprocess
@@ -313,8 +337,7 @@ def main() -> None:
                         continue
                 else:
                     parts = mparagraphs(block["text"])
-                    showing = [p for p in parts
-                               if normalize(p) and normalize(p) in norm_screen]
+                    showing = [p for p in parts if _on_screen(p, norm_screen)]
                     if len(showing) == len(parts):
                         continue          # the block's own audio is right
                     if not showing:
