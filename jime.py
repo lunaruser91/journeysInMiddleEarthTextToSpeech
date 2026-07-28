@@ -128,7 +128,9 @@ def cmd_status(args: argparse.Namespace) -> int:
         if not manifest.exists():
             continue
         any_audio = True
-        entries = json.loads(manifest.read_text(encoding="utf-8"))
+        entries = {k: v for k, v in
+                   json.loads(manifest.read_text(encoding="utf-8")).items()
+                   if not k.startswith("_")}   # "_meta" describes the render
         by_campaign: dict[str, int] = {}
         for key in entries:
             by_campaign[key.split(":", 1)[0]] = by_campaign.get(
@@ -153,8 +155,9 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"\n{BOLD}other renders{RESET} {GRAY}(tests and one-offs; the "
               f"player uses these too){RESET}")
         for folder in others:
-            entries = json.loads((folder / "manifest.json").read_text(
-                encoding="utf-8"))
+            entries = [k for k in json.loads(
+                (folder / "manifest.json").read_text(encoding="utf-8"))
+                if not k.startswith("_")]
             print(f"  {GRAY}·{RESET} {folder.name:<22} {len(entries):>4} blocks")
 
     print(f"\n{BOLD}game assets{RESET}")

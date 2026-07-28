@@ -24,9 +24,9 @@ and that is what this project replaces.
 
 | Phase | What it does | Status |
 |---|---|---|
-| 1 | app assets → pt-BR corpus | **done** — 13,018 keys, 9,814 narration blocks |
+| 1 | app assets → corpus, any of 13 languages | **done** — 13,018 keys in pt, 9,814 narration blocks |
 | 2 | corpus → pre-rendered audio | **works and is measured** — RTF 0.05; one campaign in ~20 min |
-| 3 | screen → OCR → matching → plays the audio | **matcher done and measured (98.2%)**; capture, trigger and player still missing |
+| 3 | screen → OCR → matching → plays the audio | **built and verified piece by piece** — capture reads the real game, matcher 98.2%, player speaks, `{0}` blocks synthesise live. Never yet run end to end during an actual session |
 
 ---
 
