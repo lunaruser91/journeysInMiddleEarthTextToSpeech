@@ -54,7 +54,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 try:
-    from rapidfuzz import fuzz, process
+    import numpy as np
+    from rapidfuzz import fuzz
+    from rapidfuzz.process import cdist
 except ImportError:  # noqa: BLE001
     import sys as _sys
     raise SystemExit(
@@ -167,13 +169,43 @@ class Matcher:
         if len(target) < 8:
             return Result(None, 0, 0, 0, False, "excerpt too short")
 
-        # score_cutoff prunes bad candidates and speeds this up a lot; a runner-up
-        # below the cutoff means a wide margin, which is the favorable case anyway.
-        found = process.extract(target, self._norms, scorer=fuzz.partial_ratio,
-                                limit=20, score_cutoff=self.threshold - 12)
-        if not found:
+        # Every candidate is scored, not the top 20.
+        #
+        # `partial_ratio` gives 100 to any block that merely CONTAINS the screen
+        # text, so a short instruction ties with every long block quoting it —
+        # measured at 42 for "discard the exploration token". Taking 20 of those
+        # 42 is an arbitrary cut, and the tie-break that exists precisely to
+        # prefer the exact-length block never saw it: the correct key was absent
+        # from the list, and the block that won was refused for a length ratio
+        # of 0.37. The screen stayed silent.
+        #
+        # Scoring the whole index costs 21 ms against 12.7 for the truncated
+        # search, on a per-screen budget where the OCR alone spends 150.
+        row = cdist([target], self._norms, scorer=fuzz.partial_ratio,
+                    dtype=np.uint8, workers=-1)[0]
+        cands = self._candidates(row)
+        if not cands:
             return Result(None, 0, 0, 0, False, "no candidate above the cutoff")
-        return self._choose(target, [(sc, i) for _t, sc, i in found])
+        return self._choose(target, cands)
+
+    def _candidates(self, row) -> list[tuple[float, int]]:
+        """Everything tied at the best score, plus enough below it for a margin.
+
+        The tie-break needs all of the joint winners or it cannot pick among
+        them. The margin only needs the best scorer from another key, so a
+        handful of runners-up is enough.
+        """
+        best = int(row.max())
+        if best < self.threshold - 12:
+            return []
+        top = [(float(best), int(j)) for j in np.flatnonzero(row == best)]
+        rest = row.copy()
+        rest[row == best] = 0
+        k = min(20, len(rest))
+        if k:
+            near = np.argpartition(rest, -k)[-k:]
+            top += [(float(rest[j]), int(j)) for j in near if rest[j] > 0]
+        return top
 
     def match_batch(self, excerpts: list[str]) -> list[Result]:
         """Matches many excerpts at once, using every core.
@@ -183,9 +215,6 @@ class Matcher:
         the full matrix in parallel; the scores fit in uint8 because they range
         from 0 to 100. The result is identical to calling `match_text` in a loop.
         """
-        import numpy as np
-        from rapidfuzz.process import cdist
-
         targets = [normalize(t) for t in excerpts]
         valid = [i for i, a in enumerate(targets) if len(a) >= 8]
         out: list[Result] = [
@@ -195,12 +224,10 @@ class Matcher:
 
         m = cdist([targets[i] for i in valid], self._norms,
                   scorer=fuzz.partial_ratio, dtype=np.uint8, workers=-1)
-        k = min(20, len(self._norms))
         for row_idx, i in enumerate(valid):
-            row = m[row_idx]
-            top = np.argpartition(row, -k)[-k:]
-            top = top[np.argsort(row[top])][::-1]
-            out[i] = self._choose(targets[i], [(float(row[j]), int(j)) for j in top])
+            cands = self._candidates(m[row_idx])
+            out[i] = (self._choose(targets[i], cands) if cands else
+                      Result(None, 0, 0, 0, False, "no candidate above the cutoff"))
         return out
 
     def _choose(self, target: str, cands: list[tuple[float, int]]) -> Result:
