@@ -54,8 +54,16 @@ alias jime="~/jime-venv/bin/python"
 
 ## Usage
 
-Everything runs through one command. `jime <command> --help` shows the full
-options for each.
+Run it with no arguments and it asks. Every question shows the state behind it —
+which languages have a corpus, how much of each campaign is already rendered —
+so you do not have to remember where you left off.
+
+```bash
+jime
+```
+
+The flags are still there and still faster once you know them.
+`jime <command> --help` shows the full options for each.
 
 ```bash
 jime status                    # what is done and what is missing

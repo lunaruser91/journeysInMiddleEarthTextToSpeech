@@ -577,11 +577,12 @@ def _fail(message: str) -> int:
     return 1
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """The whole CLI, so the interactive menu can drive it rather than restate it."""
     ap = argparse.ArgumentParser(
         prog="jime", description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = ap.add_subparsers(dest="command", required=True)
+    sub = ap.add_subparsers(dest="command")
 
     sub.add_parser("status", help="what is done and what is missing"
                    ).set_defaults(func=cmd_status)
@@ -662,7 +663,21 @@ def main() -> None:
     p.add_argument("--lang", default="pt")
     p.set_defaults(func=cmd_glyphs)
 
-    args = ap.parse_args()
+    return ap
+
+
+def main() -> None:
+    # No arguments opens the menu. The flags remain the fast path once you know
+    # them; the menu is for coming back later and not remembering which campaign
+    # was left half-rendered.
+    if len(sys.argv) == 1:
+        import menu
+        sys.exit(menu.main())
+
+    args = build_parser().parse_args()
+    if not getattr(args, "func", None):
+        build_parser().print_help()
+        sys.exit(2)
     sys.exit(args.func(args))
 
 
