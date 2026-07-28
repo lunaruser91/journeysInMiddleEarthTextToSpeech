@@ -50,20 +50,28 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import phase2_render as P  # noqa: E402
 
 VOICE_DIR = Path(__file__).resolve().parent / "voices"
-DEFAULT_VOICE = VOICE_DIR / "pt_BR-cadu-medium.onnx"
+DEFAULT_VOICE = VOICE_DIR / "pt_BR-faber-medium.onnx"
 
 # Piper's own pacing knob: higher is slower. Kept separate from the DSP speed
 # because stretching audio after the fact and speaking slower are not the same
 # thing — the first smears transients, the second is free.
 #
-# 1.63 is measured, not guessed. At 1.00 Piper runs at 3.13 words/s against
-# Chatterbox's 2.17 on the same 40 blocks — 182 words per minute, above the
-# audiobook range this project targets. The response is not linear (1.42 gives
-# 2.43, 1.50 gives 2.32), so it was swept until the medians matched at 2.14.
-# The point is that the two engines are interchangeable mid-session: a screen
-# rendered here and the next one rendered by Chatterbox should not sound like a
-# change of pace, only a change of voice.
-LENGTH_SCALE = 1.63
+# **It is per voice, and the response is not linear.** Each of these was swept
+# until its median words-per-second matched Chatterbox's 2.17 on the same 40
+# blocks, because the two engines are meant to be mixed inside one session: a
+# screen rendered by one and the next by the other should differ in voice, not
+# in pace. Carrying one voice's number over to another is how that breaks —
+# faber at cadu's 1.63 runs at 2.71 w/s, a quarter too fast.
+#
+#   voice                 raw    calibrated
+#   pt_BR-faber-medium    2.71 ->  2.16 @ 2.16
+#   pt_BR-cadu-medium     3.13 ->  2.14 @ 1.63
+#
+CALIBRATION = {
+    "pt_BR-faber-medium": 2.16,
+    "pt_BR-cadu-medium": 1.63,
+}
+LENGTH_SCALE = 2.16          # faber, the default voice
 
 
 def dsp_version(speed: float, length_scale: float) -> str:
@@ -87,8 +95,9 @@ def main() -> None:
     ap.add_argument("--limit", type=int)
     ap.add_argument("--speed", type=float, default=P.SPEED,
                     help="DSP speed, matching the Chatterbox renderer")
-    ap.add_argument("--length-scale", type=float, default=LENGTH_SCALE,
-                    help="Piper's own pacing; higher is slower")
+    ap.add_argument("--length-scale", type=float, default=None,
+                    help="Piper's own pacing; higher is slower. Defaults to the "
+                         "calibrated value for the chosen voice.")
     ap.add_argument("--include-dynamic", action="store_true",
                     help="also render blocks carrying a {0} placeholder")
     ap.add_argument("--dry-run", action="store_true")
@@ -98,6 +107,14 @@ def main() -> None:
         sys.exit(f"[error] no voice at {args.voice}.\n"
                  f"Download one from huggingface.co/rhasspy/piper-voices, e.g.\n"
                  f"  pt/pt_BR/cadu/medium/pt_BR-cadu-medium.onnx  (+ .onnx.json)")
+
+    if args.length_scale is None:
+        args.length_scale = CALIBRATION.get(args.voice.stem)
+        if args.length_scale is None:
+            args.length_scale = LENGTH_SCALE
+            print(f"[warning] {args.voice.stem} has no calibrated pace; using "
+                  f"{LENGTH_SCALE} from {DEFAULT_VOICE.stem}. Sweep it and add "
+                  f"it to CALIBRATION, or this voice will not match the others.")
 
     P.SPEED = args.speed          # wizard_chain reads this module-level value
 
