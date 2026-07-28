@@ -28,7 +28,7 @@ All **thirteen** of the game's localisations can be narrated.
 |---|---|---|
 | 1 | app assets → corpus, any of 13 languages | **done** — 13,018 keys in pt, 9,814 narration blocks |
 | 2 | corpus → pre-rendered audio | **done and measured** — RTF 0.05; a campaign plus the shared text in ~30 min |
-| 3 | screen → OCR → matching → speech | **works during a real game** — confirmed by ear across a session |
+| 3 | screen → OCR → matching → speech | **works during a real game** on macOS, confirmed by ear; on Windows every part passes its self-test but no session has been played |
 
 ---
 
@@ -39,10 +39,9 @@ Otherwise this section assumes nothing.
 
 ### What you need first
 
-- **A Mac, or Windows.** macOS is the fully exercised path. Windows installs and
-  passes its self-test, including OCR and capture; see
-  [What is missing](#what-is-missing) for the parts that still need the game
-  present to try.
+- **A Mac, or Windows.** Both install and pass `selftest.py` with the game
+  present. macOS is the one that has narrated a real session; see
+  [What is missing](#what-is-missing).
 - **The game installed on this same computer.** The narrator reads the game's own
   text files, so it has to find them. Steam or the standalone app both work.
 - **About 300 MB free** for the generated speech, per language.
@@ -543,12 +542,11 @@ Do not rediscover them.
 4. **Eleven of the thirteen languages have no measured pace.** They fall back to
    the voice's own, which is faster than a narrator should read.
    `jime voices --calibrate` fixes one in a few minutes.
-5. **Windows has been exercised, but not end to end.** A real Windows 11 VM
-   runs `selftest.py` at 27/28: the environment, every import, the console
-   encoding, RapidOCR reading an image correctly, and window enumeration through
-   Windows.Graphics.Capture. What has not been done there is extraction, render
-   and matching, because that needs the game installed on the same machine — and
-   capturing the game itself, which needs it running.
+5. **Windows passes its self-test but has never narrated a game.** A Windows 11
+   VM with the game installed runs `selftest.py` at 40/40 — extraction from the
+   native build, synthesis, RapidOCR, matching, and the capture backend. What is
+   untried there is a session: capturing the game while it runs, and hearing it
+   read a screen aloud.
 6. **The hero name behind a numeric `Id` is unresolved.** Log parameter type 3
    carries a number this project cannot yet map to a hero, which matters only for
    fixture generation.
