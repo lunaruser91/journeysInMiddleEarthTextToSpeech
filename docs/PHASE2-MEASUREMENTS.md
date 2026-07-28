@@ -1,5 +1,15 @@
 # Phase 2 — what was measured about Chatterbox's performance
 
+> **Chatterbox has been removed from the project.** Everything below about it is
+> kept because it is why the decision went the way it did, not because the code
+> still exists. §6c is the measurement that settled it: RTF 0.049 against 3.7, on
+> the same 226 blocks. What the switch also bought, beyond the 74x: no reference
+> recording to think about, no GPU, 60 MB of model instead of 3 GB, and voices
+> for all thirteen of the game's languages instead of ten.
+>
+> The one thing it cost is expressiveness. Piper has clear diction and flat
+> prosody; it reads, it does not act.
+
 This document closes the "🔴 OPEN PROBLEM" from §5 of the briefing. Everything
 here is measurement on this hardware, not estimate. Where the measurement
 contradicts the briefing, the measurement wins — and the briefing is annotated as

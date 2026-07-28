@@ -25,7 +25,7 @@ and that is what this project replaces.
 | Phase | What it does | Status |
 |---|---|---|
 | 1 | app assets → pt-BR corpus | **done** — 13,018 keys, 9,814 narration blocks |
-| 2 | corpus → pre-rendered audio | **works and is measured** — RTF 3.17; one campaign in ~19 h |
+| 2 | corpus → pre-rendered audio | **works and is measured** — RTF 0.05; one campaign in ~20 min |
 | 3 | screen → OCR → matching → plays the audio | **matcher done and measured (98.2%)**; capture, trigger and player still missing |
 
 ---
@@ -59,16 +59,28 @@ options for each.
 jime status                    # what is done and what is missing
 jime doctor                    # is this machine ready?
 jime languages                 # what each of the 13 localisations supports
+jime voices                    # which voice speaks each language
 jime extract --lang pt         # game assets  ->  corpus
-jime render --campaign bonesofarnor --speed 1.30
+jime render --campaign bonesofarnor
 jime play --campaign bonesofarnor --display   # fullscreen game
 jime test --video recording.mp4
 ```
 
-Ten of the game's thirteen languages can be narrated — that is where the game's
-localisations and the speech model's languages overlap. Czech, Hungarian and
-Ukrainian have text but no voice. `jime languages` shows the table, including
-which ones have the icon vocabulary filled in.
+**All thirteen of the game's languages can be narrated.** Every localisation it
+ships has a Piper voice, so there is nothing you can read but not hear. Voices
+are fetched on first use, about 60 MB each.
+
+```bash
+jime voices                      # the default voice for each language
+jime voices --lang de            # what else is available
+jime render --lang de --voice de_DE-eva_k-x_low
+```
+
+Only Portuguese and English have a **measured** reading pace; the others fall
+back to Piper's own and will sound faster. `jime voices --calibrate --lang de`
+renders a sample, reports the pace and prints the line to paste into
+`voices.py`. `jime languages` shows which languages have the icon vocabulary
+filled in.
 
 ### The individual tools
 
@@ -84,7 +96,7 @@ contains a single `TextAsset` that is a clean CSV. There are 13 languages availa
 ### Phase 2 — render the audio
 
 ```bash
-jime phase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --check-pace
+jime phase2_render.py --lang pt --campaign bonesofarnor
 ```
 
 Estimate before leaving it running overnight:
@@ -169,7 +181,7 @@ The project is self-contained. **Nothing is written outside the repository.**
 
 ```
 corpus/          corpus extracted from the game       (generated, ignored)
-ref/             reference voice for cloning          (ignored)
+voices/          Piper voice models, ~60 MB each      (ignored)
 output/           EVERYTHING that is generated         (ignored)
   audio/           render per campaign + manifest.json
   sob-demanda/     blocks synthesized on the spot
@@ -204,8 +216,8 @@ estimate. The detail is in [docs/PHASE2-MEASUREMENTS.md](docs/PHASE2-MEASUREMENT
 
 | | |
 |---|---|
-| RTF (wall clock ÷ audio duration) | **3.17** |
-| Bones of Arnor (6.0 h of audio) | **~19 h of machine time** |
+| RTF (wall clock ÷ audio duration) | **0.05** |
+| Bones of Arnor (6.0 h of audio) | **~20 min of machine time** |
 | Full corpus (44.8 h) | ~142 h — not viable in one go, viable per campaign |
 | Bottleneck | T3 autoregressive decode: **80–85% of the wall clock** |
 
@@ -307,7 +319,7 @@ synthesizing.
 
 Do not rediscover them.
 
-1. **`setuptools>=81` breaks `perth`** (Chatterbox's watermark) and the model **does not
+1. **`setuptools>=81` broke `perth`**, the watermark library the previous engine used, and the model **did not
    even load**. Pin `setuptools<81`.
 2. **Python 3.14 has no PyTorch wheels.** Use 3.12 or 3.13.
 3. **Homebrew's ffmpeg does not ship the `rubberband` filter.** The renderer detects it and

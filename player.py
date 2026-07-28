@@ -131,6 +131,8 @@ class Player:
             except json.JSONDecodeError:
                 continue
             for key, entry in entries.items():
+                if key.startswith("_"):
+                    continue          # "_meta" and friends describe the render
                 audio = Path(folder) / entry["file"]
                 if audio.exists():
                     self._index.setdefault(key, audio)

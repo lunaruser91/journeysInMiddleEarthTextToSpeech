@@ -2,7 +2,7 @@
 """
 check_pace.py — pace anomaly detector for the rendered narration.
 
-Autoregressive models like Chatterbox sometimes drift: they repeat a token,
+Speech models sometimes drift: they repeat a token,
 stretch a vowel, or fall into a loop until the forced EOS. The audible symptom is
 a block that takes much longer than the text justifies. That was the case of
 `bonesofarnor:A1_THREAT_1`, which came out at 1.00 word/s against an average of 2.03.

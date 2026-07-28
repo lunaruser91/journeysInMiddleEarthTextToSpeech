@@ -13,13 +13,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Speech synthesis. Heavy: ~3 GB of weights, needs a GPU (MPS/CUDA) to be viable.
-tts = [
-    "chatterbox-tts",
-    "torch>=2.6",
-    "torchaudio>=2.6",
-    "setuptools<81",        # >=81 breaks perth and the model will not even load
-]
+# Speech synthesis. Light: a 60 MB voice, on the CPU. The engine this replaced
+# pulled in torch and ~3 GB of weights and wanted a GPU to be viable at all.
+tts = ["piper-tts>=1.6"]
 # Native macOS OCR (Apple Vision). Offline, ~150 ms.
 ocr = ["ocrmac"]
 # Portable OCR, for platforms without Apple Vision. ~19 MB of ONNX weights.

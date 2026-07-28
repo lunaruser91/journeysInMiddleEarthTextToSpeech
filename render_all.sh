@@ -6,9 +6,9 @@
 #   ./render_all.sh main                 # just the shared blocks
 #   ./render_all.sh --lang en spreadingwar
 #
-# This is a long job: measured on this machine at RTF ~3.7, a full campaign plus
-# the shared `main` blocks is about 50 hours. That is two days, not one night, so
-# the script is built to be stopped and resumed rather than to run in one go.
+# Measured at RTF ~0.05, a full campaign plus the shared `main` blocks is under
+# an hour. It used to be fifty, which is why this script exists at all and why it
+# is still built to be stopped and resumed — that costs nothing to keep.
 #
 # ## What makes it resumable
 #
@@ -19,17 +19,15 @@
 #
 # ## Order, and why
 #
-# Campaign text comes before `main` by default. The 198 most common shared blocks
-# are usually already rendered, so the campaign's own text is what actually turns
-# more adventures from silent into narrated. Rendering `main` first would spend a
-# day and a half before a single new adventure could be played.
+# Campaign text comes before `main` by default, so the adventures you are about
+# to play start narrating first. With the whole job under an hour the order
+# barely matters any more, but it costs nothing to keep the useful one.
 #
 # ## Sleep
 #
-# `caffeinate -i` blocks idle sleep, which is what would otherwise stop this an
-# hour after you walk away. It does NOT stop a laptop from sleeping when the lid
-# closes: leave the lid open, or run in clamshell with power and an external
-# display connected.
+# `caffeinate -i` blocks idle sleep. It matters much less than it did when a run
+# took two days, but a render interrupted halfway still has to be restarted, and
+# the flag costs nothing. It does NOT stop a laptop sleeping when the lid closes.
 #
 set -uo pipefail
 
@@ -89,7 +87,7 @@ say ""
 for campaign in "${args[@]}"; do
     say "=== $campaign ==="
     caffeinate -i "$PY" "$ROOT/jime.py" render \
-        --lang "$LANG_CODE" --campaign "$campaign" --check-pace 2>&1 \
+        --lang "$LANG_CODE" --campaign "$campaign" 2>&1 \
         | tee -a "$LOG" \
         | grep --line-buffered -E '^\s+\[[0-9]+/|^\[end\]|^\[plan\]|failure'
     status=${PIPESTATUS[0]}

@@ -161,7 +161,7 @@ OPAQUE = {"JME01", "JME05", "JME08"}
 # --------------------------------------------------------------------------- #
 # numbers spelled out
 #
-# Chatterbox Multilingual reads bare digits with the wrong phonology even with
+# Speech models read bare digits with the wrong phonology even with
 # language_id="pt": "1" comes out as "uno", "2" as "dos". Spelling them out
 # before synthesis fixes it at the source. Affects 38.8% of the pt-BR corpus
 # blocks (3,541 of 9,118); "1" alone appears 2,453 times.

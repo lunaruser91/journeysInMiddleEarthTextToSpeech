@@ -19,7 +19,7 @@ reimplemented here. `jime <command> --help` shows that module's full options.
 The game ships 13 localisations. Ten of them can be narrated, because that is
 where the game's languages and the speech model's languages overlap. Czech,
 Hungarian and Ukrainian have game text but no voice — the corpus extracts fine
-and everything up to synthesis works, so they are still useful for reading.
+and every language the game ships can also be spoken.
 
 Icon vocabularies (`glyphs.py`) are filled for Portuguese and English. Any other
 language extracts and renders, but the game's icons will be dropped rather than
@@ -43,9 +43,13 @@ GREEN, YELLOW, RED, GRAY, BOLD, RESET = ("\033[92m", "\033[93m", "\033[91m",
                                          "\033[90m", "\033[1m", "\033[0m")
 
 # The game's localisations, and whether the speech model can voice them.
+DEFAULT_LANG = "pt"
 GAME_LANGUAGES = ["cz", "de", "en", "es", "fr", "hu", "it", "ko", "pl",
                   "pt", "ru", "uk", "zh"]
-VOICEABLE = {"de", "en", "es", "fr", "it", "ko", "pl", "pt", "ru", "zh"}
+# Every localisation the game ships has a Piper voice, so there is nothing that
+# can be read but not heard. The previous engine covered ten of thirteen, which
+# is why this used to be a smaller set than GAME_LANGUAGES.
+VOICEABLE = set(GAME_LANGUAGES)
 LANGUAGE_NAMES = {
     "cz": "Czech", "de": "German", "en": "English", "es": "Spanish",
     "fr": "French", "hu": "Hungarian", "it": "Italian", "ko": "Korean",
@@ -71,7 +75,10 @@ def corpus_path(lang: str) -> Path:
 
 
 def audio_dir(lang: str) -> Path:
-    return ROOT / "output" / ("audio" if lang == "pt" else f"audio_{lang}")
+    # Uniform per language, including Portuguese. The old layout special-cased
+    # pt as bare "audio/", which meant a second language landed somewhere that
+    # looked unrelated to the first.
+    return ROOT / "output" / f"audio_{lang}"
 
 
 def _run(module: str, argv: list[str]) -> int:
@@ -231,15 +238,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
     print(f"\n{BOLD}synthesis{RESET} {GRAY}(only needed to render){RESET}")
     try:
-        import torch
-        device = ("mps" if torch.backends.mps.is_available()
-                  else "cuda" if torch.cuda.is_available() else "cpu")
-        check("torch", True, f"device: {device}"
-              + ("  — CPU rendering is ~8x slower" if device == "cpu" else ""))
+        import piper  # noqa: F401
+        check("piper", True, "CPU synthesis, no GPU needed")
     except ImportError:
-        check("torch", False, "pip install -e '.[tts]'")
-    check("voice reference", (ROOT / "ref" / "REF_paginasrecolhidas.wav").exists(),
-          "ref/REF_paginasrecolhidas.wav")
+        check("piper", False, "pip install piper-tts")
+    try:
+        import voices as V
+        have = sorted(p.stem for p in V.VOICE_DIR.glob("*.onnx"))
+        check("voices", True,
+              f"{len(have)} installed: {', '.join(have[:3])}"
+              + (" ..." if len(have) > 3 else "") if have
+              else "none yet — fetched automatically on first render")
+    except Exception as exc:  # noqa: BLE001
+        check("voices", False, str(exc).split("\n")[0])
 
     print(f"\n{GREEN}ready{RESET}" if ok else
           f"\n{YELLOW}some pieces are missing — see above{RESET}")
@@ -269,6 +280,95 @@ def cmd_extract(args: argparse.Namespace) -> int:
 
 # ------------------------------------------------------------------ render --
 
+def cmd_voices(args: argparse.Namespace) -> int:
+    import voices as V
+
+    if args.calibrate:
+        return _calibrate(args, V)
+
+    if not args.lang:
+        print(f"{BOLD}{'lang':6s} {'default voice':30s} {'others':>7s}{RESET}")
+        for lang in GAME_LANGUAGES:
+            try:
+                alts = V.for_language(lang)
+            except Exception as exc:  # noqa: BLE001
+                return _fail(str(exc))
+            name = V.DEFAULT_VOICE.get(lang, "-")
+            tick = GREEN + "*" + RESET if V.voice_path(name).exists() else " "
+            cal = "" if name in V.CALIBRATION else f"  {YELLOW}pace not measured{RESET}"
+            print(f"{lang:6s} {name:30s} {len(alts) - 1:7d} {tick}{cal}")
+        print(f"\n{GRAY}* = downloaded.  Voices are fetched on first use, "
+              f"~60 MB each.\n"
+              f"  jime voices --lang de       list alternatives\n"
+              f"  jime render --lang de --voice de_DE-eva_k-x_low{RESET}")
+        return 0
+
+    try:
+        alts = V.for_language(args.lang)
+    except Exception as exc:  # noqa: BLE001
+        return _fail(str(exc))
+    if not alts:
+        return _fail(f"no Piper voice for {args.lang!r}")
+    default = V.DEFAULT_VOICE.get(args.lang)
+    print(f"{BOLD}{'voice':32s} {'quality':>8s} {'MB':>4s}{RESET}")
+    for v in alts:
+        mark = f" {GREEN}<- default{RESET}" if v["name"] == default else ""
+        got = GREEN + "*" + RESET if v["installed"] else " "
+        print(f"{v['name']:32s} {v['quality']:>8s} {v['mb']:>4d} {got}{mark}")
+    return 0
+
+
+def _calibrate(args: argparse.Namespace, V) -> int:
+    """Measure a voice's pace so it can be made to match the others.
+
+    Pace is a property of the speaker, and the response to length_scale is not
+    linear, so it cannot be computed — only swept. This renders a sample at two
+    settings, interpolates to the target, and verifies at that value.
+    """
+    import json
+    import statistics
+    import tempfile
+
+    lang = args.lang or "pt"
+    corpus = corpus_path(lang)
+    if not corpus.exists():
+        return _fail(f"no corpus for {lang!r}. Run: jime extract --lang {lang}")
+    voice = args.voice if getattr(args, "voice", None) else V.resolve(lang)
+    target = V.TARGET_WPS.get(lang, V.DEFAULT_TARGET_WPS)
+    print(f"{GRAY}calibrating {voice} against {target} words/s "
+          f"on {args.blocks} blocks{RESET}\n")
+
+    def measure(scale: float, out: Path) -> float:
+        rc = _run("phase2_render.py", [
+            str(corpus), "--lang", lang, "--voice", voice, "-o", str(out),
+            "--length-scale", str(scale), "--limit", str(args.blocks)])
+        if rc != 0:
+            raise RuntimeError("render failed")
+        man = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+        w = [v["wps"] for v in man.values() if v.get("wps")]
+        return statistics.median(w)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        try:
+            a, b = 1.2, 1.8
+            wa, wb = measure(a, tmp / "a"), measure(b, tmp / "b")
+            print(f"  length_scale {a}  ->  {wa:.2f} w/s")
+            print(f"  length_scale {b}  ->  {wb:.2f} w/s")
+            if abs(wb - wa) < 1e-6:
+                return _fail("pace did not respond to length_scale")
+            best = a + (target - wa) * (b - a) / (wb - wa)
+            got = measure(best, tmp / "c")
+            print(f"  length_scale {best:.2f}  ->  {got:.2f} w/s   {GREEN}<-{RESET}")
+        except Exception as exc:  # noqa: BLE001
+            return _fail(str(exc))
+
+    print(f"\n{GREEN}add this to CALIBRATION in voices.py:{RESET}")
+    print(f'    "{voice}": {best:.2f},   # measured {got:.2f} w/s '
+          f'on {args.blocks} blocks')
+    return 0
+
+
 def cmd_render(args: argparse.Namespace) -> int:
     corpus = corpus_path(args.lang)
     if not corpus.exists():
@@ -284,14 +384,13 @@ def cmd_render(args: argparse.Namespace) -> int:
               f"icons will be dropped instead of spoken — see 'jime glyphs "
               f"--lang {args.lang}'.{RESET}")
 
-    argv = [str(corpus), "-o", str(audio_dir(args.lang)),
-            "--lang", args.lang, "--speed", str(args.speed)]
+    argv = [str(corpus), "-o", str(audio_dir(args.lang)), "--lang", args.lang]
+    if args.voice:
+        argv += ["--voice", args.voice]
+    if args.length_scale:
+        argv += ["--length-scale", str(args.length_scale)]
     if args.campaign:
         argv += ["--campaign", args.campaign]
-    if args.check_pace:
-        argv += ["--check-pace"]
-    if args.device:
-        argv += ["--device", args.device]
     if args.dry_run:
         argv += ["--dry-run"]
     if args.limit:
@@ -321,15 +420,42 @@ def cmd_play(args: argparse.Namespace) -> int:
     # first folder that has a key, so the canonical render always wins and these
     # only fill gaps. A block spoken at a slightly different pace beats silence,
     # and a partial render is the normal state for a long time.
-    spare = [d for d in sorted((ROOT / "output").glob("*"))
-             if (d / "manifest.json").exists() and d != folder]
+    # Never fill a gap with another language: an English block inside a
+    # Portuguese session is worse than silence, and that became possible the
+    # moment a second language could be rendered. New manifests declare what
+    # they are; older ones say nothing, and unknown is not the same as matching.
+    spare, unlabelled = [], []
+    for d in sorted((ROOT / "output").glob("*")):
+        if d == folder or not (d / "manifest.json").exists():
+            continue
+        try:
+            meta = json.loads((d / "manifest.json").read_text(
+                encoding="utf-8")).get("_meta", {})
+        except Exception:  # noqa: BLE001
+            continue
+        declared = meta.get("lang")
+        if declared == args.lang:
+            spare.append(d)
+        elif declared is None:
+            unlabelled.append(d)
+
+    if unlabelled and args.lang == DEFAULT_LANG:
+        # Everything rendered before manifests carried a language was Portuguese,
+        # because Portuguese was the only language that could be rendered.
+        spare.extend(unlabelled)
+    elif unlabelled:
+        print(f"{GRAY}ignoring {len(unlabelled)} folder(s) that do not say which "
+              f"language they are: {', '.join(d.name for d in unlabelled)}. "
+              f"Pass --audio to use one anyway.{RESET}")
+    spare.sort()
     for d in spare:
         argv += ["--audio", str(d)]
 
     names = ", ".join(d.name for d in spare)
     if primary and spare:
-        print(f"{GRAY}filling gaps from {len(spare)} test folder(s): {names}. "
-              f"Their pace may differ from the current render.{RESET}")
+        print(f"{GRAY}filling gaps from {len(spare)} other folder(s): {names}. "
+              f"Those may use a different voice or pace — better than silence, "
+              f"but you will hear the change.{RESET}")
     elif primary:
         pass
     elif spare:
@@ -468,12 +594,12 @@ def main() -> None:
     p = sub.add_parser("render", help="corpus -> audio")
     p.add_argument("--lang", default="pt", choices=sorted(VOICEABLE))
     p.add_argument("--campaign", choices=CAMPAIGNS)
-    p.add_argument("--speed", type=float, default=1.30,
-                   help="1.30 is ~137 words per minute; 1.0 is the model's own "
-                        "pace, which drags. Changing it re-renders everything.")
-    p.add_argument("--device", choices=["auto", "mps", "cuda", "cpu"])
-    p.add_argument("--check-pace", action="store_true",
-                   help="detect degenerate blocks and retry with another seed")
+    p.add_argument("--voice",
+                   help="Piper voice name; defaults to the one chosen for the "
+                        "language. See: jime voices --lang <code>")
+    p.add_argument("--length-scale", type=float,
+                   help="reading pace; higher is slower. Defaults to the value "
+                        "measured for the voice. Changing it re-renders.")
     p.add_argument("--limit", type=int)
     p.add_argument("--key", action="append", help="render only these blocks")
     p.add_argument("--keys-from", type=Path,
@@ -513,6 +639,15 @@ def main() -> None:
                    help="seconds to wait for the game window before giving up; "
                         "use it to switch to a fullscreen game after starting")
     p.set_defaults(func=cmd_test)
+
+    p = sub.add_parser("voices", help="what can speak each language")
+    p.add_argument("--lang", help="list every voice for one language")
+    p.add_argument("--calibrate", action="store_true",
+                   help="render a sample and report its pace, so an uncalibrated "
+                        "voice can be given a length_scale that matches the rest")
+    p.add_argument("--blocks", type=int, default=25,
+                   help="how many blocks to measure when calibrating")
+    p.set_defaults(func=cmd_voices)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")
     p.add_argument("--lang", default="pt")
