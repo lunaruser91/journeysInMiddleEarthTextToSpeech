@@ -195,6 +195,56 @@ has to happen **inside** one process, where those same 2.14 GB serve 8-16 rows a
 once instead of being read once per row. That is item 3 below, and this
 measurement is the argument for it.
 
+## 6c. Piper measured: RTF 0.049, and the old renderer never worked
+
+§7 said Piper was not installed and `render_piper.py` had a defect. Both are now
+fixed, and the numbers are measured on this machine rather than inherited.
+
+Rendering the **same 226 blocks** the Chatterbox run had just produced:
+
+| | Chatterbox | Piper |
+|---|---|---|
+| wall clock | ~2.5 h | **103 s** |
+| RTF | 3.7 | **0.049** |
+| failures | 15 | 0 |
+| size | 14 MB | 12 MB |
+
+**74x.** What remains of `main` + `bonesofarnor` — 111,131 words, 14.4 h of
+speech — is 53 h with Chatterbox and **43 minutes** with Piper.
+
+The briefing's figure was RTF 0.03. The measured 0.049 is worse than that but
+the order of magnitude holds, and it is the one to quote from now on.
+
+### The old renderer had two defects, not one
+
+`legacy/render_piper.py` was known to name `rubberband` unconditionally, which
+this ffmpeg does not have — every block would have failed at the ffmpeg call.
+The second defect was not recorded anywhere: it synthesized `v["text"]`, the raw
+screen text, so the entire glyph and number layer was bypassed. Icons would have
+reached the tokenizer as nothing and digits would have been read in whatever
+language the model defaulted to — the exact bug that produced "uno" for "1".
+
+`phase2_render_piper.py` shares `wizard_chain()` and `prepare_speech()` with the
+Chatterbox renderer rather than restating them, which is why it cannot drift
+again.
+
+### Pace had to be calibrated, and it is not linear
+
+Piper at `length_scale=1.0` speaks at 3.13 words/s against Chatterbox's 2.17 on
+the same 40 blocks — 182 words per minute, above the audiobook range. The
+response to the knob is not linear:
+
+| length_scale | words/s |
+|---|---|
+| 1.00 | 3.13 |
+| 1.42 | 2.43 |
+| 1.50 | 2.32 |
+| **1.63** | **2.14** |
+
+1.63 is the default. It matters because the two engines are meant to be mixed
+inside one session: a screen rendered by one and the next by the other should
+differ in voice, not in pace.
+
 ## 6b. The degenerate block: the cause was the seed, not the token ceiling
 
 `bonesofarnor:A1_THREAT_1` came out at 43.2 s for 43 words in the old renderer

@@ -77,3 +77,8 @@ venv/
 bench_results.json
 *.log
 .tmp_*
+
+# Piper voice models — 60 MB each, fetched from huggingface.co/rhasspy/piper-voices
+voices/
+*.onnx
+*.onnx.json
