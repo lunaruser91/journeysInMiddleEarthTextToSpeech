@@ -136,20 +136,35 @@ def campaign_rows(lang: str) -> list[tuple[str, str, str]]:
 
 # ------------------------------------------------------------------ flows --
 
-def pick_language(action: str, need_corpus: bool = True) -> str:
+def pick_language(action: str) -> str:
+    """Every language the game ships, not only the ones already extracted.
+
+    Filtering to what has a corpus made the list two items long and left no way
+    to reach the other eleven: you had to know to quit, run `extract`, and come
+    back. The dead end was worse than the longer list, so all thirteen are shown
+    and the missing corpus is offered here.
+    """
     import jime
 
     rows = language_rows()
-    if need_corpus:
-        usable = [r for r in rows if "no corpus" not in r[2]]
-        if not usable:
-            print(f"\n{RED}No corpus has been extracted yet.{RESET}")
-            print(f"{GRAY}  jime extract --lang pt{RESET}")
-            raise Abort
-        rows = usable
     default = next((i for i, r in enumerate(rows) if r[0] == "pt"), 0)
-    i = choose(f"Which language to {action}?", [(r[1], r[2]) for r in rows], default)
-    return rows[i][0]
+    while True:
+        i = choose(f"Which language to {action}?",
+                   [(r[1], r[2]) for r in rows], default)
+        lang = rows[i][0]
+        if jime.corpus_path(lang).exists():
+            return lang
+
+        name = jime.LANGUAGE_NAMES.get(lang, lang)
+        print(f"\n{YELLOW}  {name} has not been extracted yet.{RESET} "
+              f"{GRAY}It has to come out of your own\n  copy of the game before "
+              f"anything can be said in it.{RESET}")
+        if not confirm(f"Extract {name} now?", True):
+            continue
+        if _run(["extract", "--lang", lang]) != 0:
+            continue
+        rows = language_rows()
+        return lang
 
 
 def flow_render() -> list[str] | None:
