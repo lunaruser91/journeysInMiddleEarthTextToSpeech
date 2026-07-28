@@ -149,8 +149,17 @@ class Player:
     # ---------------------------------------------------------------- queue --
 
     def enqueue(self, keys: list[str], interrupt: bool = True,
-                again: bool = False) -> list[str]:
-        """Queue one screen's blocks. Returns the keys that will actually play."""
+                again: bool = False,
+                audio: dict[str, Path] | None = None) -> list[str]:
+        """Queue one screen's blocks. Returns the keys that will actually play.
+
+        `audio` supplies a path for this screen only. Audio synthesised while
+        playing belongs to the screen that produced it, not to the key: a {0}
+        block says "raise the threat by 4" on one screen and "by 2" on the next,
+        and a block shown in part must not become the block's voice for the rest
+        of the session. Registering it permanently would do both.
+        """
+        audio = audio or {}
         # The game reveals a dialogue box in stages: prose first, the
         # instruction under it a moment later. Each stage settles as its own
         # screen, and the second carries both paragraphs — so the first block
@@ -181,11 +190,11 @@ class Player:
             if growing and key in self._last_screen:
                 skipped.append((key, "already spoken — the box just grew"))
                 continue
-            audio = self._index.get(key)
-            if audio is None:
+            path = audio.get(key) or self._index.get(key)
+            if path is None:
                 skipped.append((key, "no audio rendered"))
                 continue
-            playable.append(Track(key, audio))
+            playable.append(Track(key, path))
 
         # Keep the reasons where the caller can read them. The narrator builds
         # the Player with verbose=False and prints its own line, and "skipped"
@@ -265,14 +274,7 @@ class Player:
         """Why the last enqueue did not play this key."""
         return self._why_silent.get(key, "skipped")
 
-    def register(self, key: str, path: Path) -> None:
-        """Add audio the manifests did not have — a block synthesised mid-game.
 
-        Blocks carrying a {0} cannot be rendered in advance, so their audio only
-        exists once the screen has been read. This puts it where enqueue() looks,
-        for the rest of the session.
-        """
-        self._index[key] = Path(path)
 
     def known(self, key: str) -> bool:
         return key in self._index

@@ -57,6 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import glyphs  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
+from matcher import paragraphs as mparagraphs  # noqa: E402
 from ocr.base import crop, group_paragraphs, open_ocr  # noqa: E402
 from player import Player  # noqa: E402
 from trigger import REGION, Trigger  # noqa: E402
@@ -276,44 +277,61 @@ def main() -> None:
                 print(f"{YELLOW}[no match]{RESET} {GRAY}{snippet}{RESET}")
                 continue
 
-            # Live synthesis first, so the report below can tell the truth
-            # about what will be heard. Blocks with a {0} have no pre-rendered
-            # audio — the value only exists at the table — but the screen was
-            # drawn with it filled in and the OCR just read it, so the template
-            # supplies every word but one and the gap comes from the screen.
+            # Speak what is on the screen, and only that.
+            #
+            # Pre-rendered audio covers a whole block, but the matcher indexes
+            # each paragraph separately and a screen often shows only one of
+            # them — the game composes a box from pieces of different blocks.
+            # Playing the block then narrates paragraphs that are not there,
+            # which is what a session turned up: a screen showing "a hero with a
+            # rosehip token may apply the antidote" also heard the paragraph
+            # before it, from a box shown minutes earlier.
+            #
+            # A {0} block needs synthesis for the other reason — the value only
+            # exists at the table — and both paths land here because both need
+            # audio that no manifest can hold.
+            norm_screen = normalize(text)
+            live_audio: dict[str, Path] = {}
             for key in keys:
-                if player.known(key) or "CUTSCENE" in key:
+                if "CUTSCENE" in key:
                     continue
-                if not corpus.get(key, {}).get("placeholders"):
+                block = corpus.get(key, {})
+                if not block:
                     continue
+
+                if block.get("placeholders"):
+                    say_text = None
+                    for context in (source.get(key), text):
+                        if context is None:
+                            continue
+                        say_text = fill_template(block["text"], context)
+                        if say_text is not None:
+                            break
+                    if say_text is None:
+                        print(f"{YELLOW}          cannot align with the screen — "
+                              f"staying silent{RESET}")
+                        continue
+                else:
+                    parts = mparagraphs(block["text"])
+                    showing = [p for p in parts
+                               if normalize(p) and normalize(p) in norm_screen]
+                    if len(showing) == len(parts):
+                        continue          # the block's own audio is right
+                    if not showing:
+                        continue          # nothing of it is visible; leave it
+                    say_text = "\n\n".join(showing)
+
                 if live is None:
                     live = LiveVoice(lang=args.lang)
-                # Narrowest context that works. The paragraph keeps a template
-                # whose placeholder leads — "{0}\n\nPlace a search token" —
-                # from claiming the neighbouring block's prose as its value. But
-                # a block can span both paragraphs, and then the paragraph alone
-                # is missing the anchors: scoping to it unconditionally silenced
-                # "the shadows deepen / raise the threat by 4" entirely.
-                filled = None
-                for context in (source.get(key), text):
-                    if context is None:
-                        continue
-                    filled = fill_template(corpus[key]["text"], context)
-                    if filled is not None:
-                        break
-                if filled is None:
-                    print(f"{YELLOW}          cannot align with the screen — "
-                          f"staying silent{RESET}")
-                    continue
-                # not `spoken`: that name is the counter this loop runs inside
                 say = glyphs.spell_out_numbers(
-                    glyphs.substitute(filled, glyph_map, args.lang), args.lang)
+                    glyphs.substitute(say_text, glyph_map, args.lang), args.lang)
                 path = live.say(say)
                 if path:
-                    player.register(key, path)
+                    live_audio[key] = path
                     fresh.add(key)
 
-            played = [] if args.no_audio else player.enqueue(keys)
+            played = ([] if args.no_audio
+                      else player.enqueue(keys, audio=live_audio))
             spoken += len(played)
 
             # One line per block, and it says what happens to it. Printing
