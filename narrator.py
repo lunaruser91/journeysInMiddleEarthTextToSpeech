@@ -281,9 +281,10 @@ def main() -> None:
                     print(f"{YELLOW}          cannot align {key} with the "
                           f"screen — staying silent{RESET}")
                     continue
-                spoken = glyphs.spell_out_numbers(
+                # not `spoken`: that name is the counter this loop runs inside
+                say = glyphs.spell_out_numbers(
                     glyphs.substitute(filled, glyph_map, args.lang), args.lang)
-                path = live.say(spoken)
+                path = live.say(say)
                 if path:
                     player.register(key, path)
                     print(f"{GRAY}          synthesised live{RESET}")
