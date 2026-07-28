@@ -255,6 +255,22 @@ def main() -> None:
             keys = [r.key for r in results
                     if r.accepted and r.key and corpus.get(r.key, {}).get("narration")]
             keys = list(dict.fromkeys(keys))
+
+            # Which paragraph did each block match? A template whose placeholder
+            # sits at the start — "{0}\n\nPlace a search token" — has no anchor
+            # before the gap, so given the whole screen it takes everything up to
+            # the first anchored word as the value. On a two-block screen that is
+            # the other block's prose, and the player hears it twice: once from
+            # its own audio, once inside this one. Aligning against the paragraph
+            # that actually matched keeps each block to its own text.
+            source = {}
+            for r in results:
+                if not (r.accepted and r.key and r.text):
+                    continue
+                for para in paragraphs:
+                    if r.text in normalize(para):
+                        source.setdefault(r.key, para)
+                        break
             if not keys:
                 snippet = " ".join(text.split())[:70]
                 print(f"{YELLOW}[no match]{RESET} {GRAY}{snippet}{RESET}")
@@ -272,7 +288,8 @@ def main() -> None:
                     continue
                 if live is None:
                     live = LiveVoice(lang=args.lang)
-                filled = fill_template(corpus[key]["text"], text)
+                filled = fill_template(corpus[key]["text"],
+                                       source.get(key, text))
                 if filled is None:
                     continue
                 # not `spoken`: that name is the counter this loop runs inside
