@@ -276,18 +276,36 @@ class Player:
 
 # --------------------------------------------------------------------- CLI --
 
-def _single_key() -> str:
-    """Read one keypress without Enter, falling back to line input."""
+def _single_key(timeout: float = 0.2) -> str:
+    """One keypress, or "" if none arrived within `timeout`.
+
+    Blocking here was a bug, not a shortcut. The playback loop used this as its
+    only way to make progress, so a terminal that could not deliver a keypress —
+    output piped somewhere, stdin not a tty — raised out of the loop, hit the
+    finally, and killed ffplay mid-word. The audio was fine; the controls took it
+    down with them. With a timeout the loop keeps checking whether playback is
+    done, and the keyboard becomes what it should have been: optional.
+    """
+    if not sys.stdin.isatty():
+        time.sleep(timeout)
+        return ""
     try:
+        import select
         import termios
         import tty
     except ImportError:
         return (sys.stdin.readline() or "q")[:1]
     fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
+    try:
+        old = termios.tcgetattr(fd)
+    except Exception:            # noqa: BLE001 — not a real terminal after all
+        time.sleep(timeout)
+        return ""
     try:
         tty.setcbreak(fd)
-        return sys.stdin.read(1)
+        if select.select([sys.stdin], [], [], timeout)[0]:
+            return sys.stdin.read(1)
+        return ""
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
@@ -314,7 +332,15 @@ def main() -> None:
         sys.exit("[error] no manifest.json found under output/ — render something "
                  "first with phase2_render.py")
 
-    player = Player(manifests=folders, manual=args.manual,
+    manual = args.manual
+    if manual and not sys.stdin.isatty():
+        # --manual holds each track until a keypress, and without a terminal no
+        # keypress can ever arrive: it would wait forever on the first block.
+        print(f"{YELLOW}[player] --manual needs a terminal; playing straight "
+              f"through instead{RESET}")
+        manual = False
+
+    player = Player(manifests=folders, manual=manual,
                     mute_self_narrated=not args.no_mute_cutscenes)
     print(f"{GRAY}[player] {len(player):,} blocks available from "
           f"{len(folders)} manifest(s){RESET}")
@@ -337,9 +363,9 @@ def main() -> None:
                 player.skip()
             elif ch == "r":
                 player.repeat()
-            elif ch in ("q", "\x03", ""):
+            elif ch in ("q", "\x03"):
                 break
-            elif args.manual:
+            elif ch and manual:
                 player.release()
     except KeyboardInterrupt:
         pass
