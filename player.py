@@ -222,6 +222,15 @@ class Player:
         with self._lock:
             return len(self._queue)
 
+    def register(self, key: str, path: Path) -> None:
+        """Add audio the manifests did not have — a block synthesised mid-game.
+
+        Blocks carrying a {0} cannot be rendered in advance, so their audio only
+        exists once the screen has been read. This puts it where enqueue() looks,
+        for the rest of the session.
+        """
+        self._index[key] = Path(path)
+
     def known(self, key: str) -> bool:
         return key in self._index
 

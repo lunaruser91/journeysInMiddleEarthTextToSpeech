@@ -481,6 +481,7 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--wait", str(args.wait)]
     if args.display is not None:
         argv += ["--display", str(args.display)]
+    argv += ["--lang", args.lang]
     return _run("narrator.py", argv)
 
 

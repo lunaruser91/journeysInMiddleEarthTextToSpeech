@@ -54,6 +54,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import glyphs  # noqa: E402
+from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
 from ocr.base import crop, group_paragraphs, open_ocr  # noqa: E402
 from player import Player  # noqa: E402
@@ -152,6 +154,7 @@ def main() -> None:
     ap.add_argument("--from-video", type=Path,
                     help="replay a recording instead of capturing the screen")
     ap.add_argument("--list-windows", action="store_true")
+    ap.add_argument("--lang", default="pt")
     ap.add_argument("--corpus", type=Path, default=ROOT / "corpus" / "corpus_pt.json")
     ap.add_argument("--audio", type=Path, action="append", default=[],
                     help="folder with a manifest.json (repeatable)")
@@ -202,6 +205,9 @@ def main() -> None:
         d for d in (ROOT / "output").glob("*") if (d / "manifest.json").exists())
     player = Player(manifests=folders, manual=args.manual, verbose=False)
     print(f"{GRAY}[audio] {len(player):,} blocks rendered{RESET}")
+
+    glyph_map = glyphs.glyph_map_from_corpus(corpus)
+    live: LiveVoice | None = None
 
     engine = open_ocr()
     trigger = Trigger(region=(top, bottom))
@@ -257,6 +263,31 @@ def main() -> None:
                 print(f"{GREEN}[screen]{RESET} {key}")
                 print(f"          {GRAY}"
                       f"{' '.join(corpus[key]['text'].split())[:88]}{RESET}")
+            # Blocks with a {0} have no pre-rendered audio: the value only
+            # exists at the table. But the screen has already been drawn with it
+            # filled in, and the OCR just read it — so the corpus template
+            # supplies every word except that one, and the gap comes from the
+            # screen. Synthesis is well under a second; with the previous engine
+            # this was out of the question.
+            for key in keys:
+                if player.known(key) or "CUTSCENE" in key:
+                    continue
+                if not corpus.get(key, {}).get("placeholders"):
+                    continue
+                if live is None:
+                    live = LiveVoice(lang=args.lang)
+                filled = fill_template(corpus[key]["text"], text)
+                if filled is None:
+                    print(f"{YELLOW}          cannot align {key} with the "
+                          f"screen — staying silent{RESET}")
+                    continue
+                spoken = glyphs.spell_out_numbers(
+                    glyphs.substitute(filled, glyph_map, args.lang), args.lang)
+                path = live.say(spoken)
+                if path:
+                    player.register(key, path)
+                    print(f"{GRAY}          synthesised live{RESET}")
+
             if not args.no_audio:
                 played = player.enqueue(keys)
                 spoken += len(played)
