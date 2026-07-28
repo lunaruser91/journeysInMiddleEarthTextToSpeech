@@ -1,33 +1,32 @@
 #!/usr/bin/env bash
 #
-# render_all.sh — render whole campaigns unattended, over several sessions.
+# render_all.sh — render whole campaigns, unattended.
 #
 #   ./render_all.sh                      # bonesofarnor, then main
 #   ./render_all.sh main                 # just the shared blocks
 #   ./render_all.sh --lang en spreadingwar
 #
-# Measured at RTF ~0.05, a full campaign plus the shared `main` blocks is under
-# an hour. It used to be fifty, which is why this script exists at all and why it
-# is still built to be stopped and resumed — that costs nothing to keep.
+# `main` holds the text every campaign shares: interface, tile descriptions,
+# enemy activations, treasure. Roughly half of what gets spoken in a session
+# comes from there — measured at 48.8% across 627 screens rebuilt from real game
+# logs — so a campaign rendered without it leaves half the game silent.
 #
-# ## What makes it resumable
+# The whole job is well under an hour at the measured RTF of ~0.05. It used to be
+# fifty hours, which is why this script exists; it is still built to be stopped
+# and resumed, because that costs nothing to keep.
 #
-# The renderer skips any block whose .opus already exists, and rewrites the
-# manifest every 10 blocks and again on Ctrl+C. So an interrupted run loses at
-# most the block being generated, and running this again picks up where it left
-# off. There is nothing to clean up first.
+# ## Resuming
 #
-# ## Order, and why
-#
-# Campaign text comes before `main` by default, so the adventures you are about
-# to play start narrating first. With the whole job under an hour the order
-# barely matters any more, but it costs nothing to keep the useful one.
+# A block whose .opus already exists is skipped, and the manifest is rewritten
+# every 50 blocks and again on Ctrl+C. An interrupted run loses at most the block
+# being generated. Run the same command again and it continues; there is nothing
+# to clean up first.
 #
 # ## Sleep
 #
-# `caffeinate -i` blocks idle sleep. It matters much less than it did when a run
-# took two days, but a render interrupted halfway still has to be restarted, and
-# the flag costs nothing. It does NOT stop a laptop sleeping when the lid closes.
+# `caffeinate -i` blocks idle sleep. It matters far less than when a run took two
+# days, but an interrupted render still has to be restarted and the flag is free.
+# It does NOT stop a laptop sleeping when the lid closes.
 #
 set -uo pipefail
 
@@ -40,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --lang) LANG_CODE="$2"; shift 2 ;;
         --lang=*) LANG_CODE="${1#*=}"; shift ;;
-        -h|--help) sed -n '2,36p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) args+=("$1"); shift ;;
     esac
 done
@@ -48,26 +47,29 @@ done
 
 [[ -x "$PY" ]] || { echo "no interpreter at $PY — set JIME_PYTHON"; exit 1; }
 
-STAMP="$(date +%Y%m%d-%H%M)"
-LOG="$ROOT/output/render-$STAMP.log"
 mkdir -p "$ROOT/output"
+LOG="$ROOT/output/render-$(date +%Y%m%d-%H%M).log"
 
-# Progress is measured in seconds of audio produced, not in blocks. Blocks vary
-# from 8 to 150 words, so a block count says 88% done while a quarter of the
-# speech is still missing — which is exactly what happened while measuring this.
+# Progress is seconds of speech, not blocks. Blocks run from 8 to 150 words, so a
+# block count reads 88% done while a quarter of the speech is still missing —
+# which is exactly what happened while measuring this.
+#
+# The numbers come from the manifest, not from ffprobe: duration is words/wps and
+# both are already recorded, whereas probing a few thousand files one subprocess
+# at a time took longer than the progress line was worth.
 progress() {
-    "$PY" - "$ROOT" <<'PYEOF'
-import pathlib, subprocess, sys
-root = pathlib.Path(sys.argv[1])
-files = list((root / "output" / "audio").rglob("*.opus"))
-total = 0.0
-for f in files:
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                          "format=duration", "-of", "csv=p=0", str(f)],
-                         capture_output=True, text=True).stdout.strip()
-    total += float(out) if out else 0.0
-print(f"{len(files)} blocks, {total/60:.1f} min of speech")
-PYEOF
+    "$PY" - "$ROOT" "$LANG_CODE" <<'PY_PROGRESS'
+import json, pathlib, sys
+root, lang = pathlib.Path(sys.argv[1]), sys.argv[2]
+man = root / "output" / f"audio_{lang}" / "manifest.json"
+if not man.exists():
+    print("nothing rendered yet")
+    raise SystemExit
+entries = {k: v for k, v in json.loads(man.read_text(encoding="utf-8")).items()
+           if not k.startswith("_")}
+secs = sum(v["words"] / v["wps"] for v in entries.values() if v.get("wps"))
+print(f"{len(entries)} blocks, {secs / 60:.1f} min of speech")
+PY_PROGRESS
 }
 
 say() { printf '%s | %s\n' "$(date '+%H:%M:%S')" "$*" | tee -a "$LOG"; }
@@ -89,10 +91,10 @@ for campaign in "${args[@]}"; do
     caffeinate -i "$PY" "$ROOT/jime.py" render \
         --lang "$LANG_CODE" --campaign "$campaign" 2>&1 \
         | tee -a "$LOG" \
-        | grep --line-buffered -E '^\s+\[[0-9]+/|^\[end\]|^\[plan\]|failure'
+        | grep --line-buffered -E '^\s+\[[0-9]+/|^\[end\]|^\[voice\]|failure'
     status=${PIPESTATUS[0]}
     if [[ $status -ne 0 ]]; then
-        say "$campaign stopped with status $status — resume by running this again"
+        say "$campaign stopped with status $status — run this again to resume"
         say "$(progress)"
         exit "$status"
     fi
@@ -101,4 +103,5 @@ done
 
 say ""
 say "all done: $(progress)"
-say "listen:  $PY player.py --manifest output/audio --all"
+say "listen:   $PY player.py --manifest output/audio_$LANG_CODE --all"
+say "audit:    $PY jime.py check --lang $LANG_CODE"

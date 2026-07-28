@@ -289,6 +289,16 @@ def main() -> None:
                 ["ffmpeg", "-v", "error", "-y", "-i", str(tmp),
                  "-af", wizard_chain(sr), "-c:a", "libopus", "-b:a", "48k",
                  str(dest)], check=True)
+        except KeyboardInterrupt:
+            # KeyboardInterrupt is not an Exception, so the clause below never
+            # sees it. Letting it escape skips the manifest write after the loop
+            # and loses up to 49 entries — the .opus files survive, but nothing
+            # points at them until the next run re-adds them through the skip
+            # path. Breaking here keeps the two in step.
+            tmp.unlink(missing_ok=True)
+            print("\n[interrupted] run the same command again to resume",
+                  flush=True)
+            break
         except Exception as exc:  # noqa: BLE001
             failed += 1
             print(f"  [failure] {key}: {type(exc).__name__}: {exc}", flush=True)
