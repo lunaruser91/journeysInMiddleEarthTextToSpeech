@@ -1,12 +1,14 @@
 # Automatic narrator for *Journeys in Middle-earth*
 
-Read-aloud narration, **100% offline** and in **pt-BR**, of the texts that the official
-*The Lord of the Rings: Journeys in Middle-earth* (Fantasy Flight / Asmodee) app shows
-during play. Old-wizard voice.
+Reads aloud, **entirely offline**, the text the official *The Lord of the Rings:
+Journeys in Middle-earth* app (Fantasy Flight / Asmodee) puts on screen during
+play. It watches the screen, works out which block of the game's text is showing,
+and speaks it.
 
-The app has no Portuguese narration for the game itself — only the Prologue and the
-Epilogues of each campaign have recorded audio. Everything else the players read aloud,
-and that is what this project replaces.
+The app records narration only for each campaign's Prologue and Epilogues. Every
+other block is read aloud by a player, and that is what this replaces.
+
+All **thirteen** of the game's localisations can be narrated.
 
 > ### License notice — read before any `git add`
 >
@@ -25,22 +27,22 @@ and that is what this project replaces.
 | Phase | What it does | Status |
 |---|---|---|
 | 1 | app assets → corpus, any of 13 languages | **done** — 13,018 keys in pt, 9,814 narration blocks |
-| 2 | corpus → pre-rendered audio | **works and is measured** — RTF 0.05; one campaign in ~20 min |
-| 3 | screen → OCR → matching → plays the audio | **works during a real game** — capture, OCR, matcher (98.2%), playback, and live synthesis for `{0}` blocks, confirmed by ear across a session |
+| 2 | corpus → pre-rendered audio | **done and measured** — RTF 0.05; a campaign plus the shared text in ~30 min |
+| 3 | screen → OCR → matching → speech | **works during a real game** — confirmed by ear across a session |
 
 ---
 
 ## Installation
 
-Python 3.14 **has no PyTorch wheels** — use 3.12 or 3.13.
-
 ```bash
 python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e .
-~/jime-venv/bin/pip install -e '.[tts]'
-~/jime-venv/bin/pip install -e '.[ocr]'
+~/jime-venv/bin/pip install -e '.[tts,ocr]'
 brew install ffmpeg
 ```
+
+Synthesis is [Piper](https://github.com/OHF-Voice/piper1-gpl): a small ONNX model
+that runs on the CPU. A voice is about 60 MB and is fetched the first time it is
+needed. There is no GPU requirement and nothing to sign.
 
 A shortcut saves typing:
 
@@ -63,12 +65,24 @@ jime voices                    # which voice speaks each language
 jime extract --lang pt         # game assets  ->  corpus
 jime render --campaign bonesofarnor
 jime play --campaign bonesofarnor --display   # fullscreen game
-jime test --video recording.mp4
+jime check --lang pt           # audit the rendered pace
 ```
 
-**All thirteen of the game's languages can be narrated.** Every localisation it
-ships has a Piper voice, so there is nothing you can read but not hear. Voices
-are fetched on first use, about 60 MB each.
+Render a whole campaign plus the shared text, unattended and resumable:
+
+```bash
+./render_all.sh                # bonesofarnor, then main
+./render_all.sh --lang en      # the same in English
+```
+
+`main` holds the text every campaign shares — interface, tiles, enemy
+activations, treasure. **48.8% of everything spoken across 631 real screens comes
+from it**, so a campaign rendered without it leaves half the session silent.
+
+### Languages and voices
+
+Every localisation the game ships has a Piper voice, so there is nothing you can
+read but not hear.
 
 ```bash
 jime voices                      # the default voice for each language
@@ -76,48 +90,40 @@ jime voices --lang de            # what else is available
 jime render --lang de --voice de_DE-eva_k-x_low
 ```
 
-Only Portuguese and English have a **measured** reading pace; the others fall
-back to Piper's own and will sound faster. `jime voices --calibrate --lang de`
-renders a sample, reports the pace and prints the line to paste into
-`voices.py`. `jime languages` shows which languages have the icon vocabulary
-filled in.
+Only Portuguese and English have a **measured** reading pace; the rest fall back
+to the voice's own, which is faster than anyone narrates.
+`jime voices --calibrate --lang de` renders a sample, reports the pace and prints
+the line to paste into `voices.py`.
+
+`jime languages` shows which languages have the icon vocabulary filled in —
+adding one is about 21 words, not a new investigation.
 
 ### The individual tools
 
-### Phase 1 — extract the corpus from your installation
+**Phase 1 — extract the corpus from your own installation**
 
 ```bash
-jime phase1_extract.py "<.../JiME.app/Contents/Resources/Data/StreamingAssets/bundles>" -o corpus/ --lang pt
+jime phase1_extract.py "<.../JiME.app/.../StreamingAssets/bundles>" -o corpus/ --lang pt
 ```
 
-The app is Unity 2022.3 with Mono and **nothing is obfuscated**: each localization bundle
-contains a single `TextAsset` that is a clean CSV. There are 13 languages available.
+The app is Unity 2022.3 with Mono and **nothing is obfuscated**: each localisation
+bundle holds a single `TextAsset` that is a clean CSV.
 
-### Phase 2 — render the audio
+**Phase 2 — render the audio**
 
 ```bash
 jime phase2_render.py --lang pt --campaign bonesofarnor
+jime phase2_render.py --lang pt --campaign bonesofarnor --dry-run   # estimate first
+jime phase2_render.py --lang pt --key "main:G22_SWORD_TRUE"         # one block
+jime check_pace.py output/audio_pt/manifest.json                    # audit the result
 ```
 
-Estimate before leaving it running overnight:
+A block whose `.opus` already exists is skipped and the manifest is rewritten
+every 50 blocks and on Ctrl+C, so stopping and restarting costs nothing. The
+voice, the pace and the effects chain all go into the cache key, so changing any
+of them re-renders rather than quietly mixing two recipes.
 
-```bash
-jime phase2_render.py corpus/corpus_pt.json --campaign bonesofarnor --dry-run
-```
-
-Render individual blocks — this is the on-demand rendering that Phase 3 uses:
-
-```bash
-jime phase2_render.py corpus/corpus_pt.json --key "main:G22_SWORD_TRUE"
-```
-
-Audit the result, looking for degenerate blocks:
-
-```bash
-jime check_pace.py output/audio/manifest.json --mad 2.0
-```
-
-### Phase 3 — narrate a live game
+**Phase 3 — narrate a live game**
 
 ```bash
 jime narrator.py --display           # fullscreen game — the usual case
@@ -127,50 +133,34 @@ jime narrator.py --from-video FILE   # replay a recording, no permission needed
 ```
 
 **If the game runs fullscreen, use `--display`.** A fullscreen application on
-macOS gets a Space of its own, and macOS does not render a Space that is not in
-front: while you are looking at the terminal, the game's window is not merely
-hidden, it is not being drawn, and no capture API can reach it. Capturing the
-*display* sidesteps this entirely, because a display always shows whichever
-Space is active — which, while you are playing, is the game's.
+macOS gets a Space of its own, and macOS does not draw a Space that is not in
+front: while you are looking at the terminal the game's window is not merely
+hidden, it is not being rendered, and no capture API can reach it. Capturing the
+*display* sidesteps this, because a display always shows whichever Space is
+active — which, while you are playing, is the game's.
 
-Window capture is still there for a windowed game, and it now waits (90 s by
-default, `--wait`) for the window to appear, so you can start it in the terminal
-and then switch to the game.
+Window capture is still there for a windowed game, and waits (90 s by default,
+`--wait`) for the window to appear, so you can start in the terminal and switch
+to the game.
 
-On macOS the first capture triggers the system prompt. If it hangs instead,
-the permission is missing: System Settings → Privacy & Security → Screen
-Recording → tick your terminal, then **restart the terminal**. Nothing needs to
-be signed or notarised: the grant attaches to the terminal and these scripts
-inherit it.
+On macOS the first capture triggers the system prompt. If it hangs instead, the
+permission is missing: System Settings → Privacy & Security → Screen Recording →
+tick your terminal, then **restart the terminal**. Nothing needs to be signed or
+notarised: the grant attaches to the terminal and these scripts inherit it.
 
-Check that the pixels really arrive before trusting a session:
+Check that pixels really arrive before trusting a session:
 
 ```bash
 jime test --capture --display
 ```
 
-### Phase 3 — test the recognition
-
-One screen:
+**Testing the recognition without a game**
 
 ```bash
-jime demo.py ~/Downloads/screen.webp --no-audio     # only OCR + matching
-jime demo.py ~/Downloads/screen.webp                 # plays the audio, if it exists
-jime demo.py ~/Downloads/screen.webp --render        # synthesizes on the spot if missing
-```
-
-With no argument at all it picks up the most recent screenshot from the Desktop.
-
-Several screens at once, with hit rate:
-
-```bash
-jime batch.py ~/Downloads/*.webp --keys /tmp/keys.txt
-```
-
-View the game's event log, useful for generating fixtures:
-
-```bash
-jime watch_log.py --all
+jime demo.py ~/Downloads/screen.webp --no-audio   # one screen: OCR + matching
+jime batch.py ~/Downloads/*.webp --keys keys.txt  # several, with hit rate
+jime watch_log.py --all                           # the game's own event log
+jime test_matcher.py                              # 631 real screens, with noise
 ```
 
 ---
@@ -182,80 +172,82 @@ The project is self-contained. **Nothing is written outside the repository.**
 ```
 corpus/          corpus extracted from the game       (generated, ignored)
 voices/          Piper voice models, ~60 MB each      (ignored)
-output/           EVERYTHING that is generated         (ignored)
-  audio/           render per campaign + manifest.json
-  sob-demanda/     blocks synthesized on the spot
+output/          EVERYTHING that is generated         (ignored)
+  audio_<lang>/    the render, plus manifest.json
+  live_<lang>/     blocks synthesised during play
   ocr-fixtures/    real screens with the right key
-  legacy-audio/    old renders, preserved
 
 docs/            the investigation notes
-legacy/          original scripts, kept for comparison
+legacy/          the original extraction script, kept for comparison
 ```
 
 | file | what it does |
 |---|---|
+| `jime.py` | the one command everything else hangs off |
 | `phase1_extract.py` | the game's AssetBundles → JSON/CSV corpus |
 | `phase2_render.py` | corpus → audio, with a resumable hash-based cache |
-| `glyphs.py` | game icons → spoken words; numbers spelled out; multi-language |
-| `check_pace.py` | detects blocks whose pace strays from the median, for regeneration |
-| `matcher.py` | matches the text read from the screen against the corpus block |
-| `test_matcher.py` | harness: 627 real screens + synthetic OCR noise |
-| `demo.py` | full cycle on one screen: image → OCR → matcher → audio |
-| `batch.py` | the same across several screens, with hit rate |
-| `watch_log.py` | reads the game's event log |
+| `voices.py` | which voice speaks each language, and its measured pace |
+| `glyphs.py` | game icons → spoken words; numbers spelled out; per language |
+| `matcher.py` | screen text → the corpus block it came from |
+| `trigger.py` | when a screen has settled and is worth reading |
+| `live.py` | the blocks that can only be synthesised during play |
+| `player.py` | queue, interrupt, repeat, and what to stay silent about |
+| `narrator.py` | the loop that joins all of the above |
+| `check_pace.py` | finds blocks whose pace strays from the median |
+| `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
 
 ---
 
 ## What was measured
 
-Everything below is measurement on this hardware (MacBook Pro M5 Pro, macOS 26 Tahoe), not
-estimate. The detail is in [docs/PHASE2-MEASUREMENTS.md](docs/PHASE2-MEASUREMENTS.md) and
-[docs/PHASE3-STRATEGY.md](docs/PHASE3-STRATEGY.md).
+Everything below is measurement on this hardware (MacBook Pro M5 Pro, macOS 26
+Tahoe), not estimate. Detail in [docs/PHASE2-MEASUREMENTS.md](docs/PHASE2-MEASUREMENTS.md)
+and [docs/PHASE3-STRATEGY.md](docs/PHASE3-STRATEGY.md).
 
-### Synthesis performance
+### Synthesis
 
 | | |
 |---|---|
 | RTF (wall clock ÷ audio duration) | **0.05** |
-| Bones of Arnor (6.0 h of audio) | **~20 min of machine time** |
-| Full corpus (44.8 h) | ~142 h — not viable in one go, viable per campaign |
-| Bottleneck | T3 autoregressive decode: **80–85% of the wall clock** |
+| Bones of Arnor + shared text (3,386 blocks, 12.4 h of audio) | **~30 min** |
+| Every campaign (38.1 h of audio) | ~2 h |
+| Model on disk | 60 MB, CPU only |
+| Reading pace | 155 wpm, inside the audiobook range |
 
-**Five plausible hypotheses were tested and four fell.** Worth reading before trying to
-optimize:
+This project started on Chatterbox, a voice-cloning model, and measured **RTF
+3.7** — fifty hours for one campaign plus the shared text. Swapping to Piper made
+it forty minutes: **74× faster**, on the same 226 blocks, with zero failures
+against fifteen. It also removed the GPU requirement, dropped the model from 3 GB
+to 60 MB, and took the languages from ten to thirteen.
 
-- **grouping sentences into 220-char chunks** → 11% **slower**. Decode grows
-  superlinearly with length; the fixed per-call cost one wanted to amortize is too small
-  to compensate.
-- **turning off the `AlignmentStreamAnalyzer`** to recover the fused attention → the model
-  started generating **almost twice** the audio for the same text. It is the brake that
-  holds back degenerate generation, not decorative overhead.
-- **fixing the forward-hook leak** → the leak is real (69 live hooks after 23 sentences)
-  but **costs no time**. Worth fixing for memory, not for speed.
-- **token ceiling per sentence** → never reached (0 out of 56 sentences). It is insurance,
-  not a fix.
-- **`prepare_conditionals` only once** → the only one that survived, and it is worth ~3%.
+What it cost is expressiveness. Piper has clear diction and flat prosody; it
+reads, it does not act. Chatterbox sounded better. The measurement in §6c of the
+performance notes is why it lost anyway.
 
-A methodological pitfall: the variation between two identical runs on this Mac reaches
-**30%**. Differences smaller than that can only be asserted with a **paired** test.
+**Two things were tried on top of Piper and removed.** An aged-voice filter chain
+(pitch down, low lift, high rolloff, tremolo, echo) made it soft, slow and hard
+to make out — it cut 2.5 dB where the consonants live. And two render processes
+in parallel run **55% slower** than one, because the decode is bound by memory
+bandwidth: each process reads its own weights per step, so two double the demand
+without doubling the supply.
 
 ### Screen recognition
 
-Measured against **627 real screens** reconstructed from the game's logs — without
+Measured against **631 real screens** rebuilt from the game's own logs — without
 transcribing any of them by hand.
 
 | OCR noise | hit rate | **wrong** | refusal |
 |---:|---:|---:|---:|
-| 0% | **98.2%** | 1.0% | 0.8% |
-| 2% | 95.5% | 1.3% | 3.2% |
-| 5% | 93.0% | 2.1% | 4.9% |
-| 10% | 73.0% | 4.6% | 22.3% |
+| 0% | **99.2%** | 0.5% | 0.3% |
+| 2% | 95.6% | 0.5% | 4.0% |
+| 5% | 94.8% | 0.5% | 4.8% |
+| 10% | 73.4% | 1.0% | 25.7% |
 
-Refusing is the right behavior: silence is recoverable with live TTS; narrating the wrong
+Refusing is the right behaviour: silence is recoverable, narrating the wrong
 block is not, because the player acts on what they hear.
 
-Scoping by the save (campaign, adventure) barely changes the result — the work is done by
-the length and margin guards, and by paragraph matching.
+Scoping by the save (campaign, adventure) barely changes the result — the work is
+done by the length and margin guards, and by matching per paragraph.
 
 ---
 
@@ -277,41 +269,42 @@ records each block displayed, with its parameters:
 
 4,827 lines checked against the corpus: **100% match, zero unknown keys**.
 
-It is written **every round** of the game — proven in the IL of `Assembly-CSharp.dll`:
-`FlushLogStream` is only called by `GameController::CoroutineEndRound` and by the save. So
-it **does not serve as a live trigger**, but it is an exact oracle for validating the
+It is written **once per round** — proven in the IL of `Assembly-CSharp.dll`:
+`FlushLogStream` is called only by `GameController::CoroutineEndRound` and by the
+save. So it cannot be a live trigger, but it is an exact oracle for validating the
 matcher and it generates fixtures for free.
 
 ### 2. The screen is the concatenation of several keys
 
-The game injects keys as a parameter of generic templates:
+The game injects keys as parameters of generic templates:
 
 ```
-corpus  PLACE_PERSON   = "{0}\n\nColoque uma ficha de pessoa conforme indicado."
-                               (English: "{0}\n\nPlace a person token as indicated.")
-param   {0}            = A2_M1_T1_PLACE = "[narrative prose of the block]"
+corpus  PLACE_PERSON   = "{0}\n\nPlace a person token as indicated."
+param   {0}            = A2_M1_T1_PLACE = "[the block's narrative prose]"
 ```
 
-Matching the whole screen against a single block fails in exactly these cases. That is why
-the matcher works **per paragraph**.
+Matching a whole screen against a single block fails in exactly these cases,
+which is why the matcher works **per paragraph** — and why the narrator speaks
+only the paragraphs actually on screen, rather than the whole block behind them.
 
-### 3. A quarter of the corpus had garbage the TTS could not read
+### 3. A quarter of the corpus had glyphs no TTS could read
 
-2,396 blocks (26.1%) contain **Private Use Area** characters — the icons of the game's
-font, written as literal characters and not as `<sprite=>` tags, so the markup cleanup did
-not see them. The TTS received `"Cada herói testa ; 2"`, without saying which attribute
-to test.
+3,209 blocks (24.7%) contain **Private Use Area** characters — the icons of the
+game's font, written as literal characters rather than `<sprite=>` tags, so the
+markup cleanup never saw them. The synthesiser received `"Each hero tests ; 2"`,
+with no attribute named.
 
-`glyphs.py` solves this by deriving the map from the 24 `main:GLYPH_*` keys the game
-itself publishes. Since these keys are identical across the 13 languages, **adding a
-language means filling in ~21 words**, not re-investigating the game.
+`glyphs.py` derives the map from the 24 `main:GLYPH_*` keys the game itself
+publishes. Those keys are identical across all 13 languages, so **adding a
+language is about 21 words**, not a fresh investigation.
 
-A pitfall: `GLYPH_FOCUS` is the internal name for **Agility**. Nothing in the name suggests
-it; the proof came from two independent keys whose only attribute glyph is `FOCUS`.
+A pitfall: `GLYPH_FOCUS` is the internal name for **Agility**. Nothing in the name
+suggests it; the proof came from two independent keys whose only attribute glyph
+is `FOCUS`.
 
-And the **numbers** were read in Spanish ("uno" instead of "um") even with
-`language_id="pt"` — it affected 38.8% of the corpus. Fixed by spelling them out before
-synthesizing.
+And the **numbers** were read in Spanish ("uno" for "um") even with the language
+set to Portuguese — 38.8% of the corpus. Fixed by spelling them out before
+synthesis.
 
 ---
 
@@ -319,45 +312,64 @@ synthesizing.
 
 Do not rediscover them.
 
-1. **`setuptools>=81` broke `perth`**, the watermark library the previous engine used, and the model **did not
-   even load**. Pin `setuptools<81`.
-2. **Python 3.14 has no PyTorch wheels.** Use 3.12 or 3.13.
-3. **Homebrew's ffmpeg does not ship the `rubberband` filter.** The renderer detects it and
-   falls back to an equivalent with `asetrate`+`atempo`; `DSP_VERSION` changes so caches do not mix.
-4. **The speed goes into the `DSP_VERSION`.** Changing your mind later throws away the
-   whole render — decide before spending the hours.
-5. **On macOS 26 Tahoe**, `CGWindowListCreateImage` and `screencapture` return only the
-   wallpaper. Capture requires **ScreenCaptureKit** in a `.app` signed with a real Team ID.
-6. **Unity does not expose text to accessibility.** Measured: `UnityPlayer.dylib` has 1,353
-   Objective-C selectors and **zero** accessibility ones. Confirmed in Gloomhaven too, i.e.
-   it is a property of the engine. Do not waste time with `AXStaticText`.
-7. **Estimating RTF from it/s misleads.** 18 it/s on MPS looked great and the real RTF came
-   out at 2-3. Measure wall clock against audio duration, and **paired**.
-8. **Never clone a famous voice actor.** In Brazil the voice is a personality right (CF art.
-   5 XXVIII-a; CC arts. 20–21) and unauthorized use is actionable even without copyright
-   infringement. The framing is "**an** old wizard", not "*that* narrator". The reference
-   used is from LibriVox, public domain.
+1. **Homebrew's ffmpeg has no `rubberband` filter.** Anything that names it fails
+   on every block. The renderer detects it and falls back to `asetrate`+`atempo`,
+   and the cache key records which was used.
+2. **Voice, pace and effects go into the cache key.** That is deliberate — it
+   stops two recipes mixing in one session — but it means changing your mind
+   re-renders everything. With Piper that costs half an hour, not two days.
+3. **On macOS 26 Tahoe**, `CGWindowListCreateImage` and `screencapture` return
+   only the wallpaper. ScreenCaptureKit is the only API that still sees windows.
+   It does **not** need a signed `.app`: screen-recording permission attaches to
+   the responsible process, so a script launched from a terminal inherits the
+   terminal's grant.
+4. **macOS does not draw an inactive Space.** A fullscreen game is not capturable
+   from a terminal in another Space — the window is not hidden, it is not being
+   rendered. Capture the display instead.
+5. **pyobjc bridges a callback argument using the types it knows at that moment.**
+   Import Quartz *before* the capture call or the CGImage arrives as an opaque
+   pointer: width, height and stride all read back correctly, and the pixels come
+   out empty.
+6. **Unity does not expose text to accessibility.** Measured: `UnityPlayer.dylib`
+   has 1,353 Objective-C selectors and **zero** accessibility ones. Confirmed in
+   Gloomhaven too, so it is a property of the engine. Do not try `AXStaticText`.
+7. **Estimating RTF from it/s misleads.** 18 it/s on MPS looked excellent and the
+   real RTF was 2–3. Measure wall clock against audio duration, and **paired**:
+   two identical runs on this Mac have differed by 30%.
+8. **`afplay` does not decode Opus.** It exits 0 after 1.9 s on a 33 s file, so it
+   looks like it worked. The player uses `ffplay`.
+9. **Never clone a famous voice actor.** In Brazil the voice is a personality right
+   (CF art. 5 XXVIII-a; CC arts. 20–21) and unauthorised use is actionable even
+   without copyright infringement. This is now moot — Piper synthesises from a
+   published model with no reference recording at all — but it is why the project
+   left cloning behind, and the framing was always "**an** old wizard", never
+   "*that* narrator".
 
 ---
 
 ## What is missing
 
-1. **`trigger.py`** — absdiff → dhash → stability → dedupe with TTL. Developable with
-   saved images, without real capture.
-2. **OCR harness with real CER** — today the noise is synthetic. Measuring Apple Vision
-   against the fixtures tells whether we are in the 1-3% range, where the matcher is 97% correct.
-3. ~~**`player.py`**~~ — done: queue, repeat/pause/skip, manual mode, and it
-   stays silent on the 20 blocks the game narrates itself.
-4. **Capture on macOS** — ScreenCaptureKit in a signed `.app`. It is the expensive item (half
-   a day plus the developer account) and the last to do, because everything above runs without it.
-5. **Piper for the blocks with `{0}`** — 622 blocks are only completed at game time.
-   Note: Piper **is not installed** and `legacy/render_piper.py` breaks on this ffmpeg
-   (it uses `rubberband` unconditionally).
-6. **Review the `narration` heuristic** — the `_OPTION` hint discards 74 blocks of real
-   narration (867 words); the other nine UI hints together discard 29 words.
-7. **Decide on prose vs. mechanical instruction** — 38.2% of the blocks mix narrative and
-   rule (prose, paragraph break, and then the rule). Separable
-   by paragraph break; another 8% have the instruction embedded in the middle.
+1. **An OCR harness with real character error rate.** The noise in the matcher
+   harness is synthetic. Measuring Apple Vision against the fixtures would say
+   whether real reading sits in the 1–3% band, where the matcher is above 94%.
+   Everything claimed about noise tolerance rests on an assumption until then.
+2. **Prose and mechanical instruction are still spoken as one.** 60.6% of
+   narration blocks contain a paragraph break separating story from rule, so
+   splitting them is mostly mechanical — but nobody has decided whether the
+   narrator should read only the prose, only the rule, or both.
+3. **Five icons are inferred, not confirmed.** `MOUNT` (20 occurrences), `WILD`
+   (10), and `PREPARED`, `CORRUPTION`, `REVEAL_CARD_DRAW` (one each) were derived
+   from context rather than checked against the printed manual.
+4. **Eleven of the thirteen languages have no measured pace.** They fall back to
+   the voice's own, which is faster than a narrator should read.
+   `jime voices --calibrate` fixes one in a few minutes.
+5. **Windows capture and the portable OCR have never been executed.**
+   `capture/windows.py` (Windows.Graphics.Capture) and `ocr/rapidocr_engine.py`
+   are written against their APIs and the constraints this project already knows,
+   and both say so at the top of the file. Treat every line as a hypothesis.
+6. **The hero name behind a numeric `Id` is unresolved.** Log parameter type 3
+   carries a number this project cannot yet map to a hero, which matters only for
+   fixture generation.
 
 ---
 
