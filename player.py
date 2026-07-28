@@ -109,11 +109,9 @@ class Player:
     mute_self_narrated: bool = True
     manual: bool = False
     verbose: bool = True
-    # A block is not spoken twice within this window. The game reveals a
-    # dialogue box in stages — the prose first, the instruction under it a moment
-    # later — and each stage settles as its own screen. The second one carries
-    # both paragraphs, so without this the first is read again.
-    repeat_after: float = 120.0
+    # How long a screen can still be growing. See enqueue(): the two conditions
+    # are both needed, and neither works alone.
+    grow_window: float = 10.0
 
     _index: dict[str, Path] = field(default_factory=dict, init=False)
     _queue: deque[Track] = field(default_factory=deque, init=False)
@@ -123,7 +121,7 @@ class Player:
     _proc: subprocess.Popen | None = field(default=None, init=False)
     _paused: bool = field(default=False, init=False)
     _last_screen: list[str] = field(default_factory=list, init=False)
-    _spoken_at: dict[str, float] = field(default_factory=dict, init=False)
+    _last_screen_at: float = field(default=0.0, init=False)
     _why_silent: dict[str, str] = field(default_factory=dict, init=False)
     _stopping: bool = field(default=False, init=False)
     _worker: threading.Thread | None = field(default=None, init=False)
@@ -153,15 +151,35 @@ class Player:
     def enqueue(self, keys: list[str], interrupt: bool = True,
                 again: bool = False) -> list[str]:
         """Queue one screen's blocks. Returns the keys that will actually play."""
+        # The game reveals a dialogue box in stages: prose first, the
+        # instruction under it a moment later. Each stage settles as its own
+        # screen, and the second carries both paragraphs — so the first block
+        # would be read twice.
+        #
+        # Recognising that needs both a structural and a temporal test, and
+        # neither works alone. A plain time window was the first attempt: it
+        # silenced "place a search token", which recurs legitimately every few
+        # tiles, with "already spoken 52s ago". Structure alone was the second:
+        # a new screen that happens to reuse the same instruction also contains
+        # the previous screen, so it looked like growth.
+        #
+        # A box grows within seconds. A tile is revisited much later. So this is
+        # a continuation only when the screen strictly contains the last one AND
+        # that was moments ago. Equality is not growth — the same screen reached
+        # again is a new screen — and identical re-settles are already stopped
+        # upstream by the trigger.
         now = time.monotonic()
+        growing = (not again and self._last_screen
+                   and set(self._last_screen) < set(keys)
+                   and now - self._last_screen_at < self.grow_window)
+
         playable, skipped = [], []
         for key in keys:
             if self.mute_self_narrated and SELF_NARRATED in key.upper():
                 skipped.append((key, "the game narrates this one itself"))
                 continue
-            last = self._spoken_at.get(key)
-            if not again and last is not None and now - last < self.repeat_after:
-                skipped.append((key, f"already spoken {now - last:.0f}s ago"))
+            if growing and key in self._last_screen:
+                skipped.append((key, "already spoken — the box just grew"))
                 continue
             audio = self._index.get(key)
             if audio is None:
@@ -178,20 +196,16 @@ class Player:
                 print(f"{YELLOW}[skipped]{RESET} {key} — {why}")
 
         with self._lock:
-            # Only cut off what is playing when this screen replaces the last
-            # one. When the box has merely grown — the instruction appearing
-            # under the prose — the earlier blocks are still being read, and
-            # interrupting would lose the rest of a sentence to say the next.
-            replacing = interrupt and not (
-                self._last_screen and set(self._last_screen) <= set(keys))
-            if replacing:
+            # Only cut off what is playing when this screen replaces the last.
+            # A box that merely grew is still being read, and interrupting would
+            # lose the end of one sentence to start the next.
+            if interrupt and not growing:
                 self._queue.clear()
                 self._kill_current()
             self._queue.extend(playable)
-            for track in playable:
-                self._spoken_at[track.key] = now
             if playable:
                 self._last_screen = [t.key for t in playable]
+                self._last_screen_at = now
         self._wake.set()
         return [t.key for t in playable]
 
