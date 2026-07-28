@@ -109,6 +109,11 @@ class Player:
     mute_self_narrated: bool = True
     manual: bool = False
     verbose: bool = True
+    # A block is not spoken twice within this window. The game reveals a
+    # dialogue box in stages — the prose first, the instruction under it a moment
+    # later — and each stage settles as its own screen. The second one carries
+    # both paragraphs, so without this the first is read again.
+    repeat_after: float = 120.0
 
     _index: dict[str, Path] = field(default_factory=dict, init=False)
     _queue: deque[Track] = field(default_factory=deque, init=False)
@@ -118,6 +123,7 @@ class Player:
     _proc: subprocess.Popen | None = field(default=None, init=False)
     _paused: bool = field(default=False, init=False)
     _last_screen: list[str] = field(default_factory=list, init=False)
+    _spoken_at: dict[str, float] = field(default_factory=dict, init=False)
     _stopping: bool = field(default=False, init=False)
     _worker: threading.Thread | None = field(default=None, init=False)
 
@@ -143,12 +149,18 @@ class Player:
 
     # ---------------------------------------------------------------- queue --
 
-    def enqueue(self, keys: list[str], interrupt: bool = True) -> list[str]:
+    def enqueue(self, keys: list[str], interrupt: bool = True,
+                again: bool = False) -> list[str]:
         """Queue one screen's blocks. Returns the keys that will actually play."""
+        now = time.monotonic()
         playable, skipped = [], []
         for key in keys:
             if self.mute_self_narrated and SELF_NARRATED in key.upper():
                 skipped.append((key, "the game narrates this one itself"))
+                continue
+            last = self._spoken_at.get(key)
+            if not again and last is not None and now - last < self.repeat_after:
+                skipped.append((key, f"already spoken {now - last:.0f}s ago"))
                 continue
             audio = self._index.get(key)
             if audio is None:
@@ -161,10 +173,18 @@ class Player:
                 print(f"{YELLOW}[skipped]{RESET} {key} — {why}")
 
         with self._lock:
-            if interrupt:
+            # Only cut off what is playing when this screen replaces the last
+            # one. When the box has merely grown — the instruction appearing
+            # under the prose — the earlier blocks are still being read, and
+            # interrupting would lose the rest of a sentence to say the next.
+            replacing = interrupt and not (
+                self._last_screen and set(self._last_screen) <= set(keys))
+            if replacing:
                 self._queue.clear()
                 self._kill_current()
             self._queue.extend(playable)
+            for track in playable:
+                self._spoken_at[track.key] = now
             if playable:
                 self._last_screen = [t.key for t in playable]
         self._wake.set()
@@ -195,7 +215,7 @@ class Player:
     def repeat(self) -> None:
         """Play the last screen again, from its first block."""
         if self._last_screen:
-            self.enqueue(list(self._last_screen), interrupt=True)
+            self.enqueue(list(self._last_screen), interrupt=True, again=True)
 
     def release(self) -> None:
         """In manual mode, let the queued screen play."""
