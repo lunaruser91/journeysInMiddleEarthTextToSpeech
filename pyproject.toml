@@ -16,15 +16,24 @@ dependencies = [
 # Speech synthesis. Light: a 60 MB voice, on the CPU. The engine this replaced
 # pulled in torch and ~3 GB of weights and wanted a GPU to be viable at all.
 tts = ["piper-tts>=1.6"]
-# Native macOS OCR (Apple Vision). Offline, ~150 ms.
-ocr = ["ocrmac"]
-# Portable OCR, for platforms without Apple Vision. ~19 MB of ONNX weights.
-ocr-portable = ["rapidocr-onnxruntime"]
-# Window capture. ScreenCaptureKit is the only API on macOS 26 that still sees
-# windows; Windows.Graphics.Capture is the equivalent on Windows, where BitBlt
-# returns black frames for Unity.
-capture-macos = ["pyobjc-framework-ScreenCaptureKit", "pyobjc-framework-Quartz"]
-capture-windows = ["windows-capture"]
+# OCR and capture are per platform, and the marker picks — asking the installer
+# to choose was a mistake that cost a Windows session: `.[ocr]` there pulled
+# ocrmac, whose pyobjc-framework-Vision has no Windows wheel and dies compiling.
+# One command now works everywhere: pip install -e '.[tts,ocr,capture]'
+#
+# Apple Vision is native, offline and ~150 ms; RapidOCR is ~19 MB of ONNX and
+# runs anywhere. ScreenCaptureKit is the only macOS 26 API that still sees
+# windows; Windows.Graphics.Capture is its counterpart, and is required there
+# because BitBlt and PrintWindow return black frames for a Unity window.
+ocr = [
+    "ocrmac; sys_platform == 'darwin'",
+    "rapidocr-onnxruntime; sys_platform != 'darwin'",
+]
+capture = [
+    "pyobjc-framework-ScreenCaptureKit; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz; sys_platform == 'darwin'",
+    "windows-capture; sys_platform == 'win32'",
+]
 
 [tool.setuptools]
 py-modules = ["glyphs", "matcher", "check_pace", "demo", "batch",

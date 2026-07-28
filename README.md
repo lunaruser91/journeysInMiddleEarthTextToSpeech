@@ -91,14 +91,15 @@ unzip it and `cd` into it instead.
 
 ```bash
 python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr,capture-macos]'
+~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
 ```
 
 The second one takes a few minutes and prints a lot. It is finished when your
 prompt comes back.
 
-`capture-macos` is what lets it see the screen — leaving it out gets you a
-working setup that cannot capture anything, which is a confusing way to find out.
+`capture` is what lets it see the screen — leaving it out gets you a working
+setup that cannot capture anything, which is a confusing way to find out. The
+extras resolve per platform, so the same command is right on macOS and Windows.
 
 ### Step 5 — let it see the screen
 
@@ -165,7 +166,7 @@ The two most common answers:
 ```bash
 brew install ffmpeg
 python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr,capture-macos]'
+~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
 ```
 
 **Windows**, in PowerShell:
@@ -184,10 +185,10 @@ Close and reopen PowerShell so the new commands are on PATH, then:
 git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git $HOME\jime
 cd $HOME\jime
 py -3.13 -m venv $HOME\jime-venv
-& $HOME\jime-venv\Scripts\pip install -e '.[tts,ocr,capture-windows]'
+& $HOME\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
 ```
 
-Note the extra: `capture-windows`, not `capture-macos`. It pulls
+`ocr` and `capture` resolve per platform: on Windows they bring RapidOCR and
 `windows-capture`, which wraps Windows.Graphics.Capture — the only API that sees
 a Unity window, since BitBlt and PrintWindow return black frames for one.
 
