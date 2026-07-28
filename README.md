@@ -39,9 +39,10 @@ Otherwise this section assumes nothing.
 
 ### What you need first
 
-- **A Mac, or Windows.** The macOS path is the tested one; Windows is written
-  and installs, but see [What is missing](#what-is-missing) for what has not
-  been exercised there.
+- **A Mac, or Windows.** macOS is the fully exercised path. Windows installs and
+  passes its self-test, including OCR and capture; see
+  [What is missing](#what-is-missing) for the parts that still need the game
+  present to try.
 - **The game installed on this same computer.** The narrator reads the game's own
   text files, so it has to find them. Steam or the standalone app both work.
 - **About 300 MB free** for the generated speech, per language.
@@ -542,10 +543,12 @@ Do not rediscover them.
 4. **Eleven of the thirteen languages have no measured pace.** They fall back to
    the voice's own, which is faster than a narrator should read.
    `jime voices --calibrate` fixes one in a few minutes.
-5. **Windows capture and the portable OCR have never been executed.**
-   `capture/windows.py` (Windows.Graphics.Capture) and `ocr/rapidocr_engine.py`
-   are written against their APIs and the constraints this project already knows,
-   and both say so at the top of the file. Treat every line as a hypothesis.
+5. **Windows has been exercised, but not end to end.** A real Windows 11 VM
+   runs `selftest.py` at 27/28: the environment, every import, the console
+   encoding, RapidOCR reading an image correctly, and window enumeration through
+   Windows.Graphics.Capture. What has not been done there is extraction, render
+   and matching, because that needs the game installed on the same machine — and
+   capturing the game itself, which needs it running.
 6. **The hero name behind a numeric `Id` is unresolved.** Log parameter type 3
    carries a number this project cannot yet map to a hero, which matters only for
    fixture generation.
