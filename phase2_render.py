@@ -90,7 +90,8 @@ WORDS_PER_SECOND = 2.31    # only used to estimate durations before rendering
 def has_rubberband() -> bool:
     try:
         out = subprocess.run(["ffmpeg", "-hide_banner", "-filters"],
-                             capture_output=True, text=True, timeout=20).stdout
+                             capture_output=True, text=True, timeout=20,
+                             encoding="utf-8", errors="replace").stdout
         return " rubberband " in out
     except Exception:  # noqa: BLE001
         return False
@@ -181,7 +182,8 @@ def normalize_for_match(s: str) -> str:
 def duration(path: Path) -> float:
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
                           "format=duration", "-of", "csv=p=0", str(path)],
-                         capture_output=True, text=True).stdout.strip()
+                         capture_output=True, text=True,
+                         encoding="utf-8", errors="replace").stdout.strip()
     return float(out) if out else 0.0
 
 

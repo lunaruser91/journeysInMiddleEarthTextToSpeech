@@ -124,7 +124,8 @@ def frames_from_video(path: Path, fps: float):
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-select_streams", "v:0",
          "-show_entries", "stream=width,height", "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True, check=True).stdout.strip()
+        capture_output=True, text=True, check=True,
+        encoding="utf-8", errors="replace").stdout.strip()
     width, height = (int(x) for x in probe.split(",")[:2])
 
     proc = subprocess.Popen(

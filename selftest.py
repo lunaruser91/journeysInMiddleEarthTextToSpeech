@@ -209,7 +209,8 @@ def test_render(lang: str, corpus: Path | None) -> Path | None:
         f = OUT / "audio" / v["file"]
         out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
                               "format=duration", "-of", "csv=p=0", str(f)],
-                             capture_output=True, text=True).stdout.strip()
+                             capture_output=True, text=True,
+                             encoding="utf-8", errors="replace").stdout.strip()
         if not out or float(out) < 0.3:
             ok = False
     check("audio decodes", ok, f"{len(entries)} files, opus")

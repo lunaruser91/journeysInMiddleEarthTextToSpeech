@@ -51,7 +51,8 @@ def duration(path: Path) -> float | None:
         out = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "default=nw=1:nk=1", str(path)],
-            capture_output=True, text=True, check=True, timeout=30).stdout.strip()
+            capture_output=True, text=True, check=True, timeout=30,
+            encoding="utf-8", errors="replace").stdout.strip()
         return float(out)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
         return None

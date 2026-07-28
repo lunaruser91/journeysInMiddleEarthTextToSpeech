@@ -36,8 +36,8 @@ too, and only Portuguese is measured. Calibrate with:
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -87,6 +87,20 @@ TARGET_WPS = {"pt": 2.68}
 DEFAULT_TARGET_WPS = 2.68
 
 
+def _fetch(url: str) -> bytes:
+    """Download, as bytes, with no external command.
+
+    This used to shell out to curl with `text=True`, which decodes using the
+    locale encoding. On Windows that is cp1252, the catalogue is UTF-8, and the
+    reader thread died on the first non-ASCII byte — leaving stdout as None and
+    the failure surfacing three frames away as AttributeError. Bytes in, decode
+    where the encoding is known, and no dependency on a command being installed.
+    """
+    request = urllib.request.Request(url, headers={"User-Agent": "jime-narrador"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read()
+
+
 def voice_path(name: str) -> Path:
     return VOICE_DIR / f"{name}.onnx"
 
@@ -97,11 +111,9 @@ def catalogue() -> dict:
     if cached.exists():
         return json.loads(cached.read_text(encoding="utf-8"))
     VOICE_DIR.mkdir(parents=True, exist_ok=True)
-    out = subprocess.run(["curl", "-sL", CATALOGUE], capture_output=True, text=True)
-    if out.returncode != 0 or not out.stdout.strip():
-        raise RuntimeError("could not fetch the Piper voice catalogue; are you online?")
-    cached.write_text(out.stdout, encoding="utf-8")
-    return json.loads(out.stdout)
+    raw = _fetch(CATALOGUE)
+    cached.write_bytes(raw)
+    return json.loads(raw.decode("utf-8"))
 
 
 def for_language(lang: str) -> list[dict]:
@@ -172,11 +184,11 @@ def ensure(name: str, quiet: bool = False) -> Path:
         if not remote.endswith((".onnx", ".onnx.json")):
             continue
         dest = VOICE_DIR / Path(remote).name
-        rc = subprocess.run(["curl", "-sL", "--fail", "-o", str(dest),
-                             f"{BASE}/{remote}"]).returncode
-        if rc != 0:
+        try:
+            dest.write_bytes(_fetch(f"{BASE}/{remote}"))
+        except Exception as exc:  # noqa: BLE001
             dest.unlink(missing_ok=True)
-            raise RuntimeError(f"download failed for {remote}")
+            raise RuntimeError(f"download failed for {remote}: {exc}") from exc
     if not onnx.exists():
         raise RuntimeError(f"{name} downloaded but {onnx.name} is missing")
     return onnx
