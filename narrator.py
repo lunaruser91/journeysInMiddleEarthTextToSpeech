@@ -288,9 +288,22 @@ def main() -> None:
                     continue
                 if live is None:
                     live = LiveVoice(lang=args.lang)
-                filled = fill_template(corpus[key]["text"],
-                                       source.get(key, text))
+                # Narrowest context that works. The paragraph keeps a template
+                # whose placeholder leads — "{0}\n\nPlace a search token" —
+                # from claiming the neighbouring block's prose as its value. But
+                # a block can span both paragraphs, and then the paragraph alone
+                # is missing the anchors: scoping to it unconditionally silenced
+                # "the shadows deepen / raise the threat by 4" entirely.
+                filled = None
+                for context in (source.get(key), text):
+                    if context is None:
+                        continue
+                    filled = fill_template(corpus[key]["text"], context)
+                    if filled is not None:
+                        break
                 if filled is None:
+                    print(f"{YELLOW}          cannot align with the screen — "
+                          f"staying silent{RESET}")
                     continue
                 # not `spoken`: that name is the counter this loop runs inside
                 say = glyphs.spell_out_numbers(
