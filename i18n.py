@@ -107,6 +107,29 @@ STRINGS: dict[str, dict[str, str]] = {
         "No corpus has been extracted yet.": "Nenhum corpus foi extraído ainda.",
         "jime: run `jime --help` for the flags; the menu needs a terminal.":
             "jime: use `jime --help` para as flags; o menu precisa de um terminal.",
+
+        # --- during a session ---
+        #
+        # Everything here is imperative or explains a silence. The rest of the
+        # runtime output stays English — it is progress chatter, read while
+        # something is running rather than acted on.
+        "switch to the game now — this starts when it is in front":
+            "vá para o jogo agora — começa quando ele estiver na frente",
+        "switch to the game now — starting in {n}s":
+            "vá para o jogo agora — começa em {n}s",
+        "the game has not come forward — watching anyway, and staying quiet "
+        "until it does":
+            "o jogo não veio para a frente — vou observar mesmo assim, e ficar "
+            "calado até que venha",
+        "watching. Ctrl+C to stop.": "observando. Ctrl+C para parar.",
+        "the game is not in front — nothing on this monitor is being read":
+            "o jogo não está na frente — nada neste monitor está sendo lido",
+        "resumed": "voltou",
+        "{screens} screens settled, {queued} blocks queued":
+            "{screens} telas reconhecidas, {queued} blocos enfileirados",
+        "cannot align with the screen": "não bate com a tela",
+        "none of it is on the screen": "nada dele está na tela",
+        "live synthesis produced nothing": "a síntese ao vivo não produziu nada",
     },
 }
 

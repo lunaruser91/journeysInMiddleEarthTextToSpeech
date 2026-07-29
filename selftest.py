@@ -312,10 +312,38 @@ def test_capture() -> None:
     except Exception as exc:  # noqa: BLE001
         check("backend lists windows", False, str(exc).split("\n")[0][:56])
         return
+    # Display capture is what the menu picks for a fullscreen game — which is
+    # how most people run it — and nothing here used to exercise it. It needs no
+    # game: a monitor with anything on it is enough to prove frames arrive.
+    from capture.base import foreground, open_display
+    try:
+        cap = open_display(0)
+        frame = cap.grab()
+        cap.close()
+        ok = frame is not None and float(frame.std()) > 1.0
+        check("capture a display", ok,
+              f"{frame.shape[1]}x{frame.shape[0]}" if frame is not None
+              else "no frame returned")
+    except Exception as exc:  # noqa: BLE001
+        check("capture a display", False, str(exc).split("\n")[0][:56])
+
+    # The guard that keeps display capture from reading the desktop, and the
+    # terminal it is printing into.
+    front = foreground()
+    check("know which window is in front", front is not None,
+          (front or "backend cannot tell")[:56])
+
     game = [w for w in windows if "journey" in (w.app or "").lower()
             or "journey" in (w.title or "").lower()]
     if not game:
-        skip("capture the game", "the game is not running — start it and rerun")
+        # On macOS this cannot distinguish the two: a fullscreen game owns a
+        # Space that is not drawn while you are here, and an undrawn window is
+        # not listed. On Windows it is listed either way, so absence is absence.
+        skip("capture the game",
+             "the game is not running — start it and rerun"
+             if platform.system() == "Windows" else
+             "no game window visible — not running, or fullscreen on its own "
+             "Space")
         return
     from capture.base import open_window
     try:

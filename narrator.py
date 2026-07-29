@@ -59,6 +59,7 @@ import console  # noqa: E402
 console.setup()
 
 import glyphs  # noqa: E402
+from i18n import t  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
 from matcher import paragraphs as mparagraphs  # noqa: E402
@@ -141,7 +142,8 @@ def _visible(parts: list[str], norm_screen: str) -> list[bool]:
     return out
 
 
-def await_game(app_hint: str, title_hint: str, wait: float) -> None:
+def await_game(app_hint: str, title_hint: str, wait: float,
+               lang: str = "en") -> None:
     """Hold until the game is the window in front, or until `wait` runs out.
 
     A fixed countdown was the old answer, and it is a guess about how fast
@@ -153,19 +155,21 @@ def await_game(app_hint: str, title_hint: str, wait: float) -> None:
     from capture.base import is_foreground
 
     if is_foreground(app_hint, title_hint) is None:
-        print(f"{YELLOW}switch to the game now — starting in {wait:.0f}s{RESET}")
+        print(YELLOW + t("switch to the game now — starting in {n}s", lang,
+                         n=f"{wait:.0f}") + RESET)
         time.sleep(wait)
         return
 
-    print(f"{YELLOW}switch to the game now — this starts when it is in front"
-          f"{RESET}")
+    print(YELLOW + t("switch to the game now — this starts when it is in front",
+                     lang) + RESET)
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
         if is_foreground(app_hint, title_hint):
             return
         time.sleep(0.3)
-    print(f"{GRAY}[waiting] the game has not come forward — watching anyway, and "
-          f"staying quiet until it does{RESET}")
+    print(GRAY + "[waiting] " + t("the game has not come forward — watching "
+                                  "anyway, and staying quiet until it does",
+                                  lang) + RESET)
 
 
 def frames_from_video(path: Path, fps: float):
@@ -310,7 +314,8 @@ def main() -> None:
                 print(f"{GRAY}[source] display {args.display} — everything drawn "
                       f"on this monitor, including this window{RESET}")
                 if args.wait:
-                    await_game(args.app, args.window, args.wait)
+                    await_game(args.app, args.window, args.wait,
+                               args.lang)
             else:
                 cap = open_window(args.window, args.app, wait=args.wait)
                 print(f"{GRAY}[source] {cap.window}{RESET}")  # type: ignore[attr-defined]
@@ -328,7 +333,7 @@ def main() -> None:
              and is_foreground(args.app, args.window) is not None)
     away = False
 
-    print(f"\n{GREEN}watching. Ctrl+C to stop.{RESET}\n")
+    print("\n" + GREEN + t("watching. Ctrl+C to stop.", args.lang) + RESET + "\n")
     # Counted where it is known. A block reaching the queue is not a block
     # heard: the next screen interrupts what is playing, so the honest label
     # for this number is the one it measures.
@@ -338,12 +343,13 @@ def main() -> None:
             if guard and not is_foreground(args.app, args.window):
                 if not away:
                     away = True
-                    print(f"{GRAY}[waiting] the game is not in front — nothing "
-                          f"on this monitor is being read{RESET}", flush=True)
+                    print(GRAY + "[waiting] " + t("the game is not in front — "
+                          "nothing on this monitor is being read", args.lang)
+                          + RESET, flush=True)
                 continue
             if away:
                 away = False
-                print(f"{GRAY}[resumed]{RESET}", flush=True)
+                print(f"{GRAY}[{t('resumed', args.lang)}]{RESET}", flush=True)
 
             settled = trigger.feed(frame)
             if settled is None:
@@ -421,7 +427,7 @@ def main() -> None:
                         if say_text is not None:
                             break
                     if say_text is None:
-                        mute[key] = "cannot align with the screen"
+                        mute[key] = t("cannot align with the screen", args.lang)
                         continue
                 else:
                     parts = mparagraphs(block["text"])
@@ -430,7 +436,7 @@ def main() -> None:
                     if len(showing) == len(parts):
                         continue          # the block's own audio is right
                     if not showing:
-                        mute[key] = "none of it is on the screen"
+                        mute[key] = t("none of it is on the screen", args.lang)
                         continue
                     say_text = "\n\n".join(showing)
 
@@ -443,7 +449,7 @@ def main() -> None:
                     live_audio[key] = path
                     fresh.add(key)
                 else:
-                    mute[key] = "live synthesis produced nothing"
+                    mute[key] = t("live synthesis produced nothing", args.lang)
 
             speak = [k for k in keys if k not in mute]
             played = ([] if args.no_audio
@@ -483,8 +489,9 @@ def main() -> None:
                 player.stop()
                 if cap is not None:
                     cap.close()
-                print(f"\n{GRAY}[done] {screens} screens settled, {queued} "
-                      f"blocks queued{RESET}")
+                print("\n" + GRAY + "[done] "
+                      + t("{screens} screens settled, {queued} blocks queued",
+                          args.lang, screens=screens, queued=queued) + RESET)
                 break
             except KeyboardInterrupt:
                 continue
