@@ -39,6 +39,11 @@ Os **treze** idiomas do jogo podem ser narrados.
 
 ## Instalação
 
+Você precisa de um Mac ou um PC com Windows, **o jogo instalado no mesmo
+computador** — o narrador lê os arquivos de texto dele — e cerca de 300 MB
+livres por idioma. Não precisa de máquina rápida, nem placa de vídeo, nem
+internet depois de configurado.
+
 **macOS**
 
 ```bash
@@ -54,13 +59,10 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 Isso instala o que estiver faltando, clona o projeto, monta o ambiente e roda o
 autoteste. Rodar de novo é também como você **atualiza**.
 
-Duas coisas que ele não faz por você:
-
-- **O jogo precisa estar instalado neste mesmo computador.** O narrador lê os
-  arquivos de texto do próprio jogo.
-- **O macOS exige permissão de gravação de tela.** Ajustes do Sistema →
-  Privacidade e Segurança → Gravação de Tela → marque o Terminal, depois encerre
-  o Terminal (`Cmd`+`Q`) e abra de novo. O Windows não exige permissão.
+Uma coisa ele não faz por você: **o macOS exige permissão de gravação de tela.**
+Ajustes do Sistema → Privacidade e Segurança → Gravação de Tela → marque o
+Terminal, depois encerre o Terminal (`Cmd`+`Q`) e abra de novo — a permissão é
+lida quando o programa inicia. O Windows não exige permissão.
 
 Então inicie — ele pergunta o resto:
 
@@ -80,195 +82,7 @@ Se algo der errado, ou se preferir ver cada etapa, continue lendo.
 
 ---
 
-## Passo a passo
-
-O instalador acima faz tudo isto. Esta seção é para quando ele falha, ou para
-quando você prefere rodar cada parte e ver o que acontece. Não pressupõe nada;
-siga a parte do seu sistema.
-
-### O que você precisa antes
-
-- **Um Mac ou um PC com Windows.** Os dois são suportados; o macOS é o que já
-  narrou uma sessão real, veja [O que falta](#o-que-falta).
-- **O jogo instalado neste mesmo computador.** O narrador lê os arquivos de texto
-  do próprio jogo, então precisa encontrá-los. Steam ou o app avulso, tanto faz.
-- **Cerca de 300 MB livres** para a fala gerada, por idioma.
-
-Você **não** precisa de máquina rápida, placa de vídeo, nem conexão com a
-internet depois de configurado.
-
-### Passo 1 — abra um terminal
-
-**macOS** — aperte `Cmd` + `Espaço`, digite `Terminal`, Enter.
-
-**Windows** — aperte o botão Iniciar, digite `PowerShell`, e escolha **Executar
-como administrador**.
-
-Abre uma janela onde você digita comandos. Cada bloco abaixo é um comando: copie,
-cole, aperte Enter, e espere terminar antes do próximo.
-
-### Passo 2 — instale as ferramentas necessárias
-
-**macOS**
-
-```bash
-xcode-select --install
-```
-
-Pode aparecer um diálogo pedindo para instalar ferramentas de desenvolvedor —
-aceite. Se disser que já estão instaladas, siga em frente.
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Esse é o [Homebrew](https://brew.sh), a forma usual de instalar programas num Mac
-pelo terminal. Ele vai pedir sua senha. Se você já o tem, o comando avisa e não
-muda nada.
-
-```bash
-brew install python@3.13 ffmpeg git
-```
-
-**Windows** — um pacote por comando; o `winget` aceita um único `--id`.
-
-```powershell
-winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
-winget install --id Git.Git -e --accept-package-agreements
-winget install --id Gyan.FFmpeg -e --accept-package-agreements
-winget install --id Microsoft.VCRedist.2015+.x64 -e
-```
-
-O último não é opcional. Sem ele o motor de fala não carrega, com uma mensagem
-que não menciona nem a si mesmo nem o que está faltando:
-
-    DLL load failed while importing onnxruntime_pybind11_state
-
-Depois **feche e reabra o PowerShell**, para os comandos novos entrarem no PATH.
-
-### Passo 3 — baixe este projeto
-
-**macOS**
-
-```bash
-git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
-cd ~/jime
-```
-
-**Windows**
-
-```powershell
-git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git C:\jime
-cd C:\jime
-```
-
-Se preferir não usar `git`, o botão verde **Code** na página do GitHub tem
-*Download ZIP*; descompacte e entre na pasta com `cd`.
-
-### Passo 4 — prepare o ambiente
-
-**macOS**
-
-```bash
-python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
-```
-
-**Windows**
-
-```powershell
-py -3.13 -m venv C:\jime-venv
-& C:\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
-```
-
-O segundo comando leva alguns minutos e imprime bastante coisa. Terminou quando o
-prompt voltar.
-
-O `capture` é o que permite enxergar a tela — deixá-lo de fora produz uma
-instalação aparentemente completa que não captura nada, o que é uma forma
-confusa de descobrir o problema. Os extras se resolvem por plataforma, então o
-mesmo comando serve nos dois.
-
-### Passo 5 — dê permissão para ver a tela
-
-**Só no macOS.** O Windows não exige permissão para isso; pule para o passo 6.
-
-Abra **Ajustes do Sistema → Privacidade e Segurança → Gravação de Tela** e ative
-o **Terminal**. Depois **encerre o Terminal por completo** (`Cmd` + `Q`) e abra
-de novo — a permissão só é lida quando o programa inicia.
-
-Nada precisa ser assinado ou notarizado: a permissão se prende ao Terminal, e
-este projeto roda dentro dele.
-
-### Passo 6 — verifique, depois execute
-
-Confirme que a máquina está pronta antes de confiar nela. Isso checa tudo que
-consegue, em ordem, e nomeia o que estiver errado:
-
-```bash
-~/jime-venv/bin/python selftest.py          # macOS
-```
-
-```powershell
-& C:\jime-venv\Scripts\python selftest.py  # Windows
-```
-
-Então inicie:
-
-```bash
-~/jime-venv/bin/python jime.py              # macOS
-```
-
-```powershell
-& C:\jime-venv\Scripts\python jime.py      # Windows
-```
-
-Isso abre o menu. Não há flags para memorizar; ele pergunta.
-
-**Na primeira vez, nesta ordem:**
-
-1. **Extract the corpus** — lê os arquivos do próprio jogo e escreve o texto.
-   Leva um minuto. Nada funciona antes disso.
-2. **Render audio** — transforma esse texto em fala. Cerca de meia hora por
-   campanha. Escolha a sua, e aceite quando ele oferecer incluir o `main`.
-3. **Narrate a game** — abra o jogo e escolha esta opção. Ele assiste, reconhece
-   cada tela e lê em voz alta.
-
-Depois disso só o passo 3 importa, até você começar outra campanha.
-
-### O que cada opção do menu faz
-
-| Opção | O que faz | Quando você precisa |
-|---|---|---|
-| **Narrate a game** | Assiste à tela e lê cada bloco em voz alta | Toda sessão |
-| **Render audio** | Transforma o texto extraído em arquivos de fala | Uma vez por campanha |
-| **Extract the corpus** | Lê os arquivos do próprio jogo | Uma vez por idioma |
-| **Status** | O que foi extraído, o que foi renderizado, quanto | Para ver onde você parou |
-| **Check this machine** | Se está tudo instalado e permitido | Quando algo não funciona |
-| **Voices** | Qual voz fala cada idioma | Para trocar ou calibrar uma voz |
-
-O idioma é a primeira pergunta e vale para tudo depois dela. `b` volta uma
-pergunta, `q` sai, e Enter aceita a opção destacada.
-
-### Se algo der errado
-
-Rode o `selftest.py`, ou **Check this machine** pelo menu — eles nomeiam o que
-está faltando em vez de falhar de forma obscura.
-
-As três respostas mais comuns:
-
-- **Ele não encontra a janela do jogo.** No macOS use a opção de tela cheia: um
-  jogo em tela cheia fica num Space próprio, e o macOS não desenha um Space que
-  não está em primeiro plano, então ele é invisível a partir do Terminal até você
-  mudar para lá. No Windows as duas opções funcionam.
-- **Ele reconhece as telas mas não fala.** Aquela campanha ainda não tem áudio —
-  volte e renderize. O menu oferece isso quando percebe.
-- **Windows: o motor de fala não carrega.** Instale o Visual C++ Redistributable
-  do passo 2.
-
----
-
-### O mesmo à mão
+## Instalando à mão
 
 Para quem já tem as ferramentas, ou quer ver exatamente o que o instalador faz.
 
@@ -355,6 +169,38 @@ forma retomável:
 O `main` guarda o texto que todas as campanhas compartilham — interface, tiles,
 ativações de inimigos, tesouros. **48,8% de tudo que se fala, em 631 telas reais,
 vem dele**, então uma campanha renderizada sem ele deixa metade da sessão muda.
+
+### O que cada opção do menu faz
+
+| Opção | O que faz | Quando você precisa |
+|---|---|---|
+| **Narrate a game** | Assiste à tela e lê cada bloco em voz alta | Toda sessão |
+| **Render audio** | Transforma o texto extraído em arquivos de fala | Uma vez por campanha |
+| **Extract the corpus** | Lê os arquivos do próprio jogo | Uma vez por idioma |
+| **Status** | O que foi extraído, o que foi renderizado, quanto | Para ver onde você parou |
+| **Check this machine** | Se está tudo instalado e permitido | Quando algo não funciona |
+| **Voices** | Qual voz fala cada idioma | Para trocar ou calibrar uma voz |
+
+O idioma é a primeira pergunta e vale para tudo depois dela. `b` volta uma
+pergunta, `q` sai, e Enter aceita a opção destacada.
+
+### Se algo der errado
+
+Rode o `selftest.py`, ou **Check this machine** pelo menu — eles nomeiam o que
+está faltando em vez de falhar de forma obscura.
+
+As três respostas mais comuns:
+
+- **Ele não encontra a janela do jogo.** No macOS use a opção de tela cheia: um
+  jogo em tela cheia fica num Space próprio, e o macOS não desenha um Space que
+  não está em primeiro plano, então ele é invisível a partir do Terminal até você
+  mudar para lá. No Windows as duas opções funcionam.
+- **Ele reconhece as telas mas não fala.** Aquela campanha ainda não tem áudio —
+  volte e renderize. O menu oferece isso quando percebe.
+- **Windows: o motor de fala não carrega.** Falta o Visual C++ Redistributable:
+  `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+
+---
 
 ### Atualizando
 

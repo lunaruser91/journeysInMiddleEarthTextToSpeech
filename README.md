@@ -36,6 +36,10 @@ All **thirteen** of the game's localisations can be narrated.
 
 ## Install
 
+You need a Mac or a Windows PC, **the game installed on the same computer** —
+the narrator reads its text files — and about 300 MB free per language. Not a
+fast machine, not a graphics card, and no internet once it is set up.
+
 **macOS**
 
 ```bash
@@ -51,13 +55,10 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 That installs whatever is missing, clones the project, builds the environment and
 runs the self-test. Running it again is also how you **update**.
 
-Two things it cannot do for you:
-
-- **The game has to be installed on this same computer.** The narrator reads the
-  game's own text files.
-- **macOS needs screen recording permission.** System Settings → Privacy &
-  Security → Screen Recording → tick Terminal, then quit Terminal (`Cmd`+`Q`) and
-  reopen it. Windows needs no permission.
+One thing it cannot do for you: **macOS needs screen recording permission.**
+System Settings → Privacy & Security → Screen Recording → tick Terminal, then
+quit Terminal (`Cmd`+`Q`) and reopen it — the permission is read when a program
+starts. Windows needs no permission.
 
 Then start it — it asks the rest:
 
@@ -77,194 +78,7 @@ If any of that went wrong, or you would rather see each step, read on.
 
 ---
 
-## Step by step
-
-The installer above does all of this. This section is for when it fails, or
-when you would rather run each part yourself and see what it does. It assumes
-nothing; follow the part for your system.
-
-### What you need first
-
-- **A Mac or a Windows PC.** Both are supported; macOS is the one that has
-  narrated a real session, see [What is missing](#what-is-missing).
-- **The game installed on this same computer.** The narrator reads the game's own
-  text files, so it has to find them. Steam or the standalone app both work.
-- **About 300 MB free** for the generated speech, per language.
-
-You do **not** need a fast machine, a graphics card, or an internet connection
-once it is set up.
-
-### Step 1 — open a terminal
-
-**macOS** — press `Cmd` + `Space`, type `Terminal`, press Enter.
-
-**Windows** — press the Start button, type `PowerShell`, and choose **Run as
-administrator**.
-
-A window opens where you type commands. Every block below is one command: copy
-it, paste it, press Enter, and wait for it to finish before the next.
-
-### Step 2 — install the tools it needs
-
-**macOS**
-
-```bash
-xcode-select --install
-```
-
-A dialog may appear asking to install developer tools — accept it. If it says
-they are already installed, carry on.
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-That is [Homebrew](https://brew.sh), the usual way to install software on a Mac
-from the terminal. It will ask for your password. If you already have it, this
-says so and changes nothing.
-
-```bash
-brew install python@3.13 ffmpeg git
-```
-
-**Windows** — one package per command; `winget` takes a single `--id`.
-
-```powershell
-winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
-winget install --id Git.Git -e --accept-package-agreements
-winget install --id Gyan.FFmpeg -e --accept-package-agreements
-winget install --id Microsoft.VCRedist.2015+.x64 -e
-```
-
-That last one is not optional. Without it the speech engine fails to load with a
-message that names neither itself nor what is missing:
-
-    DLL load failed while importing onnxruntime_pybind11_state
-
-Then **close and reopen PowerShell**, so the new commands are on the PATH.
-
-### Step 3 — download this project
-
-**macOS**
-
-```bash
-git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
-cd ~/jime
-```
-
-**Windows**
-
-```powershell
-git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git C:\jime
-cd C:\jime
-```
-
-If you would rather not use `git`, the green **Code** button on the GitHub page
-has *Download ZIP*; unzip it and `cd` into it instead.
-
-### Step 4 — set it up
-
-**macOS**
-
-```bash
-python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
-```
-
-**Windows**
-
-```powershell
-py -3.13 -m venv C:\jime-venv
-& C:\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
-```
-
-The second command takes a few minutes and prints a lot. It is finished when your
-prompt comes back.
-
-`capture` is what lets it see the screen — leaving it out gets you a working
-setup that cannot capture anything, which is a confusing way to find out. The
-extras resolve per platform, so the same command is right on both.
-
-### Step 5 — let it see the screen
-
-**macOS only.** Windows needs no permission for this; skip to step 6.
-
-Open **System Settings → Privacy & Security → Screen Recording**, and switch on
-**Terminal**. Then **quit Terminal completely** (`Cmd` + `Q`) and open it again —
-the permission is only read when the program starts.
-
-Nothing needs to be signed or notarised: the grant attaches to the Terminal, and
-this project runs inside it.
-
-### Step 6 — check, then run
-
-Confirm the machine is ready before trusting it. This checks everything it can,
-in order, and names whatever is wrong:
-
-```bash
-~/jime-venv/bin/python selftest.py          # macOS
-```
-
-```powershell
-& C:\jime-venv\Scripts\python selftest.py  # Windows
-```
-
-Then start it:
-
-```bash
-~/jime-venv/bin/python jime.py              # macOS
-```
-
-```powershell
-& C:\jime-venv\Scripts\python jime.py      # Windows
-```
-
-That opens the menu. There are no flags to remember; it asks.
-
-**The first time, in this order:**
-
-1. **Extract the corpus** — reads the game's own files and writes out the text.
-   Takes a minute. Nothing works before this.
-2. **Render audio** — turns that text into speech. About half an hour per
-   campaign. Pick your campaign, and say yes when it offers to add `main`.
-3. **Narrate a game** — open the game, then choose this. It watches, recognises
-   each screen and reads it aloud.
-
-Afterwards only step 3 matters, until you start a different campaign.
-
-### What each menu option does
-
-| Option | What it does | When you need it |
-|---|---|---|
-| **Narrate a game** | Watches the screen and reads each block aloud | Every session |
-| **Render audio** | Turns the extracted text into speech files | Once per campaign |
-| **Extract the corpus** | Reads the game's own files | Once per language |
-| **Status** | What is extracted, what is rendered, how much | To see where you left off |
-| **Check this machine** | Whether everything is installed and permitted | When something does not work |
-| **Voices** | Which voice speaks each language | To change or calibrate a voice |
-
-The language is the first question and applies to everything after it. `b` goes
-back a question, `q` quits, and Enter takes the highlighted default.
-
-### If something goes wrong
-
-Run `selftest.py`, or **Check this machine** from the menu — they name what is
-missing rather than failing obscurely.
-
-The three most common answers:
-
-- **It finds no game window.** On macOS use the fullscreen option: a fullscreen
-  game sits on its own Space, and macOS does not draw a Space that is not in
-  front, so it is invisible from the Terminal until you switch to it. On Windows
-  either works.
-- **It recognises screens but says nothing.** That campaign has no audio yet — go
-  back and render it. The menu offers this when it notices.
-- **Windows: the speech engine will not load.** Install the Visual C++
-  Redistributable from step 2.
-
----
-
-### The same by hand
+## Installing by hand
 
 For anyone who already has the tools, or who wants to see exactly what the
 installer does.
@@ -351,6 +165,38 @@ Render a whole campaign plus the shared text, unattended and resumable:
 `main` holds the text every campaign shares — interface, tiles, enemy
 activations, treasure. **48.8% of everything spoken across 631 real screens comes
 from it**, so a campaign rendered without it leaves half the session silent.
+
+### What each menu option does
+
+| Option | What it does | When you need it |
+|---|---|---|
+| **Narrate a game** | Watches the screen and reads each block aloud | Every session |
+| **Render audio** | Turns the extracted text into speech files | Once per campaign |
+| **Extract the corpus** | Reads the game's own files | Once per language |
+| **Status** | What is extracted, what is rendered, how much | To see where you left off |
+| **Check this machine** | Whether everything is installed and permitted | When something does not work |
+| **Voices** | Which voice speaks each language | To change or calibrate a voice |
+
+The language is the first question and applies to everything after it. `b` goes
+back a question, `q` quits, and Enter takes the highlighted default.
+
+### If something goes wrong
+
+Run `selftest.py`, or **Check this machine** from the menu — they name what is
+missing rather than failing obscurely.
+
+The three most common answers:
+
+- **It finds no game window.** On macOS use the fullscreen option: a fullscreen
+  game sits on its own Space, and macOS does not draw a Space that is not in
+  front, so it is invisible from the Terminal until you switch to it. On Windows
+  either works.
+- **It recognises screens but says nothing.** That campaign has no audio yet — go
+  back and render it. The menu offers this when it notices.
+- **Windows: the speech engine will not load.** The Visual C++ Redistributable
+  is missing: `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+
+---
 
 ### Updating
 
