@@ -326,11 +326,43 @@ def foreground() -> str:
     Display capture takes whichever Space is active, so it takes the terminal
     when you are looking at the terminal. Same problem as on Windows, reached by
     a different route.
-    """
-    from AppKit import NSWorkspace
 
-    app = NSWorkspace.sharedWorkspace().frontmostApplication()
-    return str(app.localizedName()) if app else ""
+    ## Not NSWorkspace
+
+    The obvious call is `NSWorkspace.frontmostApplication()`, and it is wrong
+    here. That property is kept current by notifications, which a process
+    delivers only while a run loop is running. This narrator has no run loop: it
+    is a plain script in a `while True`. So the value freezes at whatever was
+    frontmost when the process started — and since you launch it from a
+    terminal, that is the terminal, for ever.
+
+    The consequence was total and silent. The guard would never open, the wait
+    for the game would always expire, and every session was spent watching a
+    program report that the game had not come forward while the player was
+    sitting in it. Measured directly: a polling subprocess watched the focus
+    change three times and reported a single unchanging value throughout.
+
+    The window list is a direct query with nothing cached behind it. It is
+    ordered front to back, and layer 0 is the ordinary window layer — the menu
+    bar, the dock and overlays sit above it and must not be mistaken for the
+    application in front.
+
+    Only the owning application is returned, never the window title. A terminal's
+    title is its command line, and this project's own directory is named after
+    the game — so matching a hint of "Journeys" against the title would find the
+    terminal you launched from and call it the game.
+    """
+    import Quartz
+
+    info = Quartz.CGWindowListCopyWindowInfo(
+        Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID)
+    for w in info or []:
+        if w.get("kCGWindowLayer", 0) != 0:
+            continue
+        name = str(w.get("kCGWindowOwnerName") or "")
+        if name:
+            return name
+    return ""
 
 
 def _find(title_hint: str, app_hint: str) -> Window | None:

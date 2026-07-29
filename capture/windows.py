@@ -87,15 +87,15 @@ def _process_name(hwnd: int) -> str:
 
 
 def foreground() -> str:
-    """"process.exe title" of the window in front, for the display-capture guard."""
-    user32 = ctypes.windll.user32
-    hwnd = user32.GetForegroundWindow()
-    if not hwnd:
-        return ""
-    length = user32.GetWindowTextLengthW(hwnd)
-    buf = ctypes.create_unicode_buffer(length + 1)
-    user32.GetWindowTextW(hwnd, buf, length + 1)
-    return f"{_process_name(hwnd)} {buf.value}".strip()
+    """Executable owning the window in front, for the display-capture guard.
+
+    The process name only, never the window title. A terminal's title is its
+    command line, and this project's directory is named after the game — so a
+    hint of "Journeys" matched against the title would find the terminal you
+    launched from and mistake it for the game.
+    """
+    hwnd = ctypes.windll.user32.GetForegroundWindow()
+    return _process_name(hwnd) if hwnd else ""
 
 
 def list_windows(app_hint: str = "") -> list[Window]:
