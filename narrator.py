@@ -495,6 +495,14 @@ def main() -> None:
                     if r.key:
                         print(f"           {GRAY}closest {r.key} "
                               f"({r.score:.0f}) — {r.reason}{RESET}")
+                # Also profile the screens that matched nothing. Leaving them out
+                # meant the only timings on record were first screens, which are
+                # the ones carrying every lazy import in the process.
+                if args.profile:
+                    print(f"{GRAY}  [profile] settling {settling:5.2f}s  "
+                          f"ocr {t_ocr - t0:5.2f}s  "
+                          f"match {time.monotonic() - t_ocr:5.2f}s  "
+                          f"(no match){RESET}", flush=True)
                 continue
 
             t_match = time.monotonic()

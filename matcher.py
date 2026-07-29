@@ -132,6 +132,7 @@ class Matcher:
     _keys: list[str] = field(default_factory=list, init=False)
     _norms: list[str] = field(default_factory=list, init=False)
     _is_fragment: list[bool] = field(default_factory=list, init=False)
+    _longest: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
         for k, v in self.corpus.items():
@@ -165,14 +166,36 @@ class Matcher:
                 self._norms.append(n)
                 self._is_fragment.append(i > 0)   # 0 = whole block
 
+        self._longest = max((len(n) for n in self._norms), default=0)
+
     def __len__(self) -> int:
         return len(self._keys)
+
+    def _too_long(self, target: str) -> bool:
+        """Is this target so long that the length guard must refuse it anyway?
+
+        `min_length_ratio` compares the shorter against the longer, so against a
+        target longer than every candidate the best achievable ratio is
+        `longest / len(target)`. Once that falls under the floor, no candidate
+        can pass and the whole comparison is a foregone conclusion.
+
+        Worth checking because the comparison is not cheap. `partial_ratio` costs
+        the product of the two lengths, so a screenful of prose that is not the
+        game — a browser, a chat window, this project's own terminal — is both
+        the most expensive thing to score and the most certainly refused.
+        Measured: 2,512 ms for a 5,148-character target against 7,314
+        candidates, to arrive at "length ratio 0.18 < 0.75".
+        """
+        return (bool(self._longest)
+                and len(target) * self.min_length_ratio > self._longest)
 
     def match_text(self, ocr_text: str) -> Result:
         """Matches an excerpt already read off the screen against the scope."""
         target = normalize(ocr_text)
         if len(target) < 8:
             return Result(None, 0, 0, 0, False, "excerpt too short")
+        if self._too_long(target):
+            return Result(None, 0, 0, 0, False, "longer than any block")
 
         # Every candidate is scored, not the top 20.
         #
@@ -221,9 +244,13 @@ class Matcher:
         from 0 to 100. The result is identical to calling `match_text` in a loop.
         """
         targets = [normalize(t) for t in excerpts]
-        valid = [i for i, a in enumerate(targets) if len(a) >= 8]
         out: list[Result] = [
-            Result(None, 0, 0, 0, False, "excerpt too short") for _ in targets]
+            Result(None, 0, 0, 0, False, "excerpt too short")
+            if len(a) < 8 else
+            Result(None, 0, 0, 0, False, "longer than any block")
+            for a in targets]
+        valid = [i for i, a in enumerate(targets)
+                 if len(a) >= 8 and not self._too_long(a)]
         if not valid:
             return out
 
