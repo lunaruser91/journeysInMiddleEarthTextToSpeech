@@ -508,21 +508,40 @@ def main() -> None:
                     and r.margin < matcher.min_tie_margin
                     and r.key not in sure}
 
-            # Which paragraph did each block match? A template whose placeholder
-            # sits at the start — "{0}\n\nPlace a search token" — has no anchor
-            # before the gap, so given the whole screen it takes everything up to
-            # the first anchored word as the value. On a two-block screen that is
-            # the other block's prose, and the player hears it twice: once from
-            # its own audio, once inside this one. Aligning against the paragraph
-            # that actually matched keeps each block to its own text.
-            source = {}
-            for r in results:
-                if not (r.accepted and r.key and r.text):
-                    continue
-                for para in paragraphs:
-                    if r.text in normalize(para):
-                        source.setdefault(r.key, para)
-                        break
+            # Which paragraphs may a block draw on?
+            #
+            # A template whose placeholder sits at the start — "{0}\n\nPlace a
+            # search token" — has no anchor before the gap, so given the whole
+            # screen it takes everything up to the first anchored word as its
+            # value. That swallows the objective line the game prints above the
+            # dialogue box.
+            #
+            # Handing it only the paragraph that matched is the opposite error,
+            # and the one reported from play: for a leading "{0}" the value IS
+            # the neighbouring paragraph, so the block read out its instruction
+            # and lost the sentence the instruction was announcing.
+            #
+            # So a block reaches outwards from the paragraph it matched, across
+            # neighbours that no other block claims. A paragraph scoring at the
+            # safe threshold belongs to someone — accepted or refused, it has
+            # been recognised, and it is not this template's value.
+            #
+            # match_screen returns one result per paragraph, in order, so the two
+            # lists line up; the length check is there because nothing enforces
+            # that but this comment.
+            source: dict[str, str] = {}
+            if len(results) == len(paragraphs):
+                for i, r in enumerate(results):
+                    if not (r.accepted and r.key) or r.key in source:
+                        continue
+                    lo = hi = i
+                    while (lo > 0
+                           and results[lo - 1].score < matcher.safe_threshold):
+                        lo -= 1
+                    while (hi + 1 < len(results)
+                           and results[hi + 1].score < matcher.safe_threshold):
+                        hi += 1
+                    source[r.key] = "\n\n".join(paragraphs[lo:hi + 1])
             if not keys:
                 # Say why. "[no match]" plus 70 characters of screen was not
                 # enough to tell a screen that is genuinely not in the corpus
@@ -579,7 +598,13 @@ def main() -> None:
 
                 # A one-paragraph block that ties needs nothing: its recording is
                 # that paragraph, so whichever key won says the same words.
-                if key in tied and len(mparagraphs(block["text"])) > 1:
+                # Never for a placeholder block. Its value comes off the screen
+                # and its fixed text is its own, so there is no other block's
+                # words to guard against — while confining it to the anchored
+                # paragraph deletes the value, which is the sentence the
+                # instruction exists to announce.
+                if (key in tied and not block.get("placeholders")
+                        and len(mparagraphs(block["text"])) > 1):
                     say_text = matched_paragraph(block["text"], tied[key])
                     if say_text is None:
                         mute[key] = t("cannot align with the screen", args.lang)
@@ -679,4 +704,12 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        # Ctrl+C is how this program is meant to end, and it can arrive before
+        # the watching loop exists — during the wait for the game, or while the
+        # capture is being opened. The loop has caught it since the beginning;
+        # everything before the loop was answering an ordinary stop with a
+        # traceback.
+        print()
