@@ -33,7 +33,9 @@ contains U+F463, and so on.
 One detail saved the mapping from being wrong: **`GLYPH_FOCUS` is the internal
 name of Agility**. Nothing in the name suggests it. The proof came from two
 independent keys — `A39_DRUMS_TEST_AGILITY` and `A59_FALSE TRAIL_AGILITY` —
-whose only attribute glyph is `FOCUS`.
+whose only attribute glyph is `FOCUS`, and the four official rulebooks settle
+it: "Agility" appears 26 times across them and "Focus" not once. It is a code
+name that never reaches a player.
 
 ## Why derive instead of hard-coding the codepoints
 
@@ -116,14 +118,24 @@ LEXICON: dict[str, dict[str, dict]] = {
         "ARMOR":       {"official": "Armadura",           "spoken": ("armadura", "armaduras")},
         "SINGLE_HAND": {"official": "Item de Uma Mão",    "spoken": ("item de uma mão", "itens de uma mão")},
         "DOUBLE_HAND": {"official": "Item de Duas Mãos",  "spoken": ("item de duas mãos", "itens de duas mãos")},
-        # --- not cross-checked against the legend yet ---
-        # The icon means a mount — confirmed in English (BGG 8420535). Whether
-        # the Portuguese manual prints "Montaria" is still unchecked, so this
-        # stays inferred: the meaning is settled, the word is not.
+        # --- meaning settled against the manual, Portuguese wording is not ---
+        #
+        # The icon glossary in the Spreading War rulebook (p8) lists Mount among
+        # the item types beside Trinket, Armor, One- and Two-Handed, and Wild at
+        # the end of the hero stats after Wit. Corruption has its own section
+        # and the manual names the symbol outright; Prepared is a card state.
+        # So what each icon *means* is no longer inferred.
+        #
+        # These manuals are in English, though, and what the Portuguese edition
+        # prints for each is still unchecked — hence `inferred` stays here and
+        # is dropped in the English lexicon below.
         "MOUNT":      {"official": "Montaria",   "spoken": ("montaria", "montarias"), "inferred": True},
         "PREPARED":   {"official": "Preparada",  "spoken": ("preparada", "preparadas"), "inferred": True},
         "CORRUPTION": {"official": "Corrupção",  "spoken": ("corrupção", "corrupção"), "inferred": True},
         "WILD":       {"official": "Curinga",    "spoken": ("qualquer atributo", "qualquer atributo"), "inferred": True},
+        # Not in any of the four rulebooks, and it appears in no narration block
+        # either — only in its own GLYPH_ definition. Nothing the narrator says
+        # depends on it.
         "REVEAL_CARD_DRAW": {"official": "Compra de Carta",
                              "spoken": ("compra de carta", "compras de carta"), "inferred": True},
     },
@@ -144,10 +156,22 @@ LEXICON: dict[str, dict[str, dict]] = {
         "ARMOR":       {"official": "Armor",           "spoken": ("armor", "armor")},
         "SINGLE_HAND": {"official": "One-Handed Item", "spoken": ("one-handed item", "one-handed items")},
         "DOUBLE_HAND": {"official": "Two-Handed Item", "spoken": ("two-handed item", "two-handed items")},
-        "MOUNT":      {"official": "Mount",      "spoken": ("mount", "mounts"), "inferred": True},
-        "PREPARED":   {"official": "Prepared",   "spoken": ("prepared", "prepared"), "inferred": True},
-        "CORRUPTION": {"official": "Corruption", "spoken": ("corruption", "corruption"), "inferred": True},
-        "WILD":       {"official": "Wild",       "spoken": ("any attribute", "any attribute"), "inferred": True},
+        # Checked against the rulebooks. The Spreading War icon glossary (p8)
+        # prints Mount among the item types and Wild at the end of the hero
+        # stats; Corruption has a named section of its own; Prepared is the
+        # card state described under deck rules.
+        #
+        # Wild is worth stating plainly because the glossary's layout allows the
+        # opposite reading — "Wild items" as a category. The corpus settles it:
+        # all nine uses, in both languages, put it where an attribute goes.
+        # "Test <WILD>; 3", "a hero may test <WILD> instead", "<WILD> negates".
+        # Never once as something a hero carries. Hence "any attribute".
+        "MOUNT":      {"official": "Mount",      "spoken": ("mount", "mounts")},
+        "PREPARED":   {"official": "Prepared",   "spoken": ("prepared", "prepared")},
+        "CORRUPTION": {"official": "Corruption", "spoken": ("corruption", "corruption")},
+        "WILD":       {"official": "Wild",       "spoken": ("any attribute", "any attribute")},
+        # Absent from all four rulebooks, and from every narration block — it
+        # exists only as its own GLYPH_ definition, so nothing spoken uses it.
         "REVEAL_CARD_DRAW": {"official": "Card Draw",
                              "spoken": ("card draw", "card draws"), "inferred": True},
     },

@@ -339,9 +339,12 @@ PrintWindow return black frames.
    blocks contain a paragraph break separating story from rule, so splitting them
    is mostly mechanical — but nobody has decided whether the narrator should read
    only the prose, only the rule, or both.
-3. **Five icons are inferred, not confirmed.** `MOUNT` (20 occurrences), `WILD`
-   (10), and `PREPARED`, `CORRUPTION`, `REVEAL_CARD_DRAW` (one each) were derived
-   from context rather than checked against the printed manual.
+3. **One icon is still inferred.** `REVEAL_CARD_DRAW` appears in none of the
+   four official rulebooks, and in no narration block either — only in its own
+   `GLYPH_` definition — so nothing spoken depends on it. `MOUNT`, `WILD`,
+   `PREPARED` and `CORRUPTION` were checked against the rulebooks and hold; the
+   English lexicon no longer flags them. What remains open for Portuguese is the
+   printed wording, since all four manuals are in English.
 4. **Twelve of the thirteen languages have no measured pace.** They fall back to
    the voice's own, which is faster than a narrator should read.
    `jime voices --calibrate` fixes one in a few minutes. Separately, eleven have
