@@ -140,7 +140,7 @@ def campaign_rows(lang: str) -> list[tuple[str, str, str]]:
 
 # ------------------------------------------------------------------ flows --
 
-def pick_language(action: str) -> str:
+def pick_language(action: str = "use", current: str | None = None) -> str:
     """Every language the game ships, not only the ones already extracted.
 
     Filtering to what has a corpus made the list two items long and left no way
@@ -151,7 +151,7 @@ def pick_language(action: str) -> str:
     import jime
 
     rows = language_rows()
-    default = next((i for i, r in enumerate(rows) if r[0] == "pt"), 0)
+    default = next((i for i, r in enumerate(rows) if r[0] == (current or "pt")), 0)
     while True:
         i = choose(f"Which language to {action}?",
                    [(r[1], r[2]) for r in rows], default)
@@ -171,8 +171,7 @@ def pick_language(action: str) -> str:
         return lang
 
 
-def flow_render() -> list[str] | None:
-    lang = pick_language("render")
+def flow_render(lang: str) -> list[str] | None:
     rows = campaign_rows(lang)
     if not rows:
         print(f"\n{RED}That corpus has no campaigns with narration.{RESET}")
@@ -210,10 +209,9 @@ def flow_render() -> list[str] | None:
         else ["__render_many__", lang, *campaigns]
 
 
-def flow_play() -> list[str]:
+def flow_play(lang: str) -> list[str]:
     import narrator
 
-    lang = pick_language("narrate")
     # `main` is the shared text, not something anybody plays. It belongs in the
     # render list and nowhere near this question.
     rows = [r for r in campaign_rows(lang) if r[0] != "main"]
@@ -268,15 +266,12 @@ def flow_play() -> list[str]:
     return argv
 
 
-def flow_extract() -> list[str]:
+def flow_extract(lang: str) -> list[str] | None:
     import jime
 
-    rows = language_rows()
-    default = next((i for i, r in enumerate(rows) if r[0] == "pt"), 0)
-    i = choose("Which language to extract?", [(r[1], r[2]) for r in rows], default)
-    lang = rows[i][0]
     if jime.corpus_path(lang).exists():
-        if not confirm(f"A corpus for {lang} already exists. Extract again?", False):
+        name = jime.LANGUAGE_NAMES.get(lang, lang)
+        if not confirm(f"A corpus for {name} already exists. Extract again?", False):
             raise Abort
     return ["extract", "--lang", lang]
 
@@ -306,38 +301,52 @@ def banner() -> None:
     print(f"{GRAY}ready: {', '.join(parts)}{RESET}")
 
 
+# (subcommand, label, detail, flow, takes_lang). `status` and `doctor` describe
+# the whole installation and have no --lang; passing one is an argparse error.
 ACTIONS = [
-    ("play", "Narrate a game", "watch the screen and read it aloud", flow_play),
-    ("render", "Render audio", "corpus → speech, resumable", flow_render),
-    ("extract", "Extract the corpus", "read the game's own files", flow_extract),
-    ("status", "Status", "what is done and what is missing", None),
-    ("doctor", "Check this machine", "is everything installed?", None),
-    ("voices", "Voices", "which voice speaks each language", None),
+    ("play", "Narrate a game", "watch the screen and read it aloud", flow_play, True),
+    ("render", "Render audio", "corpus → speech, resumable", flow_render, True),
+    ("extract", "Extract the corpus", "read the game's own files", flow_extract, True),
+    ("status", "Status", "what is done and what is missing", None, False),
+    ("doctor", "Check this machine", "is everything installed?", None, False),
+    ("voices", "Voices", "which voice speaks each language", None, True),
 ]
 
 
 def main() -> int:
+    import jime
+
     if not sys.stdin.isatty():
         print("jime: run `jime --help` for the flags; the menu needs a terminal.")
         return 1
 
     banner()
+    # Language is asked once, first, and then carried. Asking it inside every
+    # action meant answering the same question before each one, and it is the
+    # rarest thing to change: most people extract one language and stay there.
+    lang = pick_language("work in")
+
     while True:
+        name = jime.LANGUAGE_NAMES.get(lang, lang)
+        options = [(label, detail) for _, label, detail, _, _ in ACTIONS]
+        options.append((f"Change language", f"currently {name}"))
         try:
-            i = choose("What would you like to do?",
-                       [(label, detail) for _, label, detail, _ in ACTIONS],
-                       0, allow_back=False)
-            name, _, _, flow = ACTIONS[i]
-            argv = flow() if flow else [name]
+            i = choose(f"What would you like to do?  {GRAY}[{name}]{RESET}",
+                       options, 0, allow_back=False)
+            if i == len(ACTIONS):
+                lang = pick_language("work in", lang)
+                continue
+
+            key, _, _, flow, takes_lang = ACTIONS[i]
+            argv = flow(lang) if flow else ([key, "--lang", lang] if takes_lang
+                                            else [key])
             if argv is None:
                 continue
             if argv[0] == "__render_many__":
-                lang, campaigns = argv[1], argv[2:]
-                for camp in campaigns:
+                for camp in argv[2:]:
                     print(f"\n{BOLD}=== {camp} ==={RESET}")
-                    rc = _run(["render", "--lang", lang, "--campaign", camp])
-                    if rc != 0:
-                        return rc
+                    if _run(["render", "--lang", argv[1], "--campaign", camp]) != 0:
+                        break
             else:
                 _run(argv)
         except Abort:
