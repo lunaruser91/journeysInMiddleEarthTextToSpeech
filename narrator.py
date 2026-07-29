@@ -494,9 +494,19 @@ def main() -> None:
             # then picks is the first in corpus order, which is a guess. What is
             # not a guess is the paragraph that tied: it scored the same against
             # both, so it is in both. Speaking only that is right either way.
+            #
+            # A key identified confidently by *any* paragraph is identified. A
+            # block whose two paragraphs are both on screen produces two results:
+            # reported from play, the prose matched with a margin of 37 and the
+            # instruction under it tied with an unrelated block at margin 0.
+            # Confining the block to the tied paragraph then threw away the one
+            # that had settled the question, and only the instruction was read.
+            sure = {r.key for r in results
+                    if r.accepted and r.key and r.margin >= matcher.min_tie_margin}
             tied = {r.key: r.text for r in results
                     if r.accepted and r.key and r.text
-                    and r.margin < matcher.min_tie_margin}
+                    and r.margin < matcher.min_tie_margin
+                    and r.key not in sure}
 
             # Which paragraph did each block match? A template whose placeholder
             # sits at the start — "{0}\n\nPlace a search token" — has no anchor
