@@ -86,7 +86,28 @@ def clauses(text: str) -> list[str]:
                 buf = f"{buf} {bit}".strip()
         if buf.strip():
             out.append(buf.strip())
-    return out
+
+    # Never hand back a fragment with nothing to say. Splitting after sentence
+    # punctuation cuts `"... um ladrão roubou seu rolo de massa!"` into `"...`
+    # and the rest, and the first piece has no letters in it — Piper synthesises
+    # silence, an empty buffer reaches `wave`, and the whole block fails with
+    # "# channels not specified". Three blocks in the corpus start this way, and
+    # all three failed on the first Windows render.
+    #
+    # The ellipsis belongs to the sentence it opens, so it is glued to the front
+    # of the next piece rather than dropped.
+    merged: list[str] = []
+    for part in out:
+        if any(c.isalnum() for c in part):
+            merged.append(part)
+        elif merged:
+            merged[-1] = f"{merged[-1]} {part}"
+        else:
+            merged.append(part)          # nothing to attach it to yet
+    while len(merged) > 1 and not any(c.isalnum() for c in merged[0]):
+        merged[1] = f"{merged[0]} {merged[1]}"
+        merged.pop(0)
+    return merged
 
 
 def plan(text: str, base: float) -> list[tuple[str, float, float]]:
@@ -161,17 +182,55 @@ def synthesize(voice, text: str, base: float, path, config) -> None:
     for clause, scale, pause in pieces:
         cfg = copy.copy(config)
         cfg.length_scale = scale
+        # A clause that produced nothing costs itself, not the block. The
+        # splitter no longer makes silent fragments, but a voice can decline any
+        # particular string and losing a whole page of prose to one of them is
+        # not a trade worth making.
+        #
+        # The guard has to be around the *write*. When Piper emits no audio it
+        # never sets the wav parameters, and it is closing the file that raises
+        # — "# channels not specified", from the context manager's exit, not from
+        # anything this file reads.
         buf = io.BytesIO()
-        with wave.open(buf, "wb") as fh:
-            voice.synthesize_wav(clause, fh, syn_config=cfg)
+        try:
+            with wave.open(buf, "wb") as fh:
+                voice.synthesize_wav(clause, fh, syn_config=cfg)
+        except (wave.Error, EOFError):
+            continue
         buf.seek(0)
-        with wave.open(buf, "rb") as fh:
-            params = fh.getparams()
-            raw = _trim(fh.readframes(fh.getnframes()),
-                        fh.getsampwidth(), fh.getframerate())
+        try:
+            with wave.open(buf, "rb") as fh:
+                params = fh.getparams()
+                raw = _trim(fh.readframes(fh.getnframes()),
+                            fh.getsampwidth(), fh.getframerate())
+        except (wave.Error, EOFError):
+            continue
         chunks.append(np.frombuffer(raw, dtype=np.int16))
         if pause:
             chunks.append(np.zeros(int(params.framerate * pause), dtype=np.int16))
+
+    if params is None:
+        # Not one clause spoke. Try the whole string in one go, in case the
+        # splitting was what confused the voice; if that is silent too there is
+        # genuinely nothing to say, and it is worth saying which block rather
+        # than letting `wave` report "# channels not specified" from three frames
+        # down. No block in either corpus is like this — the check is for the
+        # next corpus, not this one.
+        buf = io.BytesIO()
+        try:
+            with wave.open(buf, "wb") as fh:
+                voice.synthesize_wav(text, fh, syn_config=config)
+            buf.seek(0)
+            with wave.open(buf, "rb") as fh:
+                params, frames = fh.getparams(), fh.readframes(fh.getnframes())
+        except (wave.Error, EOFError):
+            raise ValueError(
+                f"nothing to speak in {text[:60]!r}: the voice produced no "
+                f"audio for it, clause by clause or whole") from None
+        with wave.open(str(path), "wb") as fh:
+            fh.setparams(params)
+            fh.writeframes(frames)
+        return
 
     with wave.open(str(path), "wb") as fh:
         fh.setparams(params)
