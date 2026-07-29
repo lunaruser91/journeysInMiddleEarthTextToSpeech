@@ -222,12 +222,24 @@ The three most common answers:
 
 ## Installation
 
-**macOS**, for anyone who already has Python and Homebrew:
+**macOS** — one command:
 
 ```bash
-brew install ffmpeg
+curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
+```
+
+It installs the command line tools, Homebrew, Python, ffmpeg and git if any are
+missing, clones the project, builds the environment and runs the self-test. Safe
+to run again — that is also how you **update**, since a second run pulls and
+leaves everything else alone.
+
+By hand, for anyone who already has Python and Homebrew:
+
+```bash
+brew install ffmpeg python@3.13 git
+git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
 python3.13 -m venv ~/jime-venv
-~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
+~/jime-venv/bin/pip install -e ~/jime'[tts,ocr,capture]'
 ```
 
 **Windows** — one command, in PowerShell:
@@ -331,6 +343,32 @@ Render a whole campaign plus the shared text, unattended and resumable:
 `main` holds the text every campaign shares — interface, tiles, enemy
 activations, treasure. **48.8% of everything spoken across 631 real screens comes
 from it**, so a campaign rendered without it leaves half the session silent.
+
+### Updating
+
+Re-run the installer. It pulls and reinstalls, and touches nothing else:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
+```
+
+Or by hand — `git pull` alone is usually enough, since the scripts run from the
+directory and pick up changes immediately. Only a new dependency needs the
+second line:
+
+```bash
+cd ~/jime && git pull
+~/jime-venv/bin/pip install -e ~/jime'[tts,ocr,capture]'
+```
+
+Your corpus, rendered audio and downloaded voices live in `corpus/`, `output/`
+and `voices/`, none of which git touches. Updating never re-renders anything —
+unless the recipe itself changes, since voice, pace and effects are part of the
+cache key. Commits say so when that happens.
 
 ### Languages and voices
 
@@ -592,12 +630,17 @@ Do not rediscover them.
    two identical runs on this Mac have differed by 30%.
 8. **`afplay` does not decode Opus.** It exits 0 after 1.9 s on a 33 s file, so it
    looks like it worked. The player uses `ffplay`.
-9. **The Windows console is not UTF-8.** It takes its encoding from the code page
+9. **espeak-ng keeps its data path in a fixed-size buffer.** Install Piper
+   under a path longer than about 160 characters and every render dies with an
+   error naming a directory on the machine that *built* the wheel — it silently
+   falls back to the compile-time default. Measured: 156 characters works, 176
+   does not. `selftest.py` checks it.
+10. **The Windows console is not UTF-8.** It takes its encoding from the code page
    — cp1252 on most installs — and a character that does not fit raises rather
    than degrading. It is not only the symbols: `ě`, `ł`, and every Russian and
    Chinese character in the corpus break. `console.setup()` forces UTF-8 at every
    entry point.
-10. **Never clone a famous voice actor.** In Brazil the voice is a personality right
+11. **Never clone a famous voice actor.** In Brazil the voice is a personality right
    (CF art. 5 XXVIII-a; CC arts. 20–21) and unauthorised use is actionable even
    without copyright infringement. This is now moot — Piper synthesises from a
    published model with no reference recording at all — but it is why the project

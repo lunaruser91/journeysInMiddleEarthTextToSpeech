@@ -183,6 +183,20 @@ def test_render(lang: str, corpus: Path | None) -> Path | None:
 
     import voices as V
 
+    # espeak-ng, inside Piper, keeps its data path in a fixed-size buffer. Past
+    # roughly 160 characters initialize() silently falls back to the path the
+    # wheel was BUILT at — a directory on the CI machine — and every render dies
+    # with an error naming neither Piper nor your installation. Measured here:
+    # 156 works, 176 does not.
+    try:
+        from piper.phonemize_espeak import ESPEAK_DATA_DIR
+        n = len(str(ESPEAK_DATA_DIR))
+        check("speech data path is short enough", n < 160,
+              f"{n} chars"
+              + ("" if n < 160 else " — reinstall somewhere shorter, e.g. ~/jime-venv"))
+    except ImportError:
+        pass
+
     name = V.resolve(lang)
     check("voice chosen", True, name)
     try:
