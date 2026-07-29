@@ -56,9 +56,21 @@ def _enable_ansi() -> None:
 
 
 def setup() -> None:
-    """Force UTF-8 on stdout and stderr, and colour on Windows.
+    """Force UTF-8 and line buffering on stdout and stderr, and colour on Windows.
 
     Safe to call more than once.
+
+    ## Why line buffering is not optional here
+
+    Python line-buffers a terminal and *block*-buffers a pipe, in 8 KB chunks.
+    The narrator's whole output is a slow trickle of one line per screen, so
+    behind a pipe it produces nothing at all for a very long time.
+
+    That cost a debugging session. The advice was to run it through `tee` to read
+    the log afterwards; the log came back zero bytes, which read exactly like a
+    narrator that had done nothing — while the process was in fact running fine,
+    with everything it had said still sitting in the buffer. Anything that
+    redirects, pipes or logs this program hits it.
     """
     _enable_ansi()
     for stream in (sys.stdout, sys.stderr):
@@ -66,9 +78,12 @@ def setup() -> None:
         if reconfigure is None:
             continue                    # not a TextIOWrapper; nothing to fix
         try:
-            reconfigure(encoding="utf-8", errors="replace")
-        except (ValueError, OSError):
-            pass                        # already detached, or not reconfigurable
+            reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+        except (ValueError, OSError, TypeError):
+            try:                        # older wrapper: take what we can get
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass                    # already detached, or not reconfigurable
 
 
 def saves_dir() -> Path:
