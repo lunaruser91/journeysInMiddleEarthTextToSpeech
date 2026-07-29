@@ -166,6 +166,33 @@ SAMPLE = {
 }
 
 
+_PHONEMES: dict[tuple[str, str], list[str]] = {}
+
+
+def _phonemize(espeak_voice: str, text: str) -> list[str]:
+    """Phonemes for one string, through the one phonemiser there may be.
+
+    `EspeakPhonemizer()` is not a handle — its constructor calls
+    `espeakbridge.initialize()`, which initialises espeak-ng's global state. Build
+    a second one while the first is alive and the library's tables are
+    reinitialised underneath it. Piper keeps exactly one instance behind a lock
+    for this reason, and the way to be safe here is to use *that* one rather than
+    a second.
+
+    Building one per voice crashed the menu: five voices in a list meant five
+    reinitialisations, and espeak went through "Invalid instruction 4161 for
+    phoneme" into a stack overflow and a bus error, inside `WritePhMnemonic`.
+    """
+    import piper.voice as pv
+    from piper.phonemize_espeak import EspeakPhonemizer
+
+    with pv._ESPEAK_PHONEMIZER_LOCK:
+        if pv._ESPEAK_PHONEMIZER is None:
+            pv._ESPEAK_PHONEMIZER = EspeakPhonemizer()
+        groups = pv._ESPEAK_PHONEMIZER.phonemize(espeak_voice, text)
+    return [p for group in groups for p in group]
+
+
 def missing_phonemes(name: str, lang: str) -> list[str]:
     """Sounds this language needs that the voice has no id for.
 
@@ -183,23 +210,24 @@ def missing_phonemes(name: str, lang: str) -> list[str]:
     than loading a model. Returns [] for a voice that is not downloaded, since
     there is nothing to read yet.
     """
+    if (name, lang) in _PHONEMES:
+        return _PHONEMES[(name, lang)]
     config = voice_path(name).with_suffix(".onnx.json")
     if not config.exists():
         return []
+    out: list[str] = []
     try:
-        from piper.voice import EspeakPhonemizer
-
         meta = json.loads(config.read_text(encoding="utf-8"))
         table = meta.get("phoneme_id_map") or {}
         espeak = (meta.get("espeak") or {}).get("voice")
-        if not table or not espeak:
-            return []
-        text = SAMPLE.get(lang) or SAMPLE["en"]
-        need = {p for group in EspeakPhonemizer().phonemize(espeak, text)
-                for p in group}
-        return sorted(p for p in need if p not in table and p.strip())
+        if table and espeak:
+            text = SAMPLE.get(lang) or SAMPLE["en"]
+            need = set(_phonemize(espeak, text))
+            out = sorted(p for p in need if p not in table and p.strip())
     except Exception:  # noqa: BLE001
-        return []
+        out = []
+    _PHONEMES[(name, lang)] = out
+    return out
 
 
 def audition(name: str, lang: str, wait: bool = True) -> bool:
