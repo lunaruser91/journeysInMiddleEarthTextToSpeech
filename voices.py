@@ -133,6 +133,73 @@ def for_language(lang: str) -> list[dict]:
     return found
 
 
+# One sentence per language, to hear a voice before committing a render to it.
+#
+# Written here rather than taken from the game: the repository publishes tools
+# and never the content, and a sample shipped in git would be content. These are
+# also better for the job than a random block would be — each one is built to
+# make the language's hard sounds happen. The Portuguese has the nasals, the tap
+# R in a cluster, and lh/nh, which is exactly where the word error rate
+# measurement found this engine weakest.
+#
+# Only the Portuguese and English have been checked by someone who speaks them.
+# The rest are offered as a starting point and should be corrected by a native
+# speaker rather than trusted.
+SAMPLE = {
+    "pt": "Olhe: a estrada sobe pela montanha, e o vento traz cheiro de chuva.",
+    "en": "The road climbs through the mountains, and the wind carries the "
+          "smell of rain.",
+    "es": "El camino sube por la montaña, y el viento trae olor a lluvia.",
+    "fr": "La route grimpe à travers la montagne, et le vent apporte une odeur "
+          "de pluie.",
+    "it": "La strada sale attraverso la montagna, e il vento porta odore di "
+          "pioggia.",
+    "de": "Der Weg steigt durch die Berge, und der Wind bringt den Geruch von "
+          "Regen.",
+    "pl": "Droga wspina się przez góry, a wiatr niesie zapach deszczu.",
+    "cz": "Cesta stoupá přes hory a vítr přináší vůni deště.",
+    "ru": "Дорога поднимается через горы, и ветер приносит запах дождя.",
+    "uk": "Дорога піднімається через гори, і вітер приносить запах дощу.",
+    "hu": "Az út a hegyeken át vezet, és a szél esőszagot hoz.",
+    "ko": "길은 산을 넘어 이어지고, 바람이 비 냄새를 실어 옵니다.",
+    "zh": "道路穿过山峦，风中带着雨的气息。",
+}
+
+
+def audition(name: str, lang: str, wait: bool = True) -> bool:
+    """Speak the sample sentence in this voice, now.
+
+    Reads it the way the renderer would — same pace, same prosody pass — because
+    a sample that skips them is not the voice you are choosing.
+
+    Returns False when it could not be heard, rather than raising: failing to
+    audition a voice must not stop you from picking one.
+    """
+    import subprocess
+    import tempfile
+    import wave
+
+    try:
+        import prosody
+        from piper import PiperVoice, SynthesisConfig
+        from player import _play_command
+
+        path = ensure(name)
+        voice = PiperVoice.load(str(path))
+        cfg = SynthesisConfig(length_scale=length_scale(name, lang, quiet=True),
+                              noise_scale=0.9, noise_w_scale=1.0)
+        text = SAMPLE.get(lang) or SAMPLE["en"]
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as fh:
+            tmp = Path(fh.name)
+        prosody.synthesize(voice, text, cfg.length_scale, tmp, cfg)
+        run = subprocess.run(_play_command(tmp),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        tmp.unlink(missing_ok=True)
+        return run.returncode == 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
 CHOSEN = VOICE_DIR / "chosen.json"
 
 

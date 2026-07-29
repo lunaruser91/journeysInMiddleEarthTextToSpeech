@@ -58,6 +58,12 @@ STRINGS: dict[str, dict[str, str]] = {
             "Trocar significa gerar todos de novo.",
         "Use {name}?": "Usar {name}?",
         "{name} it is.": "{name}, então.",
+        "fetching {name}, {mb} MB": "baixando {name}, {mb} MB",
+        "listen...": "escute...",
+        "could not play it here": "não consegui tocar aqui",
+        "Use {name}": "Usar {name}",
+        "Hear it again": "Ouvir de novo",
+        "Try another voice": "Experimentar outra voz",
         "Change language": "Trocar de idioma",
         "currently {name}": "atualmente {name}",
 

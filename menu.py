@@ -362,10 +362,34 @@ def flow_voices(lang: str) -> list[str] | None:
         names.append(v["name"])
         rows.append((v["name"], "  ".join(marks)))
 
+    # Hear it before deciding. Everything ever settled about this voice was
+    # settled by ear — the pace, the prosody, the rejection of pitch — and a list
+    # of names settles nothing.
     default = names.index(now) if now in names else 0
-    pick = names[choose(t("Which voice should read?", UI), rows, default)]
-    if pick == now:
-        return None
+    pick = None
+    while True:
+        if pick is None:
+            pick = names[choose(t("Which voice should read?", UI), rows, default)]
+            if pick == now:
+                return None
+            default = names.index(pick)
+            if not V.voice_path(pick).exists():
+                mb = next((v["mb"] for v in found if v["name"] == pick), 60)
+                print(f"\n{GRAY}"
+                      f"  {t('fetching {name}, {mb} MB', UI, name=pick, mb=mb)}"
+                      f"{RESET}", flush=True)
+        print(f"{GRAY}  {t('listen...', UI)}{RESET}", flush=True)
+        if not V.audition(pick, lang):
+            print(f"{YELLOW}  {t('could not play it here', UI)}{RESET}")
+        answer = choose(t("What now?", UI), [
+            (t("Use {name}", UI, name=pick), ""),
+            (t("Hear it again", UI), ""),
+            (t("Try another voice", UI), ""),
+        ], 0, allow_back=False)
+        if answer == 0:
+            break
+        if answer == 2:
+            pick = None
 
     if pick not in V.CALIBRATION:
         print(f"\n{YELLOW}  {t('{name} has no measured pace.', UI, name=pick)}{RESET}")
