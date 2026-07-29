@@ -40,13 +40,12 @@ Os **treze** idiomas do jogo podem ser narrados.
 ## Primeiros passos
 
 Se você tem familiaridade com terminal, pule para [Instalação](#instalação).
-Caso contrário, esta seção não pressupõe nada.
+Caso contrário, esta seção não pressupõe nada. Siga a parte do seu sistema.
 
 ### O que você precisa antes
 
-- **Um Mac, ou Windows.** Os dois instalam e passam no `selftest.py` com o jogo
-  presente. O macOS é o que já narrou uma sessão real; veja
-  [O que falta](#o-que-falta).
+- **Um Mac ou um PC com Windows.** Os dois são suportados; o macOS é o que já
+  narrou uma sessão real, veja [O que falta](#o-que-falta).
 - **O jogo instalado neste mesmo computador.** O narrador lê os arquivos de texto
   do próprio jogo, então precisa encontrá-los. Steam ou o app avulso, tanto faz.
 - **Cerca de 300 MB livres** para a fala gerada, por idioma.
@@ -54,13 +53,19 @@ Caso contrário, esta seção não pressupõe nada.
 Você **não** precisa de máquina rápida, placa de vídeo, nem conexão com a
 internet depois de configurado.
 
-### Passo 1 — abra o Terminal
+### Passo 1 — abra um terminal
 
-Aperte `Cmd` + `Espaço`, digite `Terminal`, Enter. Abre uma janela onde você
-digita comandos. Cada bloco abaixo é um comando: copie, cole, aperte Enter, e
-espere terminar antes do próximo.
+**macOS** — aperte `Cmd` + `Espaço`, digite `Terminal`, Enter.
+
+**Windows** — aperte o botão Iniciar, digite `PowerShell`, e escolha **Executar
+como administrador**.
+
+Abre uma janela onde você digita comandos. Cada bloco abaixo é um comando: copie,
+cole, aperte Enter, e espere terminar antes do próximo.
 
 ### Passo 2 — instale as ferramentas necessárias
+
+**macOS**
 
 ```bash
 xcode-select --install
@@ -81,22 +86,55 @@ muda nada.
 brew install python@3.13 ffmpeg git
 ```
 
+**Windows** — um pacote por comando; o `winget` aceita um único `--id`.
+
+```powershell
+winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
+winget install --id Git.Git -e --accept-package-agreements
+winget install --id Gyan.FFmpeg -e --accept-package-agreements
+winget install --id Microsoft.VCRedist.2015+.x64 -e
+```
+
+O último não é opcional. Sem ele o motor de fala não carrega, com uma mensagem
+que não menciona nem a si mesmo nem o que está faltando:
+
+    DLL load failed while importing onnxruntime_pybind11_state
+
+Depois **feche e reabra o PowerShell**, para os comandos novos entrarem no PATH.
+
 ### Passo 3 — baixe este projeto
+
+**macOS**
 
 ```bash
 git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
 cd ~/jime
 ```
 
-Isso coloca tudo numa pasta `jime` na sua pasta pessoal. Se preferir não usar
-`git`, o botão verde **Code** na página do GitHub tem *Download ZIP*; descompacte
-e entre na pasta com `cd`.
+**Windows**
+
+```powershell
+git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git C:\jime
+cd C:\jime
+```
+
+Se preferir não usar `git`, o botão verde **Code** na página do GitHub tem
+*Download ZIP*; descompacte e entre na pasta com `cd`.
 
 ### Passo 4 — prepare o ambiente
+
+**macOS**
 
 ```bash
 python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
+```
+
+**Windows**
+
+```powershell
+py -3.13 -m venv C:\jime-venv
+& C:\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
 ```
 
 O segundo comando leva alguns minutos e imprime bastante coisa. Terminou quando o
@@ -105,23 +143,40 @@ prompt voltar.
 O `capture` é o que permite enxergar a tela — deixá-lo de fora produz uma
 instalação aparentemente completa que não captura nada, o que é uma forma
 confusa de descobrir o problema. Os extras se resolvem por plataforma, então o
-mesmo comando serve no macOS e no Windows.
+mesmo comando serve nos dois.
 
 ### Passo 5 — dê permissão para ver a tela
 
-O narrador lê o que está na tela, e o macOS exige permissão para isso.
+**Só no macOS.** O Windows não exige permissão para isso; pule para o passo 6.
 
 Abra **Ajustes do Sistema → Privacidade e Segurança → Gravação de Tela** e ative
 o **Terminal**. Depois **encerre o Terminal por completo** (`Cmd` + `Q`) e abra
 de novo — a permissão só é lida quando o programa inicia.
 
-Nada aqui precisa ser assinado ou notarizado: a permissão se prende ao Terminal,
-e este projeto roda dentro dele.
+Nada precisa ser assinado ou notarizado: a permissão se prende ao Terminal, e
+este projeto roda dentro dele.
 
-### Passo 6 — execute
+### Passo 6 — verifique, depois execute
+
+Confirme que a máquina está pronta antes de confiar nela. Isso checa tudo que
+consegue, em ordem, e nomeia o que estiver errado:
 
 ```bash
-cd ~/jime && ~/jime-venv/bin/python jime.py
+~/jime-venv/bin/python selftest.py          # macOS
+```
+
+```powershell
+& C:\jime-venv\Scripts\python selftest.py  # Windows
+```
+
+Então inicie:
+
+```bash
+~/jime-venv/bin/python jime.py              # macOS
+```
+
+```powershell
+& C:\jime-venv\Scripts\python jime.py      # Windows
 ```
 
 Isso abre o menu. Não há flags para memorizar; ele pergunta.
@@ -153,17 +208,19 @@ pergunta, `q` sai, e Enter aceita a opção destacada.
 
 ### Se algo der errado
 
-Rode **Check this machine** primeiro — ele nomeia o que está faltando em vez de
-falhar de forma obscura.
+Rode o `selftest.py`, ou **Check this machine** pelo menu — eles nomeiam o que
+está faltando em vez de falhar de forma obscura.
 
-As duas respostas mais comuns:
+As três respostas mais comuns:
 
-- **Ele não encontra a janela do jogo.** Use a opção de tela cheia. Um jogo em
-  tela cheia no macOS fica num Space próprio, e o macOS não desenha um Space que
-  não está em primeiro plano — então ele é invisível a partir do Terminal até
-  você mudar para lá.
+- **Ele não encontra a janela do jogo.** No macOS use a opção de tela cheia: um
+  jogo em tela cheia fica num Space próprio, e o macOS não desenha um Space que
+  não está em primeiro plano, então ele é invisível a partir do Terminal até você
+  mudar para lá. No Windows as duas opções funcionam.
 - **Ele reconhece as telas mas não fala.** Aquela campanha ainda não tem áudio —
   volte e renderize. O menu oferece isso quando percebe.
+- **Windows: o motor de fala não carrega.** Instale o Visual C++ Redistributable
+  do passo 2.
 
 ---
 

@@ -37,13 +37,12 @@ All **thirteen** of the game's localisations can be narrated.
 ## Getting started
 
 If you are comfortable in a terminal, skip to [Installation](#installation).
-Otherwise this section assumes nothing.
+Otherwise this section assumes nothing. Follow the column for your system.
 
 ### What you need first
 
-- **A Mac, or Windows.** Both install and pass `selftest.py` with the game
-  present. macOS is the one that has narrated a real session; see
-  [What is missing](#what-is-missing).
+- **A Mac or a Windows PC.** Both are supported; macOS is the one that has
+  narrated a real session, see [What is missing](#what-is-missing).
 - **The game installed on this same computer.** The narrator reads the game's own
   text files, so it has to find them. Steam or the standalone app both work.
 - **About 300 MB free** for the generated speech, per language.
@@ -51,13 +50,19 @@ Otherwise this section assumes nothing.
 You do **not** need a fast machine, a graphics card, or an internet connection
 once it is set up.
 
-### Step 1 — open the Terminal
+### Step 1 — open a terminal
 
-Press `Cmd` + `Space`, type `Terminal`, press Enter. A window opens where you
-type commands. Every block below is one command: copy it, paste it, press Enter,
-wait for it to finish before the next.
+**macOS** — press `Cmd` + `Space`, type `Terminal`, press Enter.
+
+**Windows** — press the Start button, type `PowerShell`, and choose **Run as
+administrator**.
+
+A window opens where you type commands. Every block below is one command: copy
+it, paste it, press Enter, and wait for it to finish before the next.
 
 ### Step 2 — install the tools it needs
+
+**macOS**
 
 ```bash
 xcode-select --install
@@ -78,46 +83,96 @@ says so and changes nothing.
 brew install python@3.13 ffmpeg git
 ```
 
+**Windows** — one package per command; `winget` takes a single `--id`.
+
+```powershell
+winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
+winget install --id Git.Git -e --accept-package-agreements
+winget install --id Gyan.FFmpeg -e --accept-package-agreements
+winget install --id Microsoft.VCRedist.2015+.x64 -e
+```
+
+That last one is not optional. Without it the speech engine fails to load with a
+message that names neither itself nor what is missing:
+
+    DLL load failed while importing onnxruntime_pybind11_state
+
+Then **close and reopen PowerShell**, so the new commands are on the PATH.
+
 ### Step 3 — download this project
+
+**macOS**
 
 ```bash
 git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
 cd ~/jime
 ```
 
-That puts it in a folder called `jime` in your home directory. If you prefer not
-to use `git`, the green **Code** button on the GitHub page has *Download ZIP*;
-unzip it and `cd` into it instead.
+**Windows**
+
+```powershell
+git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git C:\jime
+cd C:\jime
+```
+
+If you would rather not use `git`, the green **Code** button on the GitHub page
+has *Download ZIP*; unzip it and `cd` into it instead.
 
 ### Step 4 — set it up
+
+**macOS**
 
 ```bash
 python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
 ```
 
-The second one takes a few minutes and prints a lot. It is finished when your
+**Windows**
+
+```powershell
+py -3.13 -m venv C:\jime-venv
+& C:\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
+```
+
+The second command takes a few minutes and prints a lot. It is finished when your
 prompt comes back.
 
 `capture` is what lets it see the screen — leaving it out gets you a working
 setup that cannot capture anything, which is a confusing way to find out. The
-extras resolve per platform, so the same command is right on macOS and Windows.
+extras resolve per platform, so the same command is right on both.
 
 ### Step 5 — let it see the screen
 
-The narrator reads what is on screen, and macOS requires permission for that.
+**macOS only.** Windows needs no permission for this; skip to step 6.
 
 Open **System Settings → Privacy & Security → Screen Recording**, and switch on
 **Terminal**. Then **quit Terminal completely** (`Cmd` + `Q`) and open it again —
 the permission is only read when the program starts.
 
-Nothing here needs to be signed or notarised: the permission attaches to the
-Terminal, and this project runs inside it.
+Nothing needs to be signed or notarised: the grant attaches to the Terminal, and
+this project runs inside it.
 
-### Step 6 — run it
+### Step 6 — check, then run
+
+Confirm the machine is ready before trusting it. This checks everything it can,
+in order, and names whatever is wrong:
 
 ```bash
-cd ~/jime && ~/jime-venv/bin/python jime.py
+~/jime-venv/bin/python selftest.py          # macOS
+```
+
+```powershell
+& C:\jime-venv\Scripts\python selftest.py  # Windows
+```
+
+Then start it:
+
+```bash
+~/jime-venv/bin/python jime.py              # macOS
+```
+
+```powershell
+& C:\jime-venv\Scripts\python jime.py      # Windows
 ```
 
 That opens the menu. There are no flags to remember; it asks.
@@ -149,16 +204,19 @@ back a question, `q` quits, and Enter takes the highlighted default.
 
 ### If something goes wrong
 
-Run **Check this machine** first — it names what is missing rather than failing
-obscurely.
+Run `selftest.py`, or **Check this machine** from the menu — they name what is
+missing rather than failing obscurely.
 
-The two most common answers:
+The three most common answers:
 
-- **It finds no game window.** Use the fullscreen option. A fullscreen game on
-  macOS sits on its own Space, and macOS does not draw a Space that is not in
-  front, so it is invisible from the Terminal until you switch to it.
-- **It recognises screens but says nothing.** That campaign has no audio yet —
-  go back and render it. The menu offers this when it notices.
+- **It finds no game window.** On macOS use the fullscreen option: a fullscreen
+  game sits on its own Space, and macOS does not draw a Space that is not in
+  front, so it is invisible from the Terminal until you switch to it. On Windows
+  either works.
+- **It recognises screens but says nothing.** That campaign has no audio yet — go
+  back and render it. The menu offers this when it notices.
+- **Windows: the speech engine will not load.** Install the Visual C++
+  Redistributable from step 2.
 
 ---
 
