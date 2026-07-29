@@ -209,8 +209,13 @@ class Matcher:
         #
         # Scoring the whole index costs 21 ms against 12.7 for the truncated
         # search, on a per-screen budget where the OCR alone spends 150.
-        row = cdist([target], self._norms, scorer=fuzz.partial_ratio,
-                    dtype=np.uint8, workers=-1)[0]
+        #
+        # The index goes FIRST and the target second. See `match_batch`: rapidfuzz
+        # splits its workers across the rows, so a single target is a single row
+        # and fifteen cores have nothing to divide. Transposed, the 7,314
+        # candidates are the rows.
+        row = cdist(self._norms, [target], scorer=fuzz.partial_ratio,
+                    dtype=np.uint8, workers=-1)[:, 0]
         cands = self._candidates(row)
         if not cands:
             return Result(None, 0, 0, 0, False, "no candidate above the cutoff")
@@ -242,6 +247,31 @@ class Matcher:
         harness (hundreds of screens x thousands of candidates). `cdist` computes
         the full matrix in parallel; the scores fit in uint8 because they range
         from 0 to 100. The result is identical to calling `match_text` in a loop.
+
+        ## The index is the first argument, and that is the whole optimisation
+
+        rapidfuzz divides `workers` across the **rows** of the matrix it is
+        building. Written the obvious way — targets first, index second — a live
+        screen is one to three rows, so fifteen cores have one to three pieces of
+        work to share and the call is effectively serial. Measured on this
+        machine, 15 workers took 11.92 s where 2 took 11.84 and 1 took 12.99:
+        no parallelism at all, and the comment here used to claim "every core".
+        It was true of the harness, which passes ~1,300 paragraphs at once, and
+        false of the narrator, which passes one screen.
+
+        Transposed, the 7,314 candidates are the rows. Same comparisons, same
+        numbers, arranged so the workers have something to divide. Measured over
+        the 653 real screens, one call each, as the narrator does it:
+
+            median    67.9 ms  ->   8.5 ms
+            p99      573.5 ms  ->  78.2 ms
+            maximum  817.9 ms  ->  91.4 ms
+
+        This is safe only because `partial_ratio` is symmetric — it decides which
+        string is the window and which is the haystack by length, not by
+        position. Verified rather than assumed: 658,260 real pairs scored both
+        ways, zero differences. If a future rapidfuzz breaks that symmetry, the
+        scores move and every guard downstream moves with them.
         """
         targets = [normalize(t) for t in excerpts]
         out: list[Result] = [
@@ -254,8 +284,11 @@ class Matcher:
         if not valid:
             return out
 
-        m = cdist([targets[i] for i in valid], self._norms,
-                  scorer=fuzz.partial_ratio, dtype=np.uint8, workers=-1)
+        # `.copy()` after the transpose: `_candidates` slices a row and hands it
+        # to `argpartition`, and a strided view of a column is the slow way to do
+        # that. The copy is 7,314 bytes per target.
+        m = cdist(self._norms, [targets[i] for i in valid],
+                  scorer=fuzz.partial_ratio, dtype=np.uint8, workers=-1).T.copy()
         for row_idx, i in enumerate(valid):
             cands = self._candidates(m[row_idx])
             out[i] = (self._choose(targets[i], cands) if cands else
