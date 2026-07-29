@@ -153,8 +153,20 @@ class Trigger:
         screen, on the frame where the screen stopped moving.
         """
         box = self._crop(gray)
-        if self._prev is None:
+        if self._prev is None or box.shape != self._prev.shape:
+            # A frame of a different size is not a frame that can be compared,
+            # and it happens in ordinary play: the game changes video mode, or a
+            # remote desktop session is resized, and the capture starts
+            # delivering 1200x270 where it was delivering 1800x407. Subtracting
+            # them raised ValueError out of the middle of a session that was
+            # otherwise working.
+            #
+            # It is also genuinely a new scene — every pixel moved — so the right
+            # response is the one this already has for the first frame: keep it,
+            # and judge the next one against it.
             self._prev = box
+            self._dirty = True
+            self._quiet = 0
             return None
 
         delta = (np.abs(box.astype(np.int16) - self._prev.astype(np.int16))

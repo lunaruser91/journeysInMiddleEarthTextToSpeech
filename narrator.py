@@ -430,6 +430,24 @@ def main() -> None:
                     if r.accepted and r.key and corpus.get(r.key, {}).get("narration")]
             keys = list(dict.fromkeys(keys))
 
+            # The game does not always break where the corpus does. Matching
+            # paragraph by paragraph respects how the game *composes* a box out
+            # of several blocks, which is usually right — but when the box
+            # renders one block's prose as two paragraphs, each half is judged
+            # against the whole block's length and fails for being an excerpt.
+            # Measured on a real screen: two halves at length ratio 0.41 and
+            # 0.39 against a floor of 0.75, both refused, and a block plainly on
+            # the screen went unread while the log said "no match".
+            #
+            # Putting the screen back together as one target scores 0.99. This
+            # only runs when nothing matched, so it cannot override the
+            # composition case, and it passes every guard the others did.
+            if not keys:
+                whole = matcher.match_text(text)
+                if (whole.accepted and whole.key
+                        and corpus.get(whole.key, {}).get("narration")):
+                    keys, results = [whole.key], [whole]
+
             # Blocks that scored level with another. The matcher lets a long
             # paragraph through on a tie, because refusing every tie silences 7%
             # of all screens to prevent 0.5% being spoken wrong — but the key it
