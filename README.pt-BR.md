@@ -27,6 +27,67 @@ Os **treze** idiomas do jogo podem ser narrados.
 
 ---
 
+## Como é na prática
+
+Você roda um comando e ele pergunta o resto. Cada pergunta traz o estado por
+trás dela, então não é preciso lembrar de nada entre uma sessão e outra.
+
+```
+Journeys in Middle-earth — narrator
+pronto: pt (3,386 blocos)
+
+Qual idioma você quer usar?
+      1. cz  Čeština          sem corpus ainda — extraia primeiro
+      3. en  English          corpus pronto
+   › 10. pt  Português (BR)   corpus pronto, 3,386 blocos gerados
+     13. zh  中文             sem corpus ainda — extraia primeiro
+  [enter = pt  Português (BR), q = sair]
+
+O que você quer fazer?  [Português (BR)]
+   ›  1. Narrar uma partida      assiste à tela e lê em voz alta
+      2. Gerar o áudio           corpus → fala, retomável
+      3. Extrair o corpus        lê os arquivos do próprio jogo
+      4. Situação                o que está pronto e o que falta
+      5. Verificar esta máquina  está tudo instalado?
+      6. Vozes                   qual voz fala cada idioma
+      7. Trocar de idioma        atualmente Português (BR)
+  [enter = Narrar uma partida, q = sair]
+
+Qual campanha você está jogando?
+   ›  1. bonesofarnor  (seu save mais recente)  completo — 1,200 blocos
+      2. embercrown                             não iniciado — 1,105 blocos
+      5. shadowedpaths                          não iniciado — 927 blocos
+  [enter = bonesofarnor  (seu save mais recente), b = voltar, q = sair]
+
+Como o jogo está rodando?
+   ›  1. tela cheia  captura o monitor — o caso usual
+      2. em janela   encontra pelo título da janela
+  [enter = tela cheia, b = voltar, q = sair]
+
+[scope] campaign=bonesofarnor | 7,314 candidates
+[audio] 3,386 blocks rendered
+[ocr] AppleVision
+[source] display 0 — everything drawn on this monitor, including this window
+vá para o jogo agora — começa quando ele estiver na frente
+```
+
+Se você escolher uma campanha sem áudio gerado, ele avisa antes de você perder
+a sessão, e oferece gerar.
+
+Com o jogo na frente, cada tela lida vira uma linha — a chave, se foi falada, e
+por que não quando não foi. (O texto do bloco também é impresso; ele é do jogo,
+então não está reproduzido aqui.)
+
+```
+observando. Ctrl+C para parar.
+
+[speaking] main:E_306A_0_CAVE_START
+[speaking] bonesofarnor:A2_M1_INTRO       (synthesised live)
+[silent]   main:UI_THREAT_INCREASE — não bate com a tela
+```
+
+---
+
 ## Instalação
 
 Você precisa de um Mac ou um PC com Windows, **o jogo instalado no mesmo

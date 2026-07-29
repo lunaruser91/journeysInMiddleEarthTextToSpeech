@@ -24,6 +24,66 @@ All **thirteen** of the game's localisations can be narrated.
 
 ---
 
+## What using it looks like
+
+You run one command and it asks the rest. Every question carries the state
+behind it, so nothing has to be remembered between sessions.
+
+```
+Journeys in Middle-earth — narrator
+ready: en (3,386 blocks)
+
+Which language to work in?
+      1. cz  Čeština          no corpus yet — extract first
+   ›  3. en  English          corpus ready, 3,386 blocks rendered
+     10. pt  Português (BR)   no corpus yet — extract first
+     13. zh  中文             no corpus yet — extract first
+  [enter = en  English, q = quit]
+
+What would you like to do?  [English]
+   ›  1. Narrate a game       watch the screen and read it aloud
+      2. Render audio         corpus → speech, resumable
+      3. Extract the corpus   read the game's own files
+      4. Status               what is done and what is missing
+      5. Check this machine   is everything installed?
+      6. Voices               which voice speaks each language
+      7. Change language      currently English
+  [enter = Narrate a game, q = quit]
+
+Which campaign are you playing?
+   ›  1. bonesofarnor  (your most recent save)  complete — 1,200 blocks
+      2. embercrown                             not started — 1,105 blocks
+      5. shadowedpaths                          not started — 927 blocks
+  [enter = bonesofarnor  (your most recent save), b = back, q = quit]
+
+How is the game running?
+   ›  1. fullscreen   capture the display — the usual case
+      2. in a window  find it by window title
+  [enter = fullscreen, b = back, q = quit]
+
+[scope] campaign=bonesofarnor | 7,314 candidates
+[audio] 3,386 blocks rendered
+[ocr] AppleVision
+[source] display 0 — everything drawn on this monitor, including this window
+switch to the game now — this starts when it is in front
+```
+
+Pick a campaign with nothing rendered and it says so before you waste a
+session, and offers to render it. Once the game is in front, each screen it
+reads is one line — the key, whether it was spoken, and why not when it was
+not. (The block's own words are printed too; they are the game's, so they are
+not reproduced here.)
+
+```
+watching. Ctrl+C to stop.
+
+[speaking] main:E_306A_0_CAVE_START
+[speaking] bonesofarnor:A2_M1_INTRO       (synthesised live)
+[silent]   main:UI_THREAT_INCREASE — cannot align with the screen
+```
+
+---
+
 ## Install
 
 You need a Mac or a Windows PC, **the game installed on the same computer** —
