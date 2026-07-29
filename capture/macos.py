@@ -23,6 +23,7 @@ run unattended.
 """
 from __future__ import annotations
 
+import atexit
 import threading
 import time
 from dataclasses import dataclass
@@ -38,12 +39,19 @@ def _shareable_content():
     """The windows ScreenCaptureKit is willing to show us."""
     import ScreenCaptureKit as SCK
 
+    # Registered like a screenshot, and for the same reason: a handler that has
+    # not been called yet can still be called, and calling into a finalising
+    # interpreter kills the process. See `_shot`.
     box, done = [], threading.Event()
 
     def handler(content, error):
         box.append((content, error))
         done.set()
+        with _INFLIGHT_LOCK:
+            _INFLIGHT.discard(done)
 
+    with _INFLIGHT_LOCK:
+        _INFLIGHT.add(done)
     SCK.SCShareableContent.getShareableContentWithCompletionHandler_(handler)
     if not done.wait(TIMEOUT):
         raise CaptureError(
@@ -115,6 +123,73 @@ def list_windows(app_hint: str = "") -> list[Window]:
     return out
 
 
+_INFLIGHT: set[threading.Event] = set()
+_INFLIGHT_LOCK = threading.Lock()
+
+
+def _shot(filt, cfg, timeout: float, what: str):
+    """One screenshot, without ever abandoning its completion handler.
+
+    ScreenCaptureKit keeps the Python callable and invokes it whenever the
+    capture finishes — which is not necessarily before the timeout, and not
+    necessarily before the interpreter starts shutting down. A handler that runs
+    then calls `PyGILState_Ensure` on a dying interpreter and segfaults inside
+    `new_threadstate`.
+
+    That is not hypothetical. A session ended with the narrator's main thread
+    inside `exit()`, running OpenSSL's teardown, while a completion block fired
+    on `com.apple.NSXPCConnection.m-user.com.apple.replayd` and crashed the
+    process on the way out:
+
+        Thread 0   exit -> __cxa_finalize_ranges -> OPENSSL_cleanup
+        Thread 6   SCScreenshotManager ...completionHandler_block_invoke
+                   -> PyGILState_Ensure -> new_threadstate   SIGSEGV
+
+    So every outstanding capture is registered, a timeout does not unregister it,
+    and `drain()` waits for the stragglers before the process is allowed to go.
+    """
+    import ScreenCaptureKit as SCK
+
+    box, done = [], threading.Event()
+
+    def handler(image, error):
+        box.append((image, error))
+        done.set()
+        with _INFLIGHT_LOCK:
+            _INFLIGHT.discard(done)
+
+    with _INFLIGHT_LOCK:
+        _INFLIGHT.add(done)
+    SCK.SCScreenshotManager.captureImageWithFilter_configuration_completionHandler_(
+        filt, cfg, handler)
+    if not done.wait(timeout):
+        # Deliberately still registered: it has not been called yet, so it still
+        # can be, and `drain()` is what makes that safe.
+        raise CaptureError(what)
+    return box[0]
+
+
+def drain(timeout: float = 5.0) -> None:
+    """Wait for completion handlers that have not fired yet.
+
+    Called from `close()` and again from `atexit`, because the crash above needs
+    only one path that skips the first.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        with _INFLIGHT_LOCK:
+            pending = list(_INFLIGHT)
+        if not pending:
+            return
+        left = deadline - time.monotonic()
+        if left <= 0:
+            return
+        pending[0].wait(min(left, 0.2))
+
+
+atexit.register(drain)
+
+
 @dataclass
 class MacCapture(Capture):
     window: Window
@@ -138,23 +213,15 @@ class MacCapture(Capture):
         cfg.setWidth_(self.window.width)
         cfg.setHeight_(self.window.height)
 
-        box, done = [], threading.Event()
-
-        def handler(image, error):
-            box.append((image, error))
-            done.set()
-
-        SCK.SCScreenshotManager.captureImageWithFilter_configuration_completionHandler_(
-            filt, cfg, handler)
-        if not done.wait(TIMEOUT):
-            raise CaptureError("the capture timed out; see the permission note above")
-        image, error = box[0]
+        image, error = _shot(
+            filt, cfg, TIMEOUT,
+            "the capture timed out; see the permission note above")
         if error is not None or image is None:
             return None                      # window closed, or the game quit
         return _cgimage_to_gray(image)
 
     def close(self) -> None:
-        pass
+        drain()
 
 
 def _cgimage_to_gray(image) -> np.ndarray:
@@ -244,23 +311,13 @@ class DisplayCapture(Capture):
         cfg.setWidth_(display.width())
         cfg.setHeight_(display.height())
 
-        box, done = [], threading.Event()
-
-        def handler(image, error):
-            box.append((image, error))
-            done.set()
-
-        SCK.SCScreenshotManager.captureImageWithFilter_configuration_completionHandler_(
-            filt, cfg, handler)
-        if not done.wait(TIMEOUT):
-            raise CaptureError("the display capture timed out")
-        image, error = box[0]
+        image, error = _shot(filt, cfg, TIMEOUT, "the display capture timed out")
         if error is not None or image is None:
             return None
         return _cgimage_to_gray(image)
 
     def close(self) -> None:
-        pass
+        drain()
 
 
 def foreground() -> str:
