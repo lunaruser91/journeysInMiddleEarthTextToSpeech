@@ -42,12 +42,9 @@ Which language to work in?
 
 What would you like to do?  [English]
    ›  1. Narrate a game       watch the screen and read it aloud
-      2. Render audio         corpus → speech, resumable
-      3. Extract the corpus   read the game's own files
-      4. Status               what is done and what is missing
-      5. Check this machine   is everything installed?
-      6. Voices               which voice speaks each language
-      7. Change language      currently English
+      2. Check this machine   is everything installed?
+      3. Voices               which voice speaks each language
+      4. Change language      currently English
   [enter = Narrate a game, q = quit]
 
 Which campaign are you playing?
@@ -140,12 +137,14 @@ so you do not have to remember where you left off.
 | Option | What it does | When you need it |
 |---|---|---|
 | **Narrate a game** | Watches the screen and reads each block aloud | Every session |
-| **Render audio** | Turns the extracted text into speech files | Once per campaign |
-| **Extract the corpus** | Reads the game's own files | Once per language |
-| **Status** | What is extracted, what is rendered, how much | To see where you left off |
 | **Check this machine** | Whether everything is installed and permitted | When something does not work |
 | **Voices** | Which voice speaks each language | To change or calibrate a voice |
 | **Change language** | Switches the language everything after it uses | Without restarting |
+
+Extracting and rendering are not separate errands. Narrating asks: pick a
+language with no corpus and it offers to extract it from your own installation;
+pick a campaign with no audio and it offers to render that, and adds `main`
+without being asked.
 
 The language is the first question and applies to everything after it — the
 corpus, the voice, and the menu itself. `q` quits from anywhere, Enter takes the

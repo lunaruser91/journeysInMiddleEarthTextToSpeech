@@ -62,6 +62,7 @@ import console  # noqa: E402
 console.setup()
 
 import glyphs  # noqa: E402
+import prosody  # noqa: E402
 import voices  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
@@ -101,9 +102,13 @@ HAS_RB = has_rubberband()
 
 
 def dsp_version(voice: str, length_scale: float, effects: bool) -> str:
+    # `p2` marks the prosody pass: a block is read clause by clause, with its own
+    # pace and pauses, instead of in one call. It belongs in the cache key like
+    # everything else that changes how a block sounds — a mixed render is the one
+    # outcome nobody can debug by ear.
     if not effects:
-        return f"plain-{voice}-l{length_scale:.2f}"
-    base = "wizard-v2" if HAS_RB else "wizard-v2f"
+        return f"plain-p2-{voice}-l{length_scale:.2f}"
+    base = "wizard-v3" if HAS_RB else "wizard-v3f"
     return f"{base}-{voice}-l{length_scale:.2f}"
 
 
@@ -301,8 +306,7 @@ def main() -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = out_dir / f".tmp_{ck}.wav"
         try:
-            with wave.open(str(tmp), "wb") as fh:
-                voice.synthesize_wav(v["speech"], fh, syn_config=cfg)
+            prosody.synthesize(voice, v["speech"], scale, tmp, cfg)
             with wave.open(str(tmp), "rb") as fh:
                 sr = fh.getframerate()
             cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(tmp)]

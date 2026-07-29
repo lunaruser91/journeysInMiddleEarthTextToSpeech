@@ -33,6 +33,8 @@ import unicodedata
 import wave
 from pathlib import Path
 
+import prosody
+
 PLACEHOLDER = re.compile(r"\{\d*\}")
 ROOT = Path(__file__).resolve().parent
 
@@ -274,8 +276,13 @@ class LiveVoice:
         """Audio for this exact text, synthesising it if it is new."""
         if not text.strip():
             return None
-        key = hashlib.blake2b(f"{self.name}|{self.length_scale}|{text}".encode(),
-                              digest_size=10).hexdigest()
+        # "p2" is the prosody pass, the same marker the renderer puts in its
+        # cache key. A live block and a pre-rendered one have to be read the same
+        # way or the join between them is audible, and a cache from before the
+        # change must not be served after it.
+        key = hashlib.blake2b(
+            f"{self.name}|{self.length_scale}|p2|{text}".encode(),
+            digest_size=10).hexdigest()
         dest = self.cache / f"{key}.opus"
         if dest.exists():
             return dest
@@ -283,8 +290,7 @@ class LiveVoice:
         voice, cfg = self._load()
         tmp = self.cache / f".tmp_{key}.wav"
         try:
-            with wave.open(str(tmp), "wb") as fh:
-                voice.synthesize_wav(text, fh, syn_config=cfg)
+            prosody.synthesize(voice, text, self.length_scale, tmp, cfg)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp),
                             "-c:a", "libopus", "-b:a", "48k", str(dest)],
                            check=True)

@@ -45,12 +45,9 @@ Qual idioma você quer usar?
 
 O que você quer fazer?  [Português (BR)]
    ›  1. Narrar uma partida      assiste à tela e lê em voz alta
-      2. Gerar o áudio           corpus → fala, retomável
-      3. Extrair o corpus        lê os arquivos do próprio jogo
-      4. Situação                o que está pronto e o que falta
-      5. Verificar esta máquina  está tudo instalado?
-      6. Vozes                   qual voz fala cada idioma
-      7. Trocar de idioma        atualmente Português (BR)
+      2. Verificar esta máquina  está tudo instalado?
+      3. Vozes                   qual voz fala cada idioma
+      4. Trocar de idioma        atualmente Português (BR)
   [enter = Narrar uma partida, q = sair]
 
 Qual campanha você está jogando?
@@ -146,12 +143,13 @@ não precisar lembrar onde parou.
 | Opção | O que faz | Quando você precisa |
 |---|---|---|
 | **Narrar uma partida** | Assiste à tela e lê cada bloco em voz alta | Toda sessão |
-| **Gerar o áudio** | Transforma o texto extraído em arquivos de fala | Uma vez por campanha |
-| **Extrair o corpus** | Lê os arquivos do próprio jogo | Uma vez por idioma |
-| **Situação** | O que está extraído, o que está gerado, quanto | Para ver onde você parou |
 | **Verificar esta máquina** | Se está tudo instalado e permitido | Quando algo não funciona |
 | **Vozes** | Qual voz fala cada idioma | Para trocar ou calibrar uma voz |
 | **Trocar de idioma** | Muda o idioma de tudo que vem depois | Sem reiniciar |
+
+Extrair e gerar não são tarefas separadas. Narrar pergunta: escolha um idioma sem
+corpus e ele oferece extrair da sua própria instalação; escolha uma campanha sem
+áudio e ele oferece gerar, incluindo o `main` sem você pedir.
 
 O idioma é a primeira pergunta e vale para tudo depois dela — o corpus, a voz e o
 próprio menu. `q` sai de qualquer lugar, Enter aceita o destacado, e `b` volta

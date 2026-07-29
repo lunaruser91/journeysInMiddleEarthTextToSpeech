@@ -222,47 +222,6 @@ def pick_language(action: str = "use", current: str | None = None,
         return lang
 
 
-def flow_render(lang: str) -> list[str] | None:
-    rows = campaign_rows(lang)
-    if not rows:
-        print(f"\n{RED}{t('That corpus has no campaigns with narration.', UI)}{RESET}")
-        raise Abort
-
-    extra = [(t("everything not yet rendered", UI),
-              t("every campaign above, in order", UI))]
-    i = choose(t("Which campaign?", UI), [(r[1], r[2]) for r in rows] + extra, None)
-
-    if i == len(rows):
-        pending = [r[0] for r in rows if r[3] != "complete"]
-        if not pending:
-            print(f"\n{GREEN}"
-                  f"{t('Everything is already rendered for {lang}.', UI, lang=lang)}{RESET}")
-            return None
-        campaigns = pending
-    else:
-        campaigns = [rows[i][0]]
-
-    if "main" not in campaigns and any(c != "main" for c in campaigns):
-        main_row = next((r for r in rows if r[0] == "main"), None)
-        if main_row and main_row[3] != "complete":
-            print(f"\n{YELLOW}  {t('`main` is not fully rendered.', UI)}{RESET} "
-                  f"{GRAY}{t('It holds the text every campaign shares — interface, tiles,', UI)}"
-                  f"\n  {t('enemies, treasure — and 48.8% of what gets spoken comes from it.', UI)}"
-                  f"{RESET}")
-            if confirm(t("Add it to this render?", UI), True):
-                campaigns.append("main")
-
-    print()
-    for camp in campaigns:
-        _run(["render", "--lang", lang, "--campaign", camp, "--dry-run"])
-
-    print()
-    if not confirm(t("Start rendering?", UI), True):
-        raise Abort
-    return ["render", "--lang", lang, "--campaign", campaigns[0]] if len(campaigns) == 1 \
-        else ["__render_many__", lang, *campaigns]
-
-
 def flow_play(lang: str) -> list[str]:
     import narrator
 
@@ -338,17 +297,6 @@ def flow_play(lang: str) -> list[str]:
     return argv + (["--display", "--wait", "60"] if src == 0 else ["--wait", "60"])
 
 
-def flow_extract(lang: str) -> list[str] | None:
-    import jime
-
-    if jime.corpus_path(lang).exists():
-        name = jime.LANGUAGE_NAMES.get(lang, lang)
-        if not confirm(t("A corpus for {name} already exists. Extract again?",
-                          UI, name=name), False):
-            raise Abort
-    return ["extract", "--lang", lang]
-
-
 # ------------------------------------------------------------------- entry --
 
 def _run(argv: list[str]) -> int:
@@ -377,11 +325,20 @@ def banner() -> None:
 
 # (subcommand, label, detail, flow, takes_lang). `status` and `doctor` describe
 # the whole installation and have no --lang; passing one is an argparse error.
+# Extracting and rendering are not offered here, because narrating already asks.
+# `pick_language` runs before every action and offers to extract a language that
+# has no corpus; `flow_play` notices a campaign with no audio, offers to render
+# it, and adds `main` to the job without being asked. Listing them again as
+# separate errands made the first screen look like a four-step procedure when it
+# is one.
+#
+# Status went with them. Every question already carries the state behind it —
+# which languages have a corpus, how far each campaign is rendered — so the
+# figures are in front of whoever is about to decide something with them, which
+# is the only place they are worth reading. `jime status` is still there for a
+# terminal.
 ACTIONS = [
     ("play", "Narrate a game", "watch the screen and read it aloud", flow_play, True),
-    ("render", "Render audio", "corpus → speech, resumable", flow_render, True),
-    ("extract", "Extract the corpus", "read the game's own files", flow_extract, True),
-    ("status", "Status", "what is done and what is missing", None, False),
     ("doctor", "Check this machine", "is everything installed?", None, False),
     ("voices", "Voices", "which voice speaks each language", None, True),
 ]
