@@ -104,15 +104,68 @@ ON_SCREEN_SCORE = 88.0
 MIN_PARAGRAPH = 12
 
 
-def _on_screen(paragraph: str, norm_screen: str) -> bool:
+def _visible(parts: list[str], norm_screen: str) -> list[bool]:
+    """Which of a block's paragraphs this screen is showing.
+
+    A long paragraph answers for itself, by similarity. A short one cannot:
+    "Teste ⚔ 2" or "Sofra 1 dano" is a handful of characters, and a fuzzy score
+    over a handful of characters finds them somewhere in almost any screen.
+
+    They used to be assumed present, on the reasoning that carving a block up on
+    weak evidence was worse than reading a line twice. But in this corpus the
+    short paragraphs are precisely the actionable ones — the tests, the damage,
+    the tokens to place — and 990 of them were being read out whether or not the
+    game was showing them. Telling a table to suffer a wound it was never dealt
+    is a different kind of wrong from saying a sentence twice.
+
+    So a short paragraph is present when the screen literally contains it, or
+    when a paragraph beside it was found — the game draws these attached to the
+    prose they belong to, and a neighbour is evidence where the text is not.
+    """
     from rapidfuzz import fuzz
 
-    norm = normalize(paragraph)
-    if len(norm) < MIN_PARAGRAPH:
-        # Too short to judge: "Continue." would match half the game. Treat it as
-        # present so the block is played whole rather than carved up.
-        return True
-    return fuzz.partial_ratio(norm, norm_screen) >= ON_SCREEN_SCORE
+    scored: list[bool | None] = []
+    for p in parts:
+        norm = normalize(p)
+        scored.append(None if len(norm) < MIN_PARAGRAPH
+                      else fuzz.partial_ratio(norm, norm_screen) >= ON_SCREEN_SCORE)
+
+    out: list[bool] = []
+    for i, hit in enumerate(scored):
+        if hit is not None:
+            out.append(hit)
+            continue
+        norm = normalize(parts[i])
+        near = [scored[j] for j in (i - 1, i + 1) if 0 <= j < len(scored)]
+        out.append(bool(norm and norm in norm_screen) or any(n is True for n in near))
+    return out
+
+
+def await_game(app_hint: str, title_hint: str, wait: float) -> None:
+    """Hold until the game is the window in front, or until `wait` runs out.
+
+    A fixed countdown was the old answer, and it is a guess about how fast
+    someone can alt-tab. When it guessed wrong the narrator started reading the
+    desktop — in one session, its own console, reporting "no match" against the
+    menu it had just printed. Asking the window manager costs nothing and is
+    never wrong.
+    """
+    from capture.base import is_foreground
+
+    if is_foreground(app_hint, title_hint) is None:
+        print(f"{YELLOW}switch to the game now — starting in {wait:.0f}s{RESET}")
+        time.sleep(wait)
+        return
+
+    print(f"{YELLOW}switch to the game now — this starts when it is in front"
+          f"{RESET}")
+    deadline = time.monotonic() + wait
+    while time.monotonic() < deadline:
+        if is_foreground(app_hint, title_hint):
+            return
+        time.sleep(0.3)
+    print(f"{GRAY}[waiting] the game has not come forward — watching anyway, and "
+          f"staying quiet until it does{RESET}")
 
 
 def frames_from_video(path: Path, fps: float):
@@ -196,16 +249,19 @@ def main() -> None:
     ap.add_argument("--display", type=int, nargs="?", const=0, default=None,
                     metavar="N",
                     help="capture a whole display instead of the game window. "
-                         "This is the right choice for a fullscreen game: a "
-                         "display shows whichever Space is active, so it keeps "
-                         "working when the game has a Space of its own, where "
-                         "window capture cannot reach.")
+                         "This is the right choice for a fullscreen game, which "
+                         "window capture cannot reach — on macOS because the "
+                         "game owns a Space that is not drawn while you are "
+                         "elsewhere, on Windows because exclusive fullscreen "
+                         "bypasses the compositor. It captures the whole "
+                         "monitor, so nothing is read while the game is not the "
+                         "window in front.")
     ap.add_argument("--wait", type=float, default=90.0,
-                    help="seconds to wait for the game window to appear. A "
-                         "fullscreen game lives on its own Space, which macOS "
-                         "does not render while you are looking at another one, "
-                         "so the window only becomes capturable once you switch "
-                         "to it. Waiting is how you start here and play there.")
+                    help="seconds to wait for the game to come forward before "
+                         "starting anyway. With --display the wait ends as soon "
+                         "as the game is the window in front; with window "
+                         "capture it ends when the window becomes capturable. "
+                         "Either way it is how you start here and play there.")
     ap.add_argument("--no-audio", action="store_true",
                     help="recognise and report, but stay silent")
     ap.add_argument("--manual", action="store_true",
@@ -251,12 +307,10 @@ def main() -> None:
         try:
             if args.display is not None:
                 cap = open_display(args.display)
-                print(f"{GRAY}[source] display {args.display} — whichever Space "
-                      f"is in front{RESET}")
+                print(f"{GRAY}[source] display {args.display} — everything drawn "
+                      f"on this monitor, including this window{RESET}")
                 if args.wait:
-                    print(f"{YELLOW}switch to the game now — starting in "
-                          f"{args.wait:.0f}s{RESET}")
-                    time.sleep(args.wait)
+                    await_game(args.app, args.window, args.wait)
             else:
                 cap = open_window(args.window, args.app, wait=args.wait)
                 print(f"{GRAY}[source] {cap.window}{RESET}")  # type: ignore[attr-defined]
@@ -264,10 +318,33 @@ def main() -> None:
             sys.exit(f"{RED}{exc}{RESET}")
         source = frames_live(cap, args.fps)
 
+    # Display capture takes the monitor, not the game. Anything else in front is
+    # captured too and read as if it were a game screen, so the loop holds its
+    # tongue whenever the game is not the window in front. Window capture needs
+    # no guard: it can only ever see the game.
+    from capture.base import is_foreground
+
+    guard = (args.display is not None and not args.from_video
+             and is_foreground(args.app, args.window) is not None)
+    away = False
+
     print(f"\n{GREEN}watching. Ctrl+C to stop.{RESET}\n")
-    screens = spoken = 0
+    # Counted where it is known. A block reaching the queue is not a block
+    # heard: the next screen interrupts what is playing, so the honest label
+    # for this number is the one it measures.
+    screens = queued = 0
     try:
         for frame in source:
+            if guard and not is_foreground(args.app, args.window):
+                if not away:
+                    away = True
+                    print(f"{GRAY}[waiting] the game is not in front — nothing "
+                          f"on this monitor is being read{RESET}", flush=True)
+                continue
+            if away:
+                away = False
+                print(f"{GRAY}[resumed]{RESET}", flush=True)
+
             settled = trigger.feed(frame)
             if settled is None:
                 continue
@@ -318,8 +395,16 @@ def main() -> None:
             # A {0} block needs synthesis for the other reason — the value only
             # exists at the table — and both paths land here because both need
             # audio that no manifest can hold.
+            # Why a block will not be spoken, when that is decided here. It
+            # matters that this removes the key from what gets enqueued: every
+            # escape below used to `continue` out of the *synthesis* only, and
+            # the key stayed in the list handed to the player, which then found
+            # the block's own recording and played it whole. The screen showing
+            # one paragraph heard all four, and the log said "no audio rendered"
+            # for a block that had just been declared unalignable.
             norm_screen = normalize(text)
             live_audio: dict[str, Path] = {}
+            mute: dict[str, str] = {}
             for key in keys:
                 if "CUTSCENE" in key:
                     continue
@@ -336,16 +421,17 @@ def main() -> None:
                         if say_text is not None:
                             break
                     if say_text is None:
-                        print(f"{YELLOW}          cannot align with the screen — "
-                              f"staying silent{RESET}")
+                        mute[key] = "cannot align with the screen"
                         continue
                 else:
                     parts = mparagraphs(block["text"])
-                    showing = [p for p in parts if _on_screen(p, norm_screen)]
+                    on = _visible(parts, norm_screen)
+                    showing = [p for p, ok in zip(parts, on) if ok]
                     if len(showing) == len(parts):
                         continue          # the block's own audio is right
                     if not showing:
-                        continue          # nothing of it is visible; leave it
+                        mute[key] = "none of it is on the screen"
+                        continue
                     say_text = "\n\n".join(showing)
 
                 if live is None:
@@ -356,10 +442,13 @@ def main() -> None:
                 if path:
                     live_audio[key] = path
                     fresh.add(key)
+                else:
+                    mute[key] = "live synthesis produced nothing"
 
+            speak = [k for k in keys if k not in mute]
             played = ([] if args.no_audio
-                      else player.enqueue(keys, audio=live_audio))
-            spoken += len(played)
+                      else player.enqueue(speak, audio=live_audio))
+            queued += len(played)
 
             # One line per block, and it says what happens to it. Printing
             # "[screen] KEY" for every match regardless of whether it plays made
@@ -368,6 +457,9 @@ def main() -> None:
                 if key in played:
                     mark = f"{GREEN}[speaking]{RESET}"
                     why = f" {GRAY}(synthesised live){RESET}" if key in fresh else ""
+                elif key in mute:
+                    mark = f"{YELLOW}[silent]{RESET}"
+                    why = f" {YELLOW}— {mute[key]}{RESET}"
                 elif args.no_audio:
                     mark = f"{GRAY}[matched]{RESET}"
                     why = ""
@@ -380,11 +472,22 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        player.stop()
-        if cap is not None:
-            cap.close()
-        print(f"\n{GRAY}[done] {screens} screens settled, {spoken} blocks "
-              f"spoken{RESET}")
+        # A second Ctrl+C is not news — it is the same person pressing the same
+        # key harder, usually because the first one did not seem to do anything.
+        # Unprotected, it unwinds straight out of player.stop() before the child
+        # process has been killed: the narrator prints a traceback and keeps
+        # talking. Shutdown absorbs interrupts and is idempotent, so pressing it
+        # again just runs it again.
+        while True:
+            try:
+                player.stop()
+                if cap is not None:
+                    cap.close()
+                print(f"\n{GRAY}[done] {screens} screens settled, {queued} "
+                      f"blocks queued{RESET}")
+                break
+            except KeyboardInterrupt:
+                continue
 
 
 if __name__ == "__main__":

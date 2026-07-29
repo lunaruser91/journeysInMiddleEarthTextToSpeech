@@ -75,6 +75,22 @@ def group_paragraphs(lines: list[Line], gap_factor: float = 0.6) -> list[str]:
 
     `gap_factor` is measured against the median line height rather than an
     absolute pixel count, so the same value works at 720p and at 1080p.
+
+    ## Rows, then columns
+
+    Sorting by `y` alone is not enough, and the failure is quiet. An engine
+    returns one box per run of text, not one per visual line, so a line broken by
+    a glyph or by extra spacing comes back as several boxes whose `y` differs by
+    a pixel or two of antialiasing. Ordered by `y` those pixels decide the
+    reading order, and the line is rebuilt with its words shuffled.
+
+    It reached a session log: the narrator, capturing the display, read its own
+    console and reported `esta campanha voce Qual jogando?` for a window plainly
+    showing "Qual campanha você está jogando?". Every screen was passing through
+    this, so the matcher was being handed scrambled text and scoring it.
+
+    So boxes are grouped into rows first — within half a line height is the same
+    row — and each row is ordered left to right before anything else looks at it.
     """
     items = [ln for ln in lines if ln.text.strip()]
     if not items:
@@ -83,6 +99,18 @@ def group_paragraphs(lines: list[Line], gap_factor: float = 0.6) -> list[str]:
 
     heights = sorted(ln.height for ln in items)
     typical = heights[len(heights) // 2] or 1e-6
+
+    rows, row = [], [items[0]]
+    for prev, line in zip(items, items[1:]):
+        if (prev.bbox[1] - line.bbox[1]) > typical * 0.5:
+            rows.append(row)
+            row = [line]
+        else:
+            row.append(line)
+    rows.append(row)
+    for r in rows:
+        r.sort(key=lambda ln: ln.bbox[0])
+    items = [ln for r in rows for ln in r]
 
     paragraphs, current = [], [items[0].text]
     for prev, line in zip(items, items[1:]):

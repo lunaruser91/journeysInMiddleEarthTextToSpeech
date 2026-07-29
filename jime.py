@@ -250,17 +250,28 @@ def cmd_doctor(args: argparse.Namespace) -> int:
               f"{'game window':<34} {GRAY}"
               f"{game[0] if game else 'not visible from here'}{RESET}")
         if not game:
-            # Do not let this read as "the game is not running". A fullscreen
-            # game gets a Space of its own, and macOS does not draw a Space that
-            # is not in front — so from this terminal it looks identical to a
-            # game that was never launched. Saying so here saves the hour it
-            # otherwise costs to work out.
-            print(f"    {GRAY}Either it is not running, or it is fullscreen on "
-                  f"its own Space —\n    which looks exactly the same from here, "
-                  f"because macOS does not draw\n    an inactive Space. For a "
-                  f"fullscreen game use display capture:\n"
-                  f"      jime play --display        (jime test --capture "
-                  f"--display to check){RESET}")
+            # The absence means different things on the two platforms, and both
+            # readings are actionable — but only one is true at a time, so
+            # printing both would make the user check the wrong thing half the
+            # time. macOS: a fullscreen game gets a Space of its own and macOS
+            # does not draw an inactive Space, so a running game looks exactly
+            # like an absent one from here. Windows: EnumWindows lists the game
+            # either way, so an absence here really is an absence.
+            if platform.system() == "Windows":
+                print(f"    {GRAY}The game does not appear to be running. Start "
+                      f"it and run this again.\n    If it IS running, it is in "
+                      f"exclusive fullscreen, which bypasses the\n    compositor "
+                      f"that window capture reads from — set the game to "
+                      f"borderless\n    windowed, or use display capture:\n"
+                      f"      jime play --display        (and keep the game in "
+                      f"front){RESET}")
+            else:
+                print(f"    {GRAY}Either it is not running, or it is fullscreen "
+                      f"on its own Space —\n    which looks exactly the same from "
+                      f"here, because macOS does not draw\n    an inactive Space. "
+                      f"For a fullscreen game use display capture:\n"
+                      f"      jime play --display        (jime test --capture "
+                      f"--display to check){RESET}")
     except Exception as exc:  # noqa: BLE001
         first = str(exc).split("\n")[0]
         check("screen capture", False, first)
@@ -653,8 +664,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--display", type=int, nargs="?", const=0, default=None,
                    metavar="N",
                    help="capture a whole display rather than the game window — "
-                        "use this when the game runs fullscreen, since a display "
-                        "shows whichever Space is active")
+                        "use this when the game runs fullscreen. It captures "
+                        "everything on that monitor, so the narrator stays quiet "
+                        "while the game is not the window in front")
     p.add_argument("--wait", type=float,
                    help="with --display, seconds to switch to the game before "
                         "watching starts; otherwise seconds to wait for the "

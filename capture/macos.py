@@ -263,6 +263,19 @@ class DisplayCapture(Capture):
         pass
 
 
+def foreground() -> str:
+    """Name of the frontmost application, for the display-capture guard.
+
+    Display capture takes whichever Space is active, so it takes the terminal
+    when you are looking at the terminal. Same problem as on Windows, reached by
+    a different route.
+    """
+    from AppKit import NSWorkspace
+
+    app = NSWorkspace.sharedWorkspace().frontmostApplication()
+    return str(app.localizedName()) if app else ""
+
+
 def _find(title_hint: str, app_hint: str) -> Window | None:
     windows = list_windows(app_hint)
     if title_hint:

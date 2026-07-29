@@ -100,6 +100,37 @@ def open_display(index: int = 0) -> Capture:
     return backend.open_display(index)
 
 
+def foreground() -> str | None:
+    """"app title" of whatever the user is looking at, or None if unknowable.
+
+    Display capture takes the monitor, not the game, so it also takes the
+    narrator's own terminal, the Start menu, and anything else in front. That is
+    not a hypothetical: a Windows session read its own console back and reported
+    "no match" against the menu it had just printed.
+
+    Knowing what is in front is what lets the loop hold its tongue until the game
+    is. Returns None on a backend that cannot answer, and the caller then does
+    what it did before rather than refusing to run.
+    """
+    backend = _backend()
+    if not hasattr(backend, "foreground"):
+        return None
+    try:
+        return backend.foreground()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def is_foreground(app_hint: str, title_hint: str = "") -> bool | None:
+    """Whether the game is the window in front. None when it cannot be told."""
+    front = foreground()
+    if front is None:
+        return None
+    front = front.lower()
+    return ((not app_hint or app_hint.lower() in front)
+            and (not title_hint or title_hint.lower() in front))
+
+
 def _backend():
     system = platform.system()
     if system == "Darwin":

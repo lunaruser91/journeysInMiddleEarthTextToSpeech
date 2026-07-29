@@ -248,15 +248,26 @@ class Player:
 
     # ------------------------------------------------------------- controls --
 
+    # Suspending the child is a Unix trick: SIGSTOP and SIGCONT do not exist on
+    # Windows, and reaching for the names there raises AttributeError out of the
+    # key handler mid-block. Windows gets the honest substitute — stop the block
+    # and let the next screen carry on. Pausing speech you cannot resume is the
+    # same as skipping it, and saying so is better than crashing.
+    CAN_SUSPEND = hasattr(signal, "SIGSTOP")
+
     def pause(self) -> None:
         with self._lock:
-            if self._proc and not self._paused:
+            if not self._proc or self._paused:
+                return
+            if self.CAN_SUSPEND:
                 self._signal(signal.SIGSTOP)
                 self._paused = True
+            else:
+                self._kill_current()
 
     def resume(self) -> None:
         with self._lock:
-            if self._proc and self._paused:
+            if self._proc and self._paused and self.CAN_SUSPEND:
                 self._signal(signal.SIGCONT)
                 self._paused = False
 
@@ -321,7 +332,7 @@ class Player:
 
     def _kill_current(self) -> None:
         if self._proc and self._proc.poll() is None:
-            if self._paused:                 # a stopped process ignores TERM
+            if self._paused and self.CAN_SUSPEND:  # a stopped process ignores TERM
                 self._signal(signal.SIGCONT)
             self._proc.terminate()
         self._paused = False
@@ -348,8 +359,18 @@ class Player:
                 print(f"{YELLOW}[error]{RESET} no audio backend found for this "
                       f"platform ({platform.system()})")
                 return
+            # Publish the handle before anything can ask to kill it, and check
+            # the flag again while holding the same lock. Between the Popen above
+            # and this assignment there used to be a window where `self._proc`
+            # still named the *previous*, already-dead process: a stop() or an
+            # interrupting screen landing in that window terminated a corpse and
+            # let this one talk to the end.
             with self._lock:
                 self._proc = proc
+                orphan = self._stopping
+            if orphan:
+                proc.terminate()
+                break
             proc.wait()
             with self._lock:
                 self._proc = None

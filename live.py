@@ -92,6 +92,60 @@ def _find_words(haystack: str, needle: str, start: int) -> int:
     return first
 
 
+EDGE = 30            # flattened chars at each end of a fixed part
+PRESENT_SCORE = 82.0  # the matcher's own floor, so both stages agree
+
+
+def _anchor(flat: str, flat_part: str, cursor: int) -> tuple[int, int] | None:
+    """Where a fixed part of the template sits in the screen, or None.
+
+    ## Why the whole part cannot be required
+
+    The matcher accepts a block at 82% similarity, so by the time a template
+    reaches here the screen is *known* to differ from it. Demanding the fixed
+    parts back verbatim asked the OCR to be perfect exactly where it had already
+    been forgiven: one 'm' read as 'rn' anywhere in a 44-word run silenced the
+    paragraph, and two thirds of the placeholder blocks carry a run of 20 words
+    or more. The trailing test line — "Teste ⌘ 2." — is worse still, because it
+    is often below the band this crops to and is not on the screen at all.
+
+    ## Why similarity cannot place it either
+
+    Matching the whole part by similarity finds it, but not its edges. A part
+    that follows a placeholder scores about as well starting at the value as
+    starting after it, so the best window swallowed the value and the sentence
+    came back with a hole: "o(a) desapareceu", "toma conta da estrada., que
+    está de vigia".
+
+    ## Only the ends decide
+
+    A value is bounded by the text immediately beside it, and nothing else. So
+    the ends of a part are located exactly and its middle is only checked for
+    presence. Thirty characters is long enough not to land somewhere else by
+    accident and short enough that an OCR usually gets it whole.
+    """
+    at = _find_words(flat, flat_part, cursor)
+    if at >= 0:
+        return at, at + len(flat_part)
+    if len(flat_part) <= EDGE * 2:
+        return None                  # short enough that the ends are the middle
+    from rapidfuzz import fuzz
+
+    if fuzz.partial_ratio(flat_part, flat[cursor:]) < PRESENT_SCORE:
+        return None                  # not on this screen at all
+
+    head = _find_words(flat, flat_part[:EDGE], cursor)
+    after = head + EDGE if head >= 0 else cursor
+    tail = _find_words(flat, flat_part[-EDGE:], after)
+    if head < 0 and tail < 0:
+        return None
+    if head < 0:                     # only the far edge was legible
+        return max(cursor, tail + EDGE - len(flat_part)), tail + EDGE
+    if tail < 0:                     # the part runs to where the screen stops
+        return head, min(len(flat), head + len(flat_part))
+    return head, tail + EDGE
+
+
 def fill_template(template: str, screen: str) -> str | None:
     """Put the screen's values into the corpus template.
 
@@ -112,17 +166,32 @@ def fill_template(template: str, screen: str) -> str | None:
     # punctuation — "." after a trailing placeholder, which is the commonest
     # shape here — carries no signal, and treating it as a zero-width anchor
     # collapses the gap the value was supposed to fill.
+    #
+    # A part that cannot be found is dropped rather than failing the template.
+    # The commonest absentee is the trailing test line — "Teste ⌘ 2." — which
+    # sits below the band this crops to and is simply not on the screen the
+    # player is being read. Losing it should cost that line, not the paragraph.
+    #
+    # What must not happen is dropping *everything* and handing the screen back
+    # as one enormous value: that is speaking raw OCR, which this module exists
+    # to avoid. So the located anchors have to account for most of the fixed
+    # text before the alignment is trusted at all.
     anchors: dict[int, tuple[int, int]] = {}
     cursor = 0
+    fixed = located = 0
     for i, part in enumerate(parts):
         flat_part, _ = _flat(part)
         if not flat_part:
             continue
-        at = _find_words(flat, flat_part, cursor)
-        if at < 0:
-            return None              # this template does not describe this screen
-        anchors[i] = (at, at + len(flat_part))
-        cursor = at + len(flat_part)
+        fixed += len(flat_part)
+        span = _anchor(flat, flat_part, cursor)
+        if span is None:
+            continue
+        anchors[i] = span
+        located += len(flat_part)
+        cursor = max(cursor, span[1])
+    if not anchors or located < fixed * 0.6:
+        return None                  # this template does not describe this screen
 
     def cut(lo: int, hi: int) -> str:
         """Original-text slice for a flattened span, accents and case intact.

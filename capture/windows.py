@@ -86,6 +86,18 @@ def _process_name(hwnd: int) -> str:
         kernel32.CloseHandle(handle)
 
 
+def foreground() -> str:
+    """"process.exe title" of the window in front, for the display-capture guard."""
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return ""
+    length = user32.GetWindowTextLengthW(hwnd)
+    buf = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
+    return f"{_process_name(hwnd)} {buf.value}".strip()
+
+
 def list_windows(app_hint: str = "") -> list[Window]:
     user32 = ctypes.windll.user32
     found: list[Window] = []
