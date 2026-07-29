@@ -183,8 +183,14 @@ def campaign_rows(lang: str) -> list[tuple[str, str, str, str]]:
 
 # ------------------------------------------------------------------ flows --
 
-def pick_language(action: str = "use", current: str | None = None) -> str:
+def pick_language(action: str = "use", current: str | None = None,
+                  first: bool = False) -> str:
     """Every language the game ships, not only the ones already extracted.
+
+    `first` marks the very first question of the session, where there is nothing
+    to go back to. Offering `b` there advertised a key that raised Abort straight
+    through main() and out: the program answered a request to go back with a
+    traceback.
 
     Filtering to what has a corpus made the list two items long and left no way
     to reach the other eleven: you had to know to quit, run `extract`, and come
@@ -197,7 +203,8 @@ def pick_language(action: str = "use", current: str | None = None) -> str:
     default = next((i for i, r in enumerate(rows) if r[0] == (current or "pt")), 0)
     while True:
         i = choose(t("Which language to work in?", UI),
-                   [(r[1], r[2]) for r in rows], default)
+                   [(r[1], r[2]) for r in rows], default,
+                   allow_back=not first)
         lang = rows[i][0]
         if jime.corpus_path(lang).exists():
             return lang
@@ -403,7 +410,7 @@ def main() -> int:
     # Language is asked once, first, and then carried. Asking it inside every
     # action meant answering the same question before each one, and it is the
     # rarest thing to change: most people extract one language and stay there.
-    lang = pick_language("work in")
+    lang = pick_language("work in", first=True)
     UI = lang
 
     while True:
