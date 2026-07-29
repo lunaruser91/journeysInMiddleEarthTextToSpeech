@@ -54,6 +54,20 @@ def check(name: str, ok: bool, detail: str = "", fatal: bool = False) -> bool:
     return ok
 
 
+def short(path) -> str:
+    """A path with the user's home folder written as `~`.
+
+    This output is the one artefact of this project somebody is asked to send to
+    a stranger — it carries no game text at all, only counts, keys and timings.
+    It did carry their account name, four times over, inside paths like
+    `C:\\Users\\<name>\\AppData\\Local\\Microsoft\\WinGet\\Links\\ffmpeg.EXE`.
+    Nobody debugging an OCR engine needs to know that, and it is one
+    substitution to remove.
+    """
+    text, home = str(path), str(Path.home())
+    return "~" + text[len(home):] if text.startswith(home) else text
+
+
 def skip(name: str, why: str) -> None:
     print(f"  {YELLOW}skip{RESET}  {name:<38} {GRAY}{why}{RESET}", flush=True)
 
@@ -70,9 +84,11 @@ def test_environment() -> None:
     check("python >= 3.11", v >= (3, 11), f"{v.major}.{v.minor}.{v.micro}", fatal=True)
     for tool in ("ffmpeg", "ffprobe"):
         check(f"{tool} on PATH", shutil.which(tool) is not None,
-              shutil.which(tool) or "not found", fatal=True)
+              short(shutil.which(tool)) if shutil.which(tool) else "not found",
+              fatal=True)
     check("ffplay on PATH", shutil.which("ffplay") is not None,
-          shutil.which("ffplay") or "playback will not work — install ffmpeg")
+          short(shutil.which("ffplay")) if shutil.which("ffplay")
+          else "playback will not work — install ffmpeg")
 
 
 def test_imports() -> None:
@@ -130,11 +146,11 @@ def test_assets(lang: str) -> Path | None:
 
     found = jime.find_assets()
     check("game data located", found is not None,
-          str(found) if found else f"tried {len(jime.ASSET_GUESSES)} places")
+          short(found) if found else f"tried {len(jime.ASSET_GUESSES)} places")
     if found is None:
         print(f"{GRAY}        install the game, or pass --bundles to extract{RESET}")
     saves = console.saves_dir()
-    check("saves folder path", True, str(saves))
+    check("saves folder path", True, short(saves))
     if saves.exists():
         check("saves folder found", True, "campaign can be auto-detected")
     else:
@@ -386,7 +402,7 @@ def report() -> None:
         print(f"{RED}failed:{RESET} " + ", ".join(failed))
     else:
         print(f"{GREEN}everything this machine can check, works.{RESET}")
-    print(f"{GRAY}artefacts in {OUT}{RESET}")
+    print(f"{GRAY}artefacts in {short(OUT)}{RESET}")
 
 
 def main() -> int:

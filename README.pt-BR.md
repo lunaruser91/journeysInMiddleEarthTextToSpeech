@@ -248,6 +248,22 @@ cd ~/jime && ~/jime-venv/bin/python probe_capture.py --seconds 40
 Ela escreve em `output/probe.log` em vez do terminal, porque olhar o terminal
 muda o que está sendo medido.
 
+## Mandar um log para alguém
+
+Um log normal carrega o texto do próprio jogo — a prévia do bloco embaixo de cada
+tela que casou, e o texto cru da tela embaixo de cada uma que não casou.
+Acrescente `--share` e nada disso é impresso: chaves, pontuações, motivos de
+recusa e tempos continuam, e o texto vira a forma dele, "3 paragraph(s), 412
+chars". Isso basta para distinguir uma tela de menu recusada corretamente de um
+bloco real perdido por três pontos.
+
+```bash
+~/jime-venv/bin/python jime.py play --display --profile --share
+```
+
+A saída do `selftest.py` já pode ser enviada como está — ela não tem texto nenhum
+do jogo, e os caminhos são escritos com `~` no lugar da sua pasta pessoal.
+
 ---
 
 ## Atualizando

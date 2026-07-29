@@ -244,6 +244,21 @@ cd ~/jime && ~/jime-venv/bin/python probe_capture.py --seconds 40
 It writes to `output/probe.log` rather than the terminal, because looking at the
 terminal changes what is being measured.
 
+## Sending somebody a log
+
+A normal log carries the game's own text — the block preview under every screen
+that matched, and the raw screen text under every one that did not. Add `--share`
+and none of it is printed: keys, scores, refusal reasons and timings all stay, and
+the text becomes its own shape, "3 paragraph(s), 412 chars". That is enough to
+tell a menu screen correctly refused from a real block missed by three points.
+
+```bash
+~/jime-venv/bin/python jime.py play --display --profile --share
+```
+
+`selftest.py` output is safe to send as it stands — it contains no game text at
+all, and paths are written with `~` in place of your home folder.
+
 ---
 
 ## Updating

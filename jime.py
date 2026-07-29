@@ -522,6 +522,8 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--profile"]
     if args.no_guard:
         argv += ["--no-guard"]
+    if args.share:
+        argv += ["--share"]
     if args.ocr != "auto":
         argv += ["--ocr", args.ocr]
     if args.fps:
@@ -674,6 +676,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-guard", action="store_true",
                    help="with --display, read the monitor even while the game "
                         "is not the window in front")
+    p.add_argument("--share", action="store_true",
+                   help="print none of the game's text, so the log can be sent "
+                        "to somebody else. Keys, scores and timings stay; the "
+                        "screen text and the block preview become a count of "
+                        "paragraphs and characters")
     p.add_argument("--ocr", default="auto",
                    choices=("auto", "apple", "windows", "rapid"),
                    help="which recogniser reads the screen. 'auto' takes the "

@@ -317,6 +317,15 @@ def main() -> None:
                          "which needs nothing installed but is orders of "
                          "magnitude slower. Naming one makes its failure say "
                          "so instead of quietly costing seconds a screen.")
+    ap.add_argument("--share", action="store_true",
+                    help="print not one word of the game's text, so the log can "
+                         "be sent to somebody else. Keys, scores, reasons and "
+                         "timings all stay — what goes is the screen text and "
+                         "the block preview, replaced by their own shape: how "
+                         "many paragraphs, how many characters. That is enough "
+                         "to tell a menu screen correctly refused from a real "
+                         "block missed by three points, which is the whole "
+                         "reason anyone wants a log.")
     ap.add_argument("--no-guard", action="store_true",
                     help="with --display, read the monitor even while the game "
                          "is not the window in front. The guard is what stops "
@@ -640,8 +649,9 @@ def main() -> None:
                 # from one the matcher refused for a reason — and the refusal
                 # reasons are the only thing that distinguishes a bad crop from
                 # bad OCR from a real gap in the corpus.
-                print(f"{YELLOW}[no match]{RESET} "
-                      f"{GRAY}{' '.join(text.split())[:70]}{RESET}")
+                shown = (f"{len(paragraphs)} paragraph(s), {len(text)} chars"
+                         if args.share else ' '.join(text.split())[:70])
+                print(f"{YELLOW}[no match]{RESET} {GRAY}{shown}{RESET}")
                 for r in results[:3]:
                     if r.key:
                         print(f"           {GRAY}closest {r.key} "
@@ -773,8 +783,13 @@ def main() -> None:
                     mark = f"{YELLOW}[silent]{RESET}"
                     why = f" {YELLOW}— {player.why_silent(key)}{RESET}"
                 print(f"{mark} {key}{why}")
+                # This line is the bigger leak of the two, and the quieter one:
+                # it prints the game's own prose on every screen that matches,
+                # not only on the ones that fail.
+                body = corpus[key]["text"]
                 print(f"          {GRAY}"
-                      f"{' '.join(corpus[key]['text'].split())[:84]}{RESET}")
+                      f"{str(len(body)) + ' chars' if args.share else ' '.join(body.split())[:84]}"
+                      f"{RESET}")
     except KeyboardInterrupt:
         pass
     finally:
