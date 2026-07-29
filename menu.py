@@ -290,14 +290,23 @@ def flow_play(lang: str) -> list[str]:
         elif pick == 2:
             raise Abort
 
+    # Which capture to use is a per-platform question, and the answer used to be
+    # macOS's everywhere. There, a fullscreen game gets a Space of its own and
+    # macOS does not draw an inactive Space, so its window is unreachable and the
+    # display is the only way in — hence the question. Windows has no such rule:
+    # window capture works fullscreen or not, and takes only the game rather than
+    # the whole screen. So there is nothing to ask.
+    import platform
+
+    argv = ["play", "--lang", lang, "--campaign", campaign]
+    if platform.system() == "Windows":
+        return argv + ["--wait", "60"]
+
     src = choose(t("How is the game running?", UI), [
         (t("fullscreen", UI), t("capture the display — the usual case", UI)),
         (t("in a window", UI), t("find it by window title", UI)),
     ], 0)
-    argv = ["play", "--lang", lang, "--campaign", campaign]
-    if src == 0:
-        argv += ["--display", "--wait", "15"]
-    return argv
+    return argv + (["--display", "--wait", "15"] if src == 0 else ["--wait", "60"])
 
 
 def flow_extract(lang: str) -> list[str] | None:

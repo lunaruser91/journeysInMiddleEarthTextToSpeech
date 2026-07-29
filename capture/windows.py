@@ -133,7 +133,11 @@ class WindowsCapture(Capture):
         wc = _require()
         kwargs: dict = {"cursor_capture": False, "draw_border": False}
         if self.monitor is not None:
-            kwargs["monitor_index"] = self.monitor
+            # windows-capture counts monitors from 1; this project's API counts
+            # from 0, like ScreenCaptureKit. Passing 0 through fails with "the
+            # monitor index must be greater than zero", which says what is wrong
+            # without saying whose convention is being violated.
+            kwargs["monitor_index"] = self.monitor + 1
         elif self.hwnd is not None:
             kwargs["window_hwnd"] = self.hwnd
         else:
@@ -212,7 +216,11 @@ def open_window(title_hint: str = "", app_hint: str = "Journeys",
 
 
 def open_display(index: int = 0) -> Capture:
-    """Capture a whole monitor rather than one window."""
+    """Capture a whole monitor rather than one window.
+
+    `index` is 0-based, as everywhere else in this project. The translation to
+    the library's 1-based numbering happens in start().
+    """
     cap = WindowsCapture(monitor=index)
     cap.start()
     return cap
