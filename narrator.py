@@ -342,6 +342,31 @@ def main() -> None:
     glyph_map = glyphs.glyph_map_from_corpus(corpus)
     live: LiveVoice | None = None
 
+
+    # Say it out loud, not only in the terminal.
+    #
+    # With the game fullscreen the terminal is on another Space, so while you are
+    # playing you cannot see a word of this. That left no way to tell a narrator
+    # that is watching from one that is waiting — and a whole session went on the
+    # confusion, the log afterwards showing the guard had been quiet throughout
+    # because the game never came forward.
+    #
+    # It has to speak *before* the wait as well as after it. Announcing only once
+    # watching had begun still left the instruction to switch to the game visible
+    # nowhere but the window you have to leave to obey it.
+    def announce(phrase: str) -> None:
+        nonlocal live
+        if args.no_audio:
+            return
+        try:
+            if live is None:
+                live = LiveVoice(lang=args.lang)
+            path = live.say(t(phrase, args.lang))
+            if path:
+                player.enqueue([f"_cue:{phrase}"], audio={f"_cue:{phrase}": path})
+        except Exception:  # noqa: BLE001
+            pass          # a cue is a courtesy; never let it stop the session
+
     engine = open_ocr(languages=locales_for(args.lang))
     trigger = Trigger(region=(top, bottom))
     print(f"{GRAY}[ocr] {type(engine).__name__}{RESET}")
@@ -358,6 +383,8 @@ def main() -> None:
                 print(f"{GRAY}[source] display {args.display} — everything drawn "
                       f"on this monitor, including this window{RESET}")
                 if args.wait:
+                    announce("switch to the game now — this starts when it "
+                             "is in front")
                     await_game(args.app, args.window, args.wait,
                                args.lang)
             else:
@@ -392,30 +419,8 @@ def main() -> None:
     not_since: float | None = None
 
     print("\n" + GREEN + t("watching. Ctrl+C to stop.", args.lang) + RESET + "\n")
-
-    # Say it out loud, not only in the terminal.
-    #
-    # With the game fullscreen the terminal is on another Space, so while you are
-    # playing you cannot see a word of this. That left no way to tell a narrator
-    # that is watching from one that is waiting — and a session was spent on
-    # exactly that confusion, the log afterwards showing the guard had been
-    # quiet the whole time because the game never came forward.
-    #
-    # The one channel the player definitely has is the one the program is for.
-    def announce(phrase: str) -> None:
-        nonlocal live
-        if args.no_audio:
-            return
-        try:
-            if live is None:
-                live = LiveVoice(lang=args.lang)
-            path = live.say(t(phrase, args.lang))
-            if path:
-                player.enqueue([f"_cue:{phrase}"], audio={f"_cue:{phrase}": path})
-        except Exception:  # noqa: BLE001
-            pass          # a cue is a courtesy; never let it stop the session
-
     announce("ready. I am watching the game.")
+
     # Counted where it is known. A block reaching the queue is not a block
     # heard: the next screen interrupts what is playing, so the honest label
     # for this number is the one it measures.
