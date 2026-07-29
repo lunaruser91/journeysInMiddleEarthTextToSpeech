@@ -51,6 +51,19 @@ def _enable_ansi() -> None:
             mode = ctypes.c_uint32()
             if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
                 kernel32.SetConsoleMode(handle, mode.value | 0x0004)
+
+        # Tell the console what it is being sent. `setup()` already puts Python's
+        # streams in UTF-8, but that only settles which bytes leave this process
+        # — the console decodes them with its own code page, which is 850 or 437
+        # on a Portuguese or English install. So correct UTF-8 was drawn as
+        # nonsense: "vá para o jogo" came out "v├í para o jogo", and every em
+        # dash as "ÔÇö".
+        #
+        # 65001 is UTF-8. This is `chcp 65001` without the subprocess, and it has
+        # to be both directions — output for what is printed, input for what is
+        # typed at a prompt.
+        kernel32.SetConsoleOutputCP(65001)
+        kernel32.SetConsoleCP(65001)
     except Exception:  # noqa: BLE001
         pass          # not a console, or an old build: colour is not worth failing over
 
