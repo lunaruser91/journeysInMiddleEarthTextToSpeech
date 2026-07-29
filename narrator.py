@@ -280,7 +280,10 @@ def main() -> None:
     ap.add_argument("--region", default=f"{REGION[0]},{REGION[1]}",
                     help="vertical band of the dialogue box, as fractions")
     ap.add_argument("--window", default="", help="window title hint")
-    ap.add_argument("--app", default="Journeys", help="application name hint")
+    # Both names the game goes by. macOS reports "Journeys in Middle-earth" from
+    # the bundle; Windows reports the executable, JiME.exe. `|` means either.
+    ap.add_argument("--app", default="Journeys|JiME",
+                    help="application name hint; `|` separates alternatives")
     ap.add_argument("--display", type=int, nargs="?", const=0, default=None,
                     metavar="N",
                     help="capture a whole display instead of the game window. "

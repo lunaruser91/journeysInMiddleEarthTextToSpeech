@@ -122,12 +122,26 @@ def foreground() -> str | None:
 
 
 def is_foreground(app_hint: str, title_hint: str = "") -> bool | None:
-    """Whether the game is the window in front. None when it cannot be told."""
+    """Whether the game is the window in front. None when it cannot be told.
+
+    The hint may name the application more than one way, separated by `|`, and
+    any of them counts. The same game is not called the same thing on the two
+    platforms: macOS reports the bundle's display name, "Journeys in
+    Middle-earth", while Windows reports the executable, `JiME.exe`. Matching
+    only the first left the guard permanently shut on Windows — the game was in
+    front and the narrator, comparing "journeys" against "jime.exe", could not
+    see it.
+
+    Matching the window *title* instead would cover both and is worse: a
+    terminal's title is its command line, and this project's own directory is
+    named after the game, so the terminal you launched from would pass.
+    """
     front = foreground()
     if front is None:
         return None
     front = front.lower()
-    return ((not app_hint or app_hint.lower() in front)
+    names = [h.strip().lower() for h in app_hint.split("|") if h.strip()]
+    return ((not names or any(h in front for h in names))
             and (not title_hint or title_hint.lower() in front))
 
 
