@@ -5,8 +5,12 @@ ocr/rapidocr_engine.py — RapidOCR, for everywhere that is not macOS.
 **Exercised on Windows 11, where it is the engine.** It read a rendered
 line back with every keyword intact. Not yet run against a real game screen,
 which is a harder problem than clean text on a flat background. ~19 MB of ONNX weights, Apache-2.0, runs on CPU.
-It is the portable fallback; on Windows the native `Windows.Media.Ocr` is likely
-faster and is not wrapped here yet.
+
+It is the portable fallback, and on Windows that is now all it is: the native
+`Windows.Media.Ocr` reads the same crop in 25 ms against this engine's 539 ms,
+and reads it better. See ocr/windows_ocr.py. This is what runs where no native
+recogniser is available — Linux, or a Windows without the language feature
+installed — and the tuning below is what makes that bearable rather than fast.
 
 Its defaults are tuned for photographs of Chinese signage and are wrong for a
 wide, short crop of a dialogue box — badly enough to be the whole of this

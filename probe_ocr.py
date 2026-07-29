@@ -184,9 +184,13 @@ def main() -> None:
     if during is not None:
         print(f"\nMachine {during:.0f}% busy across the whole probe.")
     print("A shape that does not change is a setting that did not arrive.")
-    print("A time that does not move once the shapes do is the machine itself,")
-    print("and then the answer is a different engine — Windows has")
-    print("Windows.Media.Ocr built in, which this project does not wrap yet.")
+    print("A time that does not move once the shapes do is the machine itself.")
+    print()
+    print("Every row above is RapidOCR, which on Windows is now only the")
+    print("fallback: Windows.Media.Ocr reads the same crop in about 25 ms.")
+    print("If these numbers are what the narrator is getting, it is running on")
+    print("the fallback — check the [ocr] line it prints, and see")
+    print("ocr/windows_ocr.py for what makes the native engine unavailable.")
 
 
 if __name__ == "__main__":

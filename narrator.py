@@ -307,6 +307,14 @@ def main() -> None:
                          "own animation, the OCR, the matcher and the "
                          "synthesis, and only one of those is worth tuning at "
                          "a time.")
+    ap.add_argument("--ocr", default="auto",
+                    choices=("auto", "apple", "windows", "rapid"),
+                    help="which recogniser to read the screen with. 'auto' "
+                         "takes the platform's own — Apple Vision or "
+                         "Windows.Media.Ocr — and falls back to RapidOCR, "
+                         "which needs nothing installed but is orders of "
+                         "magnitude slower. Naming one makes its failure say "
+                         "so instead of quietly costing seconds a screen.")
     ap.add_argument("--no-guard", action="store_true",
                     help="with --display, read the monitor even while the game "
                          "is not the window in front. The guard is what stops "
@@ -370,7 +378,7 @@ def main() -> None:
         except Exception:  # noqa: BLE001
             pass          # a cue is a courtesy; never let it stop the session
 
-    engine = open_ocr(languages=locales_for(args.lang))
+    engine = open_ocr(args.ocr, languages=locales_for(args.lang))
     trigger = Trigger(region=(top, bottom))
     # Say which settings the engine actually came up with, not just its name.
     # RapidOCR spent a day being configured through a parameter that does not

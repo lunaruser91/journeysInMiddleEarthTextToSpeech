@@ -23,8 +23,17 @@ a typical line height belong to different paragraphs.
 Apple Vision on macOS: offline, native pt-BR, ~150-350 ms, no model to download,
 and it accepts custom words — worth feeding the Tolkien proper nouns eventually.
 
+Windows.Media.Ocr on Windows: offline, part of the operating system, 25 ms on a
+dialogue box and 40 ms on a screen of dense small text — against RapidOCR's
+539 ms and 1480 ms on the identical crops with the machine held equally quiet —
+and more accurate on accented text besides. It needs a language recogniser
+installed as a Windows optional feature, which is the one thing that can make it
+unavailable.
+
 RapidOCR anywhere: ~19 MB of ONNX weights, Apache-2.0, works on Windows and
-Linux. Windows also has `Windows.Media.Ocr` natively, which is not wrapped here.
+Linux. It is the fallback now rather than the Windows engine: 22x slower on a
+dialogue box, 37x on a dense screen, and the gap grows with the amount of text
+because it pays per line.
 
 **Do not reach for a local VLM.** They hallucinate plausible text, which in a
 narrator is worse than an OCR error and, unlike an OCR error, undetectable — and
@@ -137,13 +146,30 @@ def crop(image: np.ndarray, region: tuple[float, float, float, float]) -> np.nda
 
 
 def open_ocr(prefer: str = "auto", languages: tuple[str, ...] = ("pt-BR",)) -> Ocr:
-    """Pick an engine: 'auto', 'apple', or 'rapid'."""
+    """Pick an engine: 'auto', 'apple', 'windows', or 'rapid'.
+
+    Each platform's native engine first, RapidOCR as the fallback everywhere.
+    Naming one explicitly makes its failure fatal rather than silent, because
+    "why is it slow" is a much harder question than "why did it refuse".
+
+    The order of the two branches below is not cosmetic. `WindowsOcr` imports
+    winrt, and winrt loaded before onnxruntime breaks onnxruntime — so the
+    Windows engine reserves onnxruntime first, on purpose, to keep the RapidOCR
+    line below reachable. See ocr/windows_ocr.py.
+    """
     if prefer in ("auto", "apple") and platform.system() == "Darwin":
         try:
             from .apple_vision import AppleVision
             return AppleVision(languages=languages)
         except OcrError:
             if prefer == "apple":
+                raise
+    if prefer in ("auto", "windows") and platform.system() == "Windows":
+        try:
+            from .windows_ocr import WindowsOcr
+            return WindowsOcr(languages=tuple(languages))
+        except OcrError:
+            if prefer == "windows":
                 raise
     from .rapidocr_engine import RapidOcr
     return RapidOcr()

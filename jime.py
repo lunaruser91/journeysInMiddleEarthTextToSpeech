@@ -522,6 +522,8 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--profile"]
     if args.no_guard:
         argv += ["--no-guard"]
+    if args.ocr != "auto":
+        argv += ["--ocr", args.ocr]
     if args.fps:
         argv += ["--fps", str(args.fps)]
     if args.wait is not None:
@@ -672,6 +674,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-guard", action="store_true",
                    help="with --display, read the monitor even while the game "
                         "is not the window in front")
+    p.add_argument("--ocr", default="auto",
+                   choices=("auto", "apple", "windows", "rapid"),
+                   help="which recogniser reads the screen. 'auto' takes the "
+                        "platform's own and falls back to RapidOCR, which is "
+                        "orders of magnitude slower; naming one makes its "
+                        "failure say so rather than cost seconds a screen")
     p.add_argument("--fps", type=float)
     p.add_argument("--display", type=int, nargs="?", const=0, default=None,
                    metavar="N",

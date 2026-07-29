@@ -297,9 +297,17 @@ Both installers accept overrides: `JIME_DIR` and `JIME_VENV` on macOS, `-Path`
 and `-Venv` on Windows.
 
 `ocr` and `capture` resolve per platform — Apple Vision and ScreenCaptureKit on
-macOS, RapidOCR and `windows-capture` on Windows, the latter wrapping
+macOS, Windows.Media.Ocr and `windows-capture` on Windows, the latter wrapping
 Windows.Graphics.Capture, the only API that sees a Unity window since BitBlt and
 PrintWindow return black frames.
+
+RapidOCR is installed everywhere as the fallback, and that is all it is: on the
+same crop with the machine equally quiet it reads a dialogue box in 539 ms
+against the native engine's 25 ms, and a dense screen in 1480 ms against 40 ms.
+It is what runs on Linux, or on a Windows with no OCR language feature
+installed. `--ocr windows|apple|rapid` names one and makes its failure fatal
+rather than silent — worth doing when a session is slow, since a fallback that
+works is indistinguishable from the engine you meant to use except by the clock.
 
 ---
 

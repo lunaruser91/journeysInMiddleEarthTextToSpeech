@@ -21,13 +21,27 @@ tts = ["piper-tts>=1.6"]
 # ocrmac, whose pyobjc-framework-Vision has no Windows wheel and dies compiling.
 # One command now works everywhere: pip install -e '.[tts,ocr,capture]'
 #
-# Apple Vision is native, offline and ~150 ms; RapidOCR is ~19 MB of ONNX and
-# runs anywhere. ScreenCaptureKit is the only macOS 26 API that still sees
+# Apple Vision is native, offline and ~150 ms; Windows.Media.Ocr is native,
+# offline and ~25 ms; RapidOCR is ~19 MB of ONNX, runs anywhere, and is the
+# fallback for when neither native engine is available — measured at 539 ms
+# against Windows.Media.Ocr's 25 ms on the same crop, so it is a fallback and
+# not an alternative. ScreenCaptureKit is the only macOS 26 API that still sees
 # windows; Windows.Graphics.Capture is its counterpart, and is required there
 # because BitBlt and PrintWindow return black frames for a Unity window.
+#
+# The winrt-* packages are the Python bindings for Windows.Media.Ocr, one per
+# namespace touched. The recogniser itself is not here and cannot be: it is a
+# Windows optional feature the user installs per language.
 ocr = [
     "ocrmac; sys_platform == 'darwin'",
     "rapidocr-onnxruntime; sys_platform != 'darwin'",
+    "winrt-runtime; sys_platform == 'win32'",
+    "winrt-Windows.Media.Ocr; sys_platform == 'win32'",
+    "winrt-Windows.Graphics.Imaging; sys_platform == 'win32'",
+    "winrt-Windows.Storage.Streams; sys_platform == 'win32'",
+    "winrt-Windows.Globalization; sys_platform == 'win32'",
+    "winrt-Windows.Foundation; sys_platform == 'win32'",
+    "winrt-Windows.Foundation.Collections; sys_platform == 'win32'",
 ]
 capture = [
     "pyobjc-framework-ScreenCaptureKit; sys_platform == 'darwin'",
