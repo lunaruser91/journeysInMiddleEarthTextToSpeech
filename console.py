@@ -64,6 +64,18 @@ def _enable_ansi() -> None:
         # typed at a prompt.
         kernel32.SetConsoleOutputCP(65001)
         kernel32.SetConsoleCP(65001)
+        # **This cannot fix a pipe, and nothing here can.** Piping the narrator
+        # into `Tee-Object` to keep a log puts PowerShell on the other end, and
+        # PowerShell decodes the bytes with its own `[Console]::OutputEncoding`,
+        # read once when it started and out of reach of a child process. The
+        # mojibake came back in exactly that shape — correct UTF-8 on screen,
+        # "v├í para o jogo" through the pipe — and it is the caller's shell that
+        # has to be told:
+        #
+        #     [Console]::OutputEncoding = [Text.Encoding]::UTF8
+        #
+        # Both READMEs carry it beside the command that needs it. Do not spend
+        # another evening looking for the Python-side fix; there is not one.
     except Exception:  # noqa: BLE001
         pass          # not a console, or an old build: colour is not worth failing over
 

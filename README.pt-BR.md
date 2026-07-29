@@ -213,6 +213,17 @@ As quatro respostas mais comuns:
   sozinho pode tomar o processador inteiro e não sobrar nada para o narrador.
 - **Windows: o motor de fala não carrega.** Falta o Visual C++ Redistributable:
   `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+- **Windows: os acentos saem como `v├í` ou `ÔÇö`.** Só quando você manda a saída
+  para algum lugar — para o `Tee-Object`, para guardar um log. O PowerShell
+  decodifica o cano com a code page dele, e nenhum programa do outro lado
+  consegue mudar isso; então avise o seu shell uma vez por janela:
+
+  ```powershell
+  [Console]::OutputEncoding = [Text.Encoding]::UTF8
+  cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py play --display --profile | Tee-Object output\sessao.log
+  ```
+
+  Direto na tela já sai certo; isso é só sobre o cano.
 
 Se a dúvida for a captura em si, esta sonda mede para você — comece ela, vá para
 o jogo, volte depois:

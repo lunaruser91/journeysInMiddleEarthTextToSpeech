@@ -152,11 +152,25 @@ def open_ocr(prefer: str = "auto", languages: tuple[str, ...] = ("pt-BR",)) -> O
     Naming one explicitly makes its failure fatal rather than silent, because
     "why is it slow" is a much harder question than "why did it refuse".
 
+    That promise has to cover the platform too, and it did not. `--ocr windows`
+    on a Mac matched neither branch and fell out of the bottom into RapidOCR: a
+    narrator that works, reads twenty times slower, and says nothing about it.
+    Naming an engine the machine cannot have is a mistake, not a preference to be
+    quietly accommodated.
+
     The order of the two branches below is not cosmetic. `WindowsOcr` imports
     winrt, and winrt loaded before onnxruntime breaks onnxruntime — so the
     Windows engine reserves onnxruntime first, on purpose, to keep the RapidOCR
     line below reachable. See ocr/windows_ocr.py.
     """
+    needs = {"apple": "Darwin", "windows": "Windows"}
+    if prefer in needs and needs[prefer] != platform.system():
+        raise OcrError(
+            f"--ocr {prefer} needs {needs[prefer]} and this is "
+            f"{platform.system()}.\n"
+            f"    --ocr auto takes whatever this platform has; --ocr rapid "
+            f"names the portable engine.")
+
     if prefer in ("auto", "apple") and platform.system() == "Darwin":
         try:
             from .apple_vision import AppleVision

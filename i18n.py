@@ -161,6 +161,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "cannot align with the screen": "não bate com a tela",
         "none of it is on the screen": "nada dele está na tela",
         "live synthesis produced nothing": "a síntese ao vivo não produziu nada",
+        "no live voice": "sem voz ao vivo",
     },
 }
 

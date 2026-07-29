@@ -209,6 +209,17 @@ The four most common answers:
   game itself can take the whole processor and leave nothing for the narrator.
 - **Windows: the speech engine will not load.** The Visual C++ Redistributable
   is missing: `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+- **Windows: accented letters come out as `v├í` or `ÔÇö`.** Only when you pipe
+  the output somewhere — into `Tee-Object` to keep a log, say. PowerShell decodes
+  the pipe with its own code page and no program on the far end can change that,
+  so tell your shell once per window:
+
+  ```powershell
+  [Console]::OutputEncoding = [Text.Encoding]::UTF8
+  cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py play --display --profile | Tee-Object output\sessao.log
+  ```
+
+  On the screen alone it is already correct; this is only about the pipe.
 
 If capture itself is in doubt, this samples it for you — start it, switch to the
 game, come back:

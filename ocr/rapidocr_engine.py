@@ -2,9 +2,9 @@
 """
 ocr/rapidocr_engine.py — RapidOCR, for everywhere that is not macOS.
 
-**Exercised on Windows 11, where it is the engine.** It read a rendered
-line back with every keyword intact. Not yet run against a real game screen,
-which is a harder problem than clean text on a flat background. ~19 MB of ONNX weights, Apache-2.0, runs on CPU.
+Measured on Windows 11 against real game screens, not only against clean text on
+a flat background: a dialogue box in 3.9 s tuned and 12.3 s as it ships. ~19 MB
+of ONNX weights, Apache-2.0, runs on CPU.
 
 It is the portable fallback, and on Windows that is now all it is: the native
 `Windows.Media.Ocr` reads the same crop in 25 ms against this engine's 539 ms,

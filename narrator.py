@@ -353,7 +353,37 @@ def main() -> None:
 
     glyph_map = glyphs.glyph_map_from_corpus(corpus)
     live: LiveVoice | None = None
+    live_failed = ""
 
+    # One construction site for the live voice, because there were three and only
+    # one of them was guarded.
+    #
+    # `LiveVoice.__init__` resolves the voice name, and `voices.resolve` raises
+    # for a name the catalogue does not have — which is what a stale
+    # `voices/chosen.json` becomes once its file is deleted, and what any name
+    # becomes when the catalogue cannot be fetched and the voice is not yet on
+    # disk. All thirteen of the game's languages do have a default voice, so that
+    # is not the way in; the way in is a machine that is offline or a choice that
+    # has gone stale.
+    #
+    # Guarding that at startup and not in the frame loop turned the startup
+    # message into a promise the loop broke: the arguments are identical in both
+    # places, so every failure reported calmly at startup was certain to come
+    # back as a traceback on the first block that needed synthesising.
+    #
+    # The reason is remembered rather than retried. Retrying per screen would be
+    # the same failure once per screen, and nothing about it is transient within
+    # a session.
+    def live_voice() -> LiveVoice | None:
+        nonlocal live, live_failed
+        if live is None and not live_failed:
+            try:
+                live = LiveVoice(lang=args.lang)
+            except Exception as exc:  # noqa: BLE001
+                live_failed = f"{type(exc).__name__}: {exc}"
+                print(f"{GRAY}[voice] {t('no live voice', args.lang)} — "
+                      f"{live_failed}{RESET}", flush=True)
+        return live
 
     # Say it out loud, not only in the terminal.
     #
@@ -367,13 +397,13 @@ def main() -> None:
     # watching had begun still left the instruction to switch to the game visible
     # nowhere but the window you have to leave to obey it.
     def announce(phrase: str) -> None:
-        nonlocal live
         if args.no_audio:
             return
         try:
-            if live is None:
-                live = LiveVoice(lang=args.lang)
-            path = live.say(t(phrase, args.lang))
+            voice = live_voice()
+            if voice is None:
+                return
+            path = voice.say(t(phrase, args.lang))
             if path:
                 player.enqueue([f"_cue:{phrase}"], audio={f"_cue:{phrase}": path})
         except Exception:  # noqa: BLE001
@@ -407,17 +437,12 @@ def main() -> None:
     # to hear. The exposure is a native load being cut off at interpreter exit;
     # it is bounded, it happens once, and the alternative is a hang.
     if not args.no_audio:
-        # Building it used to happen inside `announce`, where an exception was
-        # already caught. Out here it would take the session down, and a voice
-        # is a courtesy: the narrator still recognises screens and still plays
-        # everything already rendered without one.
-        try:
-            live = LiveVoice(lang=args.lang)
-        except Exception as exc:  # noqa: BLE001
-            print(f"{GRAY}[voice] no live voice — {type(exc).__name__}: "
-                  f"{exc}{RESET}")
-        else:
-            def _warm(voice: LiveVoice = live) -> None:
+        # A voice is a courtesy: the narrator still recognises screens and still
+        # plays everything already rendered without one, so `live_voice` reports
+        # a failure and returns None rather than raising.
+        built = live_voice()
+        if built is not None:
+            def _warm(voice: LiveVoice = built) -> None:
                 reason = voice.warm()
                 if reason:
                     # Say it rather than swallow it. A voice that failed to load
@@ -696,11 +721,13 @@ def main() -> None:
                         continue
                     say_text = "\n\n".join(showing)
 
-                if live is None:
-                    live = LiveVoice(lang=args.lang)
+                voice = live_voice()
+                if voice is None:
+                    mute[key] = t("no live voice", args.lang)
+                    continue
                 say = glyphs.spell_out_numbers(
                     glyphs.substitute(say_text, glyph_map, args.lang), args.lang)
-                path = live.say(say)
+                path = voice.say(say)
                 if path:
                     live_audio[key] = path
                     fresh.add(key)
