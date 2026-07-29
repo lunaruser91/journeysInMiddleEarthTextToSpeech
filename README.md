@@ -230,7 +230,20 @@ python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
 ```
 
-**Windows**, in PowerShell:
+**Windows** — one command, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
+```
+
+That installs Python, Git, ffmpeg and the Visual C++ Redistributable if they are
+missing, clones the project, builds the environment and runs the self-test. It is
+safe to run again — a second run updates the project and leaves the rest alone.
+
+Piped through `iex` deliberately: a downloaded `.ps1` is blocked by the execution
+policy, which is the first thing that stops people.
+
+To do it by hand instead:
 
 ```powershell
 winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements

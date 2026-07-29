@@ -234,7 +234,20 @@ python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e '.[tts,ocr,capture]'
 ```
 
-**Windows**, no PowerShell:
+**Windows** — um comando, no PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
+```
+
+Isso instala Python, Git, ffmpeg e o Visual C++ Redistributable se estiverem
+faltando, clona o projeto, monta o ambiente e roda o autoteste. Pode rodar de
+novo sem medo — a segunda execução atualiza o projeto e não mexe no resto.
+
+O `iex` no fim é proposital: um `.ps1` baixado é bloqueado pela política de
+execução, que é a primeira coisa que trava as pessoas.
+
+Para fazer à mão:
 
 ```powershell
 winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
