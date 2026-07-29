@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -96,6 +97,14 @@ def _fetch(url: str) -> bytes:
     the failure surfacing three frames away as AttributeError. Bytes in, decode
     where the encoding is known, and no dependency on a command being installed.
     """
+    # Percent-encode the path. A voice name is not necessarily ASCII —
+    # `pt_PT-tugão-medium` is a real one — and an HTTP request line must be, so
+    # http.client raises UnicodeEncodeError on the ã three frames down, which
+    # surfaced as a voice that simply would not download. Only the path is
+    # touched; the scheme and host are already ASCII by construction.
+    parts = urllib.parse.urlsplit(url)
+    url = urllib.parse.urlunsplit(
+        parts._replace(path=urllib.parse.quote(parts.path, safe="/")))
     request = urllib.request.Request(url, headers={"User-Agent": "jime-narrador"})
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.read()
@@ -230,14 +239,17 @@ def missing_phonemes(name: str, lang: str) -> list[str]:
     return out
 
 
-def audition(name: str, lang: str, wait: bool = True) -> bool:
-    """Speak the sample sentence in this voice, now.
+def audition(name: str, lang: str, wait: bool = True) -> str | None:
+    """Speak the sample sentence in this voice, now. Returns why it could not.
 
     Reads it the way the renderer would — same pace, same prosody pass — because
     a sample that skips them is not the voice you are choosing.
 
-    Returns False when it could not be heard, rather than raising: failing to
-    audition a voice must not stop you from picking one.
+    Returning the reason rather than raising: a voice that will not audition must
+    not stop anyone picking one. But swallowing the reason was worse than either.
+    `pt_PT-tugão-medium` would not download — its name is not ASCII and the HTTP
+    request line must be — and all the menu could say was "could not play it
+    here", which is the shape of every wasted hour in this project.
     """
     import logging
     import subprocess
@@ -269,9 +281,11 @@ def audition(name: str, lang: str, wait: bool = True) -> bool:
         run = subprocess.run(_play_command(tmp),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         tmp.unlink(missing_ok=True)
-        return run.returncode == 0
-    except Exception:  # noqa: BLE001
-        return False
+        if run.returncode:
+            return f"the audio player exited {run.returncode}"
+        return None
+    except Exception as exc:  # noqa: BLE001
+        return f"{type(exc).__name__}: {str(exc).splitlines()[0][:110]}"
 
 
 CHOSEN = VOICE_DIR / "chosen.json"

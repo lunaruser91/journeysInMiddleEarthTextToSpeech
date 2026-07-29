@@ -390,8 +390,10 @@ def flow_voices(lang: str) -> list[str] | None:
                   f"{RESET}")
             print(f"{GRAY}  {t('It will read the words without them.', UI)}{RESET}")
         print(f"{GRAY}  {t('listen...', UI)}{RESET}", flush=True)
-        if not V.audition(pick, lang):
+        why = V.audition(pick, lang)
+        if why:
             print(f"{YELLOW}  {t('could not play it here', UI)}{RESET}")
+            print(f"{GRAY}  {why}{RESET}")
         answer = choose(t("What now?", UI), [
             (t("Use {name}", UI, name=pick), ""),
             (t("Hear it again", UI), ""),
