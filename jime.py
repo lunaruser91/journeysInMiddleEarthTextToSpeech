@@ -518,6 +518,10 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--manual"]
     if args.silent:
         argv += ["--no-audio"]
+    if args.profile:
+        argv += ["--profile"]
+    if args.no_guard:
+        argv += ["--no-guard"]
     if args.fps:
         argv += ["--fps", str(args.fps)]
     if args.wait is not None:
@@ -660,6 +664,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--manual", action="store_true",
                    help="hold each screen until a key is pressed")
     p.add_argument("--silent", action="store_true", help="recognise, do not speak")
+    p.add_argument("--profile", action="store_true",
+                   help="time each stage per screen. Use it when the narrator "
+                        "reacts slowly — the delay is made of the game's own "
+                        "animation, the OCR, the matcher and the synthesis, and "
+                        "they are not fixed the same way")
+    p.add_argument("--no-guard", action="store_true",
+                   help="with --display, read the monitor even while the game "
+                        "is not the window in front")
     p.add_argument("--fps", type=float)
     p.add_argument("--display", type=int, nargs="?", const=0, default=None,
                    metavar="N",

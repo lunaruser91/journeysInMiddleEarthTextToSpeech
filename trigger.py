@@ -136,6 +136,7 @@ class Trigger:
     # player changes it — which is precisely the screen they are still sitting
     # on, waiting to hear. The hash and TTL gates below stop it repeating.
     _dirty: bool = field(default=True, init=False)
+    _changed_at: float = field(default=0.0, init=False)
     _settled_hash: int | None = field(default=None, init=False)
     _recent: list[Seen] = field(default_factory=list, init=False)
     _last_norm: str = field(default="", init=False)
@@ -174,6 +175,12 @@ class Trigger:
         self._prev = box
 
         if delta > self.change_threshold:
+            if not self._dirty:
+                # When the screen started moving. The gap between this and the
+                # frame that settles is the part of the delay that belongs to
+                # the game's own animation rather than to anything downstream,
+                # and without it a slow reaction cannot be attributed.
+                self._changed_at = self.now()
             self._dirty = True
             self._quiet = 0
             return None
@@ -192,6 +199,18 @@ class Trigger:
             return None                      # same screen as before, visually
         self._settled_hash = h
         return gray
+
+    @property
+    def settling(self) -> float:
+        """Seconds the screen spent moving before it last settled.
+
+        This is the game's share of the delay between a line appearing and being
+        read. It is not tuning: `stable_frames` sets a floor of about a second,
+        but a dialogue box that animates in, or a torch flickering inside the
+        crop, keeps the screen dirty for as long as it moves. Reported so that a
+        slow reaction can be attributed instead of guessed at.
+        """
+        return max(0.0, self.now() - self._changed_at) if self._changed_at else 0.0
 
     # -------------------------------------------------------------- text --
 

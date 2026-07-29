@@ -297,6 +297,13 @@ def main() -> None:
                          "as the game is the window in front; with window "
                          "capture it ends when the window becomes capturable. "
                          "Either way it is how you start here and play there.")
+    ap.add_argument("--profile", action="store_true",
+                    help="time each stage and print it per screen. Use this "
+                         "when the narrator reacts slowly: the delay between a "
+                         "line appearing and being read is made of the game's "
+                         "own animation, the OCR, the matcher and the "
+                         "synthesis, and only one of those is worth tuning at "
+                         "a time.")
     ap.add_argument("--no-guard", action="store_true",
                     help="with --display, read the monitor even while the game "
                          "is not the window in front. The guard is what stops "
@@ -417,10 +424,13 @@ def main() -> None:
             if settled is None:
                 continue
             screens += 1
+            settling = trigger.settling
+            t0 = time.monotonic()
 
             box = crop(settled, (0.0, top, 1.0, bottom))
             paragraphs = group_paragraphs(engine.read(box))
             text = "\n\n".join(paragraphs)
+            t_ocr = time.monotonic()
             if not trigger.accept_text(text, normalize):
                 continue
 
@@ -486,6 +496,8 @@ def main() -> None:
                         print(f"           {GRAY}closest {r.key} "
                               f"({r.score:.0f}) — {r.reason}{RESET}")
                 continue
+
+            t_match = time.monotonic()
 
             # Speak what is on the screen, and only that.
             #
@@ -564,9 +576,17 @@ def main() -> None:
                 else:
                     mute[key] = t("live synthesis produced nothing", args.lang)
 
+            t_synth = time.monotonic()
             speak = [k for k in keys if k not in mute]
             played = ([] if args.no_audio
                       else player.enqueue(speak, audio=live_audio))
+            if args.profile:
+                print(f"{GRAY}  [profile] settling {settling:5.2f}s  "
+                      f"ocr {t_ocr - t0:5.2f}s  match {t_match - t_ocr:5.2f}s  "
+                      f"synth {t_synth - t_match:5.2f}s  "
+                      f"queued {player.pending}, "
+                      f"{'playing' if player.playing else 'idle'}{RESET}",
+                      flush=True)
             queued += len(played)
 
             # One line per block, and it says what happens to it. Printing
