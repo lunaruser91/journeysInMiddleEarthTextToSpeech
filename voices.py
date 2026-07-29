@@ -166,6 +166,42 @@ SAMPLE = {
 }
 
 
+def missing_phonemes(name: str, lang: str) -> list[str]:
+    """Sounds this language needs that the voice has no id for.
+
+    A Piper voice carries its own phoneme table, and a voice trained on a
+    narrower set than its language uses simply drops what it does not know. It
+    does not fail: it says the word without the sound.
+
+    `pt_BR-edresson-low` has no entry for the combining tilde, so it cannot
+    produce a single Portuguese nasal — não, então, montanha all come out
+    denasalised. All the library does is log "Missing phoneme from id map" once
+    per occurrence, which surfaced in the menu as noise rather than as the fact
+    that the voice cannot speak the language.
+
+    Cheap: the phoneme table is in the voice's JSON, so this reads a file rather
+    than loading a model. Returns [] for a voice that is not downloaded, since
+    there is nothing to read yet.
+    """
+    config = voice_path(name).with_suffix(".onnx.json")
+    if not config.exists():
+        return []
+    try:
+        from piper.voice import EspeakPhonemizer
+
+        meta = json.loads(config.read_text(encoding="utf-8"))
+        table = meta.get("phoneme_id_map") or {}
+        espeak = (meta.get("espeak") or {}).get("voice")
+        if not table or not espeak:
+            return []
+        text = SAMPLE.get(lang) or SAMPLE["en"]
+        need = {p for group in EspeakPhonemizer().phonemize(espeak, text)
+                for p in group}
+        return sorted(p for p in need if p not in table and p.strip())
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def audition(name: str, lang: str, wait: bool = True) -> bool:
     """Speak the sample sentence in this voice, now.
 
@@ -175,9 +211,9 @@ def audition(name: str, lang: str, wait: bool = True) -> bool:
     Returns False when it could not be heard, rather than raising: failing to
     audition a voice must not stop you from picking one.
     """
+    import logging
     import subprocess
     import tempfile
-    import wave
 
     try:
         import prosody
@@ -191,7 +227,17 @@ def audition(name: str, lang: str, wait: bool = True) -> bool:
         text = SAMPLE.get(lang) or SAMPLE["en"]
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as fh:
             tmp = Path(fh.name)
-        prosody.synthesize(voice, text, cfg.length_scale, tmp, cfg)
+        # The library logs one line per phoneme it cannot map, which for a voice
+        # that is missing a whole class of sound is a wall of them in the middle
+        # of a menu. `missing_phonemes` says the same thing once, before the
+        # voice is even offered.
+        quiet = logging.getLogger("piper")
+        was = quiet.level
+        quiet.setLevel(logging.ERROR)
+        try:
+            prosody.synthesize(voice, text, cfg.length_scale, tmp, cfg)
+        finally:
+            quiet.setLevel(was)
         run = subprocess.run(_play_command(tmp),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         tmp.unlink(missing_ok=True)

@@ -359,6 +359,11 @@ def flow_voices(lang: str) -> list[str] | None:
             marks.append(t("pace measured", UI))
         elif v["installed"]:
             marks.append(t("downloaded", UI))
+        # A voice whose table is missing sounds this language uses does not fail
+        # — it says the words without them. Worth knowing before choosing, not
+        # after: pt_BR-edresson-low cannot make a single Portuguese nasal.
+        if V.missing_phonemes(v["name"], lang):
+            marks.append(f"{YELLOW}{t('cannot say some sounds', UI)}{RESET}")
         names.append(v["name"])
         rows.append((v["name"], "  ".join(marks)))
 
@@ -378,6 +383,12 @@ def flow_voices(lang: str) -> list[str] | None:
                 print(f"\n{GRAY}"
                       f"  {t('fetching {name}, {mb} MB', UI, name=pick, mb=mb)}"
                       f"{RESET}", flush=True)
+        gaps = V.missing_phonemes(pick, lang)
+        if gaps:
+            print(f"\n{YELLOW}  "
+                  f"{t('{name} has no sound for {n} of this language.', UI, name=pick, n=len(gaps))}"
+                  f"{RESET}")
+            print(f"{GRAY}  {t('It will read the words without them.', UI)}{RESET}")
         print(f"{GRAY}  {t('listen...', UI)}{RESET}", flush=True)
         if not V.audition(pick, lang):
             print(f"{YELLOW}  {t('could not play it here', UI)}{RESET}")

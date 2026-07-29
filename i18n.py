@@ -64,6 +64,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "Use {name}": "Usar {name}",
         "Hear it again": "Ouvir de novo",
         "Try another voice": "Experimentar outra voz",
+        "cannot say some sounds": "não fala alguns sons",
+        "{name} has no sound for {n} of this language.":
+            "{name} não tem som para {n} fonema(s) deste idioma.",
+        "It will read the words without them.":
+            "Ela vai ler as palavras sem eles.",
         "Change language": "Trocar de idioma",
         "currently {name}": "atualmente {name}",
 
