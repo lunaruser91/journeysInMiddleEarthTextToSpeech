@@ -187,10 +187,13 @@ missing rather than failing obscurely.
 
 The three most common answers:
 
-- **It finds no game window.** On macOS use the fullscreen option: a fullscreen
-  game sits on its own Space, and macOS does not draw a Space that is not in
-  front, so it is invisible from the Terminal until you switch to it. On Windows
-  either works.
+- **It finds no game window, or only reads when you alt-tab.** Choose the
+  fullscreen option, which captures the display. Both platforms hide a fullscreen
+  game from window capture, for different reasons: macOS gives it a Space of its
+  own and does not draw an inactive Space; Windows lets exclusive fullscreen
+  bypass the compositor, and Windows.Graphics.Capture only sees what the
+  compositor draws. Setting the game to borderless windowed fixes it on Windows,
+  and is the better answer where the game offers it.
 - **It recognises screens but says nothing.** That campaign has no audio yet — go
   back and render it. The menu offers this when it notices.
 - **Windows: the speech engine will not load.** The Visual C++ Redistributable

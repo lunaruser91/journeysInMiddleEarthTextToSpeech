@@ -191,10 +191,13 @@ está faltando em vez de falhar de forma obscura.
 
 As três respostas mais comuns:
 
-- **Ele não encontra a janela do jogo.** No macOS use a opção de tela cheia: um
-  jogo em tela cheia fica num Space próprio, e o macOS não desenha um Space que
-  não está em primeiro plano, então ele é invisível a partir do Terminal até você
-  mudar para lá. No Windows as duas opções funcionam.
+- **Ele não encontra a janela do jogo, ou só lê quando você dá alt+tab.**
+  Escolha a opção de tela cheia, que captura o monitor. As duas plataformas
+  escondem um jogo em tela cheia da captura de janela, por motivos diferentes: o
+  macOS lhe dá um Space próprio e não desenha Space inativo; o Windows deixa a
+  tela cheia exclusiva contornar o compositor, e o Windows.Graphics.Capture só
+  enxerga o que o compositor desenha. Colocar o jogo em janela sem borda resolve
+  no Windows, e é a melhor saída quando o jogo oferece essa opção.
 - **Ele reconhece as telas mas não fala.** Aquela campanha ainda não tem áudio —
   volte e renderize. O menu oferece isso quando percebe.
 - **Windows: o motor de fala não carrega.** Falta o Visual C++ Redistributable:

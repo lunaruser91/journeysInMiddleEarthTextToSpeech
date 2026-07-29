@@ -290,18 +290,20 @@ def flow_play(lang: str) -> list[str]:
         elif pick == 2:
             raise Abort
 
-    # Which capture to use is a per-platform question, and the answer used to be
-    # macOS's everywhere. There, a fullscreen game gets a Space of its own and
-    # macOS does not draw an inactive Space, so its window is unreachable and the
-    # display is the only way in — hence the question. Windows has no such rule:
-    # window capture works fullscreen or not, and takes only the game rather than
-    # the whole screen. So there is nothing to ask.
-    import platform
-
+    # Both platforms need this question, for different reasons, and assuming
+    # otherwise cost a session.
+    #
+    # macOS: a fullscreen game gets a Space of its own and macOS does not draw an
+    # inactive Space, so its window is unreachable from the terminal — the
+    # display is the only way in.
+    #
+    # Windows: a game in *exclusive* fullscreen bypasses the compositor
+    # altogether, and Windows.Graphics.Capture only sees what the compositor
+    # draws. Reported from play: frames arrived only on alt-tab, which is the
+    # moment the game drops back into composition. Capturing the display gets
+    # around it; so does setting the game to borderless windowed, which is the
+    # better fix when the game offers it.
     argv = ["play", "--lang", lang, "--campaign", campaign]
-    if platform.system() == "Windows":
-        return argv + ["--wait", "60"]
-
     src = choose(t("How is the game running?", UI), [
         (t("fullscreen", UI), t("capture the display — the usual case", UI)),
         (t("in a window", UI), t("find it by window title", UI)),

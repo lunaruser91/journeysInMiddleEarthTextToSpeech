@@ -15,6 +15,16 @@ border around a captured window; that is cosmetic and cannot be turned off.
 
     pip install -e '.[capture]'
 
+## Exclusive fullscreen is invisible
+
+Windows.Graphics.Capture sees what the compositor composes. A game in *exclusive*
+fullscreen bypasses the compositor, so no frames arrive — reported from play as
+"it only reads when I alt-tab", alt-tab being the moment the game drops back into
+composition.
+
+Two ways around it: set the game to borderless windowed, which is the better fix
+where the game offers it, or capture the display rather than the window.
+
 ## Enumeration is ours, not the library's
 
 The first version of this file called `windows_capture.Window.enumerate()`. That
@@ -210,8 +220,12 @@ def open_window(title_hint: str = "", app_hint: str = "Journeys",
 
     seen = list_windows("")
     raise CaptureError(
-        f"no window matching app={app_hint!r} title={title_hint!r}.\n"
-        f"Is the game running and not minimised? Visible windows:\n  "
+        f"no window matching app={app_hint!r} title={title_hint!r}.\n\n"
+        f"If the game IS running, it may be in exclusive fullscreen, which\n"
+        f"bypasses the compositor — and Windows.Graphics.Capture only sees what\n"
+        f"the compositor draws. Set the game to borderless windowed, or capture\n"
+        f"the display instead with --display.\n\n"
+        f"Visible windows:\n  "
         + "\n  ".join(str(w) for w in seen[:12]))
 
 
