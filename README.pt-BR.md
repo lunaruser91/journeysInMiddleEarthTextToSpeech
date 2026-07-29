@@ -213,6 +213,19 @@ As quatro respostas mais comuns:
   sozinho pode tomar o processador inteiro e não sobrar nada para o narrador.
 - **Windows: o motor de fala não carrega.** Falta o Visual C++ Redistributable:
   `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+- **Windows: ele lê, mas come os acentos.** A tela está sendo reconhecida no
+  idioma errado — o caso mais comum é um Windows em inglês jogando em outro
+  idioma. O `selftest.py` reprova a verificação `reads the game's own language` e
+  diz qual reconhecedor ele conseguiu. Num PowerShell **como administrador**, com
+  o idioma do seu jogo no lugar de `pt-BR`:
+
+  ```powershell
+  Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
+  ```
+
+  O `Get-WindowsCapability -Online -Name "Language.OCR*"` lista todos os 35. O
+  ucraniano não está entre eles de jeito nenhum — nesse caso o `--ocr rapid` é a
+  única opção que lê os acentos.
 - **Windows: os acentos saem como `v├í` ou `ÔÇö`.** Só quando você manda a saída
   para algum lugar — para o `Tee-Object`, para guardar um log. O PowerShell
   decodifica o cano com a code page dele, e nenhum programa do outro lado

@@ -209,6 +209,19 @@ The four most common answers:
   game itself can take the whole processor and leave nothing for the narrator.
 - **Windows: the speech engine will not load.** The Visual C++ Redistributable
   is missing: `winget install --id Microsoft.VCRedist.2015+.x64 -e`
+- **Windows: it reads, but eats the accents.** The screen is being recognised in
+  the wrong language — most often on an English Windows playing in another
+  language. `selftest.py` fails the check `reads the game's own language` and says
+  which one it got. In an elevated PowerShell, with your game's language in place
+  of `pt-BR`:
+
+  ```powershell
+  Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
+  ```
+
+  `Get-WindowsCapability -Online -Name "Language.OCR*"` lists all 35. Ukrainian
+  is not among them at all — there, `--ocr rapid` is the only option that reads
+  the accents.
 - **Windows: accented letters come out as `v├í` or `ÔÇö`.** Only when you pipe
   the output somewhere — into `Tee-Object` to keep a log, say. PowerShell decodes
   the pipe with its own code page and no program on the far end can change that,

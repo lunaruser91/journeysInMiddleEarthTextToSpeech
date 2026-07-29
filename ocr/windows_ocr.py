@@ -36,11 +36,29 @@ Windows, and there is nothing to keep in step with a pip upgrade.
 
 ## The recogniser is a Windows feature, not a package
 
-`OcrEngine` can only read languages Windows has a recogniser installed for.
+`OcrEngine` can only read languages Windows has a recogniser installed for, and
+without one `try_create_from_language` returns None rather than raising — which
+is why the error below has to be written by hand.
+
+The capability has its own name, and it is worth using rather than the graphical
+path. Read off a Windows 11 machine:
+
+    Get-WindowsCapability -Online -Name "Language*pt*"
+
+    Language.Handwriting~~~pt-PT~0.0.1.0   NotPresent
+    Language.OCR~~~pt-BR~0.0.1.0           NotPresent      <- the only one wanted
+    Language.OCR~~~pt-PT~0.0.1.0           NotPresent
+    Language.Speech~~~pt-BR~0.0.1.0        NotPresent
+    Language.TextToSpeech~~~pt-BR~0.0.1.0  NotPresent
+
+So `Language.OCR~~~<tag>~0.0.1.0`, in an elevated PowerShell, and none of the
+other five do anything for this project:
+
+    Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
+
 `Settings -> Time & language -> Language & region -> (a language) -> Language
-options -> Optional features -> Basic typing` is what installs one; without it
-`try_create_from_language` returns None rather than raising, which is why the
-error below has to be written by hand.
+options -> Optional features -> Basic typing` is the same thing through the
+interface, and it is what to say to somebody who is not at a prompt.
 
 ## Importing this before onnxruntime breaks onnxruntime
 
@@ -141,7 +159,11 @@ class WindowsOcr(Ocr):
                 f"Windows has no OCR recogniser installed"
                 + (f" for {', '.join(self.languages)}" if self.languages else "")
                 + f". It has: {', '.join(installed) or 'none at all'}.\n"
-                f"    Settings -> Time & language -> Language & region\n"
+                + (f"    In an elevated PowerShell:\n"
+                   f"    Add-WindowsCapability -Online -Name "
+                   f"\"Language.OCR~~~{self.languages[0]}~0.0.1.0\"\n"
+                   if self.languages else "")
+                + f"    Or: Settings -> Time & language -> Language & region\n"
                 f"    -> the language -> Language options -> Optional features\n"
                 f"    -> add 'Basic typing'\n"
                 f"Or run the narrator with --ocr rapid to use the portable "
