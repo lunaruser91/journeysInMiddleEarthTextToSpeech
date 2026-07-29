@@ -623,10 +623,11 @@ Do not rediscover them.
    the voice's own, which is faster than a narrator should read.
    `jime voices --calibrate` fixes one in a few minutes.
 5. **Windows passes its self-test but has never narrated a game.** A Windows 11
-   VM with the game installed runs `selftest.py` at 40/40 — extraction from the
-   native build, synthesis, RapidOCR, matching, and the capture backend. What is
-   untried there is a session: capturing the game while it runs, and hearing it
-   read a screen aloud.
+   VM with the game installed runs `selftest.py` at 41/41, installed by
+   `install.ps1` in one command — extraction from the native build, synthesis,
+   RapidOCR, matching, and the capture backend. What is untried there is a
+   session: capturing the game while it runs, and hearing it read a screen
+   aloud.
 6. **The hero name behind a numeric `Id` is unresolved.** Log parameter type 3
    carries a number this project cannot yet map to a hero, which matters only for
    fixture generation.

@@ -635,10 +635,10 @@ Não redescubra estas.
    voz, mais rápido do que um narrador deveria ler. O
    `jime voices --calibrate` resolve um em poucos minutos.
 5. **O Windows passa no autoteste mas nunca narrou uma partida.** Uma VM com
-   Windows 11 e o jogo instalado roda o `selftest.py` em 40/40 — extração da
-   build nativa, síntese, RapidOCR, correspondência e o backend de captura. O que
-   não foi tentado lá é uma sessão: capturar o jogo enquanto ele roda, e ouvi-lo
-   ler uma tela em voz alta.
+   Windows 11 e o jogo instalado roda o `selftest.py` em 41/41, instalado pelo
+   `install.ps1` num comando só — extração da build nativa, síntese, RapidOCR,
+   correspondência e o backend de captura. O que não foi tentado lá é uma sessão:
+   capturar o jogo enquanto ele roda, e ouvi-lo ler uma tela em voz alta.
 6. **O nome do herói por trás de um `Id` numérico está sem resolver.** O
    parâmetro de log tipo 3 carrega um número que este projeto ainda não sabe
    mapear para um herói, o que importa apenas para gerar fixtures.
