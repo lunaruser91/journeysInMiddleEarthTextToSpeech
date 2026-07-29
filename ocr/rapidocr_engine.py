@@ -24,6 +24,59 @@ import numpy as np
 from .base import Line, Ocr, OcrError
 
 
+def _tuned_config():
+    """RapidOCR's own config, with the two settings this workload cannot afford.
+
+    Reported from a Windows laptop, and it is the whole delay: `ocr 13.48s`,
+    `19.41s`, `16.20s`, `18.49s` per screen, against 0.35 s for Apple Vision on a
+    Mac. Two of RapidOCR's defaults are wrong for a wide, short crop.
+
+    **`limit_type: min`, side 736.** It scales so the *shortest* side reaches
+    736. The dialogue-box crop is about 1920x389, so the short side is 389 and
+    the image is **enlarged** by 1.9 to roughly 3629x736 — 2.7 megapixels of
+    detection where 0.75 were handed in. Asking for the *longest* side instead
+    scales down rather than up.
+
+    **`use_angle_cls: true`.** A whole extra model pass per text box, deciding
+    whether the line is upside down. A game's dialogue box is never upside down.
+
+    Both were measured on a Mac when this was first suspected and dismissed —
+    315ms to 287ms, fidelity 99.7 either way — because a fast machine has the
+    headroom to hide them. The laptop does not, and the fidelity result is the
+    part that carries over: nothing is being traded away here.
+
+    Written next to the models rather than into the installed package, so a
+    `pip install --upgrade` cannot silently take it away or keep it.
+    """
+    import json
+    from pathlib import Path
+
+    # Returns None if anything about this is not as expected — a config layout
+    # that moved, a missing yaml, a read-only install. A slow OCR is a complaint;
+    # an OCR that will not start is a dead narrator.
+    try:
+        import yaml
+
+        import rapidocr_onnxruntime as R
+
+        here = Path(__file__).resolve().parent / ".rapidocr.yaml"
+        stock = Path(R.__file__).resolve().parent / "config.yaml"
+        stamp = json.dumps({"src": stock.stat().st_mtime_ns, "v": 2})
+        if here.exists() and here.read_text(
+                encoding="utf-8").startswith(f"# {stamp}"):
+            return here
+
+        cfg = yaml.safe_load(stock.read_text(encoding="utf-8"))
+        cfg["Global"]["use_angle_cls"] = False
+        cfg["Det"]["limit_type"] = "max"
+        cfg["Det"]["limit_side_len"] = 1280
+        here.write_text(f"# {stamp}\n" + yaml.safe_dump(cfg, allow_unicode=True),
+                        encoding="utf-8")
+        return here
+    except Exception:  # noqa: BLE001
+        return None
+
+
 @dataclass
 class RapidOcr(Ocr):
     _engine: object | None = field(default=None, init=False)
@@ -36,7 +89,9 @@ class RapidOcr(Ocr):
                 "rapidocr-onnxruntime is not installed. It is the portable OCR "
                 "fallback for platforms without Apple Vision.\n"
                 "    pip install rapidocr-onnxruntime") from exc
-        self._engine = RapidOCR()
+        tuned = _tuned_config()
+        self._engine = (RapidOCR(config_path=str(tuned)) if tuned
+                        else RapidOCR())
 
     def read(self, image: np.ndarray) -> list[Line]:
         result, _elapsed = self._engine(image)
