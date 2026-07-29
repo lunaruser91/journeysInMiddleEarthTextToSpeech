@@ -22,8 +22,13 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 import console  # noqa: E402
+from i18n import NATIVE_NAME, system_language, t  # noqa: E402
 
 console.setup()
+
+# The language chosen at startup, so every helper can translate without it
+# being threaded through every call. Set once by main().
+UI = "en"
 
 BOLD, GREEN, YELLOW, RED, GRAY, RESET = (
     "\033[1m", "\033[92m", "\033[93m", "\033[91m", "\033[90m", "\033[0m")
@@ -35,6 +40,19 @@ class Abort(Exception):
 
 # --------------------------------------------------------------- questions --
 
+def _width(text: str) -> int:
+    """How many terminal columns this takes, not how many characters it has.
+
+    한국어 and 中文 occupy two columns each, so padding by len() leaves those rows
+    short and the detail column ragged. Only noticeable once the language list
+    started showing endonyms, which is when it started mattering.
+    """
+    import unicodedata
+
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+               for c in text)
+
+
 def choose(title: str, rows: list[tuple[str, str]], default: int | None = None,
            allow_back: bool = True) -> int:
     """Numbered pick. Returns the index; raises Abort for back/quit.
@@ -44,19 +62,22 @@ def choose(title: str, rows: list[tuple[str, str]], default: int | None = None,
     the label.
     """
     print(f"\n{BOLD}{title}{RESET}")
-    width = max((len(label) for label, _ in rows), default=0)
+    width = max((_width(label) for label, _ in rows), default=0)
     for i, (label, detail) in enumerate(rows, 1):
         mark = f"{GREEN}›{RESET}" if default == i - 1 else " "
         # Only dim a detail that has no colour of its own; wrapping one that
         # does nests the escapes and the reset in the middle ends the dimming
         # early, which looked like a rendering bug.
         shown = detail if "\033[" in detail else f"{GRAY}{detail}{RESET}"
-        print(f"  {mark} {i:>2}. {label:<{width}}  {shown}")
-    hint = "enter = " + rows[default][0] if default is not None else "1-%d" % len(rows)
-    tail = ", b = back" if allow_back else ""
+        pad = " " * (width - _width(label))
+        print(f"  {mark} {i:>2}. {label}{pad}  {shown}")
+    hint = (f"{t('enter', UI)} = " + rows[default][0] if default is not None
+            else "1-%d" % len(rows))
+    tail = f", b = {t('back', UI)}" if allow_back else ""
     while True:
         try:
-            raw = input(f"{GRAY}  [{hint}{tail}, q = quit] {RESET}").strip().lower()
+            raw = input(f"{GRAY}  [{hint}{tail}, q = {t('quit', UI)}] "
+                        f"{RESET}").strip().lower()
         except (EOFError, KeyboardInterrupt):
             raise Abort from None
         if raw in ("q", "quit"):
@@ -67,7 +88,8 @@ def choose(title: str, rows: list[tuple[str, str]], default: int | None = None,
             return default
         if raw.isdigit() and 1 <= int(raw) <= len(rows):
             return int(raw) - 1
-        print(f"{YELLOW}  pick a number between 1 and {len(rows)}{RESET}")
+        print(f"{YELLOW}  "
+              f"{t('pick a number between 1 and {n}', UI, n=len(rows))}{RESET}")
 
 
 def confirm(question: str, default: bool = True) -> bool:
@@ -107,11 +129,12 @@ def language_rows() -> list[tuple[str, str, str]]:
         name = jime.LANGUAGE_NAMES.get(code, code)
         corpus = jime.corpus_path(code)
         if not corpus.exists():
-            detail = "no corpus yet — extract first"
+            detail = t("no corpus yet — extract first", UI)
         else:
             done = sum(rendered_by_campaign(code).values())
-            detail = f"corpus ready, {done:,} blocks rendered" if done else "corpus ready"
-        rows.append((code, f"{code}  {name}", detail))
+            detail = (t("corpus ready, {n} blocks rendered", UI, n=f"{done:,}")
+                      if done else t("corpus ready", UI))
+        rows.append((code, f"{code}  {NATIVE_NAME.get(code, name)}", detail))
     return rows
 
 
@@ -128,12 +151,16 @@ def campaign_rows(lang: str) -> list[tuple[str, str, str]]:
         have = done.get(camp, 0)
         pct = have / total * 100
         if have >= total:
-            detail = f"{GREEN}complete{RESET}{GRAY} — {total:,} blocks{RESET}"
+            detail = (f"{GREEN}{t('complete', UI)}{RESET}{GRAY} — "
+                      f"{t('{n} blocks', UI, n=f'{total:,}')}{RESET}")
         elif have:
-            detail = f"{YELLOW}{pct:.0f}%{RESET}{GRAY} — {have:,} of {total:,}{RESET}"
+            detail = (f"{YELLOW}{pct:.0f}%{RESET}{GRAY} — "
+                      f"{t('{done} of {total}', UI, done=f'{have:,}', total=f'{total:,}')}{RESET}")
         else:
-            detail = f"{GRAY}not started — {total:,} blocks{RESET}"
-        label = camp + ("   (shared by every campaign)" if camp == "main" else "")
+            detail = (f"{GRAY}{t('not started', UI)} — "
+                      f"{t('{n} blocks', UI, n=f'{total:,}')}{RESET}")
+        label = camp + (f"   {t('(shared by every campaign)', UI)}"
+                        if camp == "main" else "")
         rows.append((camp, label, detail))
     return rows
 
@@ -153,17 +180,18 @@ def pick_language(action: str = "use", current: str | None = None) -> str:
     rows = language_rows()
     default = next((i for i, r in enumerate(rows) if r[0] == (current or "pt")), 0)
     while True:
-        i = choose(f"Which language to {action}?",
+        i = choose(t("Which language to work in?", UI),
                    [(r[1], r[2]) for r in rows], default)
         lang = rows[i][0]
         if jime.corpus_path(lang).exists():
             return lang
 
         name = jime.LANGUAGE_NAMES.get(lang, lang)
-        print(f"\n{YELLOW}  {name} has not been extracted yet.{RESET} "
-              f"{GRAY}It has to come out of your own\n  copy of the game before "
-              f"anything can be said in it.{RESET}")
-        if not confirm(f"Extract {name} now?", True):
+        print(f"\n{YELLOW}  "
+              f"{t('{name} has not been extracted yet. It has to come out of your own', UI, name=name)}"
+              f"{RESET}\n{GRAY}  "
+              f"{t('copy of the game before anything can be said in it.', UI)}{RESET}")
+        if not confirm(t("Extract {name} now?", UI, name=name), True):
             continue
         if _run(["extract", "--lang", lang]) != 0:
             continue
@@ -174,16 +202,18 @@ def pick_language(action: str = "use", current: str | None = None) -> str:
 def flow_render(lang: str) -> list[str] | None:
     rows = campaign_rows(lang)
     if not rows:
-        print(f"\n{RED}That corpus has no campaigns with narration.{RESET}")
+        print(f"\n{RED}{t('That corpus has no campaigns with narration.', UI)}{RESET}")
         raise Abort
 
-    extra = [("everything not yet rendered", "every campaign above, in order")]
-    i = choose("Which campaign?", [(r[1], r[2]) for r in rows] + extra, None)
+    extra = [(t("everything not yet rendered", UI),
+              t("every campaign above, in order", UI))]
+    i = choose(t("Which campaign?", UI), [(r[1], r[2]) for r in rows] + extra, None)
 
     if i == len(rows):
         pending = [r[0] for r in rows if "complete" not in r[2]]
         if not pending:
-            print(f"\n{GREEN}Everything is already rendered for {lang}.{RESET}")
+            print(f"\n{GREEN}"
+                  f"{t('Everything is already rendered for {lang}.', UI, lang=lang)}{RESET}")
             return None
         campaigns = pending
     else:
@@ -192,10 +222,11 @@ def flow_render(lang: str) -> list[str] | None:
     if "main" not in campaigns and any(c != "main" for c in campaigns):
         main_row = next((r for r in rows if r[0] == "main"), None)
         if main_row and "complete" not in main_row[2]:
-            print(f"\n{YELLOW}  `main` is not fully rendered.{RESET} {GRAY}It holds the "
-                  f"text every campaign shares — interface, tiles,\n  enemies, treasure "
-                  f"— and 48.8% of what gets spoken comes from it.{RESET}")
-            if confirm("Add it to this render?", True):
+            print(f"\n{YELLOW}  {t('`main` is not fully rendered.', UI)}{RESET} "
+                  f"{GRAY}{t('It holds the text every campaign shares — interface, tiles,', UI)}"
+                  f"\n  {t('enemies, treasure — and 48.8% of what gets spoken comes from it.', UI)}"
+                  f"{RESET}")
+            if confirm(t("Add it to this render?", UI), True):
                 campaigns.append("main")
 
     print()
@@ -203,7 +234,7 @@ def flow_render(lang: str) -> list[str] | None:
         _run(["render", "--lang", lang, "--campaign", camp, "--dry-run"])
 
     print()
-    if not confirm("Start rendering?", True):
+    if not confirm(t("Start rendering?", UI), True):
         raise Abort
     return ["render", "--lang", lang, "--campaign", campaigns[0]] if len(campaigns) == 1 \
         else ["__render_many__", lang, *campaigns]
@@ -223,9 +254,9 @@ def flow_play(lang: str) -> list[str]:
     default = next((i for i, r in enumerate(rows) if r[0] == saved), None)
     if default is not None:
         rows[default] = (rows[default][0],
-                         rows[default][1] + "   (your most recent save)",
+                         rows[default][1] + f"   {t('(your most recent save)', UI)}",
                          rows[default][2])
-    i = choose("Which campaign are you playing?",
+    i = choose(t("Which campaign are you playing?", UI),
                [(r[1], r[2]) for r in rows], default)
     campaign = rows[i][0]
 
@@ -233,20 +264,23 @@ def flow_play(lang: str) -> list[str]:
     # the answer you want is almost always to render it, and being told to quit
     # and come back is the thing this menu exists to avoid.
     if "complete" not in rows[i][2]:
-        have = "partly rendered" if "not started" not in rows[i][2] else "no audio"
-        print(f"\n{YELLOW}  {campaign} has {have}.{RESET} {GRAY}Screens will be "
-              f"recognised and stay\n  silent, except the blocks synthesised "
-              f"during play.{RESET}")
+        partial = t("not started", UI) not in rows[i][2]
+        head = (t("{campaign} has partly rendered.", UI, campaign=campaign) if partial
+                else t("{campaign} has no audio.", UI, campaign=campaign))
+        print(f"\n{YELLOW}  {head}{RESET} "
+              f"{GRAY}{t('Screens will be recognised and stay', UI)}\n  "
+              f"{t('silent, except the blocks synthesised during play.', UI)}{RESET}")
         missing = [campaign]
         main_row = next((r for r in campaign_rows(lang) if r[0] == "main"), None)
         if main_row and "complete" not in main_row[2]:
             missing.append("main")
         what = " and ".join(missing)
-        pick = choose("What now?", [
-            (f"Render {what} first",
-             "about half an hour per campaign, then it plays"),
-            ("Play anyway", "recognises the screens, speaks what it can"),
-            ("Pick another campaign", ""),
+        pick = choose(t("What now?", UI), [
+            (t("Render {what} first", UI, what=what),
+             t("about half an hour per campaign, then it plays", UI)),
+            (t("Play anyway", UI),
+             t("recognises the screens, speaks what it can", UI)),
+            (t("Pick another campaign", UI), ""),
         ], 0, allow_back=False)
         if pick == 0:
             for camp in missing:
@@ -256,9 +290,9 @@ def flow_play(lang: str) -> list[str]:
         elif pick == 2:
             raise Abort
 
-    src = choose("How is the game running?", [
-        ("fullscreen", "capture the display — the usual case"),
-        ("in a window", "find it by window title"),
+    src = choose(t("How is the game running?", UI), [
+        (t("fullscreen", UI), t("capture the display — the usual case", UI)),
+        (t("in a window", UI), t("find it by window title", UI)),
     ], 0)
     argv = ["play", "--lang", lang, "--campaign", campaign]
     if src == 0:
@@ -271,7 +305,8 @@ def flow_extract(lang: str) -> list[str] | None:
 
     if jime.corpus_path(lang).exists():
         name = jime.LANGUAGE_NAMES.get(lang, lang)
-        if not confirm(f"A corpus for {name} already exists. Extract again?", False):
+        if not confirm(t("A corpus for {name} already exists. Extract again?",
+                          UI, name=name), False):
             raise Abort
     return ["extract", "--lang", lang]
 
@@ -292,13 +327,14 @@ def banner() -> None:
     langs = [r for r in language_rows() if "no corpus" not in r[2]]
     print(f"\n{BOLD}Journeys in Middle-earth — narrator{RESET}")
     if not langs:
-        print(f"{GRAY}nothing extracted yet{RESET}")
+        print(f"{GRAY}{t('nothing extracted yet', UI)}{RESET}")
         return
     parts = []
     for code, label, _ in langs:
         done = sum(rendered_by_campaign(code).values())
-        parts.append(f"{code} ({done:,} blocks)" if done else f"{code} (no audio)")
-    print(f"{GRAY}ready: {', '.join(parts)}{RESET}")
+        parts.append(f"{code} ({t('{n} blocks', UI, n=f'{done:,}')})" if done
+                     else f"{code} ({t('no audio', UI)})")
+    print(f"{GRAY}{t('ready: {what}', UI, what=', '.join(parts))}{RESET}")
 
 
 # (subcommand, label, detail, flow, takes_lang). `status` and `doctor` describe
@@ -314,27 +350,44 @@ ACTIONS = [
 
 
 def main() -> int:
+    # The interface follows the same choice. Someone who picks Portuguese and
+    # then reads an English menu has a fair complaint, even though the question
+    # is about the game's text rather than the interface — in practice they are
+    # the same person's language.
+    global UI
+
     import jime
 
     if not sys.stdin.isatty():
-        print("jime: run `jime --help` for the flags; the menu needs a terminal.")
+        print(t("jime: run `jime --help` for the flags; the menu needs a terminal.",
+                UI))
         return 1
+
+    # The first screen has to be drawn before anyone has chosen, so it guesses
+    # from the operating system. Wrong is harmless — it is a list of languages,
+    # and picking one sets everything after it.
+    UI = system_language(set(jime.GAME_LANGUAGES)) or "en"
 
     banner()
     # Language is asked once, first, and then carried. Asking it inside every
     # action meant answering the same question before each one, and it is the
     # rarest thing to change: most people extract one language and stay there.
     lang = pick_language("work in")
+    UI = lang
 
     while True:
-        name = jime.LANGUAGE_NAMES.get(lang, lang)
-        options = [(label, detail) for _, label, detail, _, _ in ACTIONS]
-        options.append((f"Change language", f"currently {name}"))
+        name = NATIVE_NAME.get(lang, jime.LANGUAGE_NAMES.get(lang, lang))
+        options = [(t(label, UI), t(detail, UI))
+                   for _, label, detail, _, _ in ACTIONS]
+        options.append((t("Change language", UI),
+                        t("currently {name}", UI, name=name)))
         try:
-            i = choose(f"What would you like to do?  {GRAY}[{name}]{RESET}",
+            i = choose(f"{t('What would you like to do?', UI)}  "
+                       f"{GRAY}[{name}]{RESET}",
                        options, 0, allow_back=False)
             if i == len(ACTIONS):
                 lang = pick_language("work in", lang)
+                UI = lang
                 continue
 
             key, _, _, flow, takes_lang = ACTIONS[i]
