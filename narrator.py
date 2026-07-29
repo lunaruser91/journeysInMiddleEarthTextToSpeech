@@ -23,11 +23,16 @@ from a live game.
 
 ## Fullscreen games, and why it waits
 
-macOS does not render an inactive Space. A game running fullscreen sits on its
-own Space, so while you are looking at the terminal there are no pixels of it to
-capture — the window does not even report itself as on screen. So this starts by
-waiting: run it, switch to the game, and it attaches as soon as that Space comes
-forward. `--wait 0` restores the old fail-immediately behaviour.
+A fullscreen game is unreachable by window capture on both platforms, for
+different reasons: macOS gives it a Space of its own and does not draw an
+inactive Space, and Windows lets exclusive fullscreen bypass the compositor that
+Windows.Graphics.Capture reads from. `--display` gets around both.
+
+What a display gives back is the whole monitor, and the game is only part of
+what is on it. So the run waits until the game is the window in front — and once
+watching, reads nothing while it is not. Without that guard a Windows session
+OCR-ed its own console and reported "no match" against the menu it had just
+printed. `--wait 0` starts immediately.
 
 ## First run on macOS
 
@@ -39,9 +44,16 @@ terminal** — the grant is read at launch.
 ## What gets spoken, and what does not
 
 Blocks whose key contains `CUTSCENE` stay silent: the game narrates those itself,
-with recorded voice, in all six campaigns. Blocks carrying a `{0}` placeholder
-cannot be pre-rendered because the value only exists during play; they are
-reported and skipped until live synthesis exists.
+with recorded voice, in all six campaigns.
+
+Blocks carrying a `{0}` placeholder cannot be pre-rendered, because the value
+only exists at the table — so they are synthesised during play, from the corpus
+template with the screen's own value in the gap (see live.py).
+
+A block is also cut down to what the screen is actually showing. The game
+composes a box from pieces of several blocks, so playing a whole recording
+narrates paragraphs that are not there. And when two blocks tie, only the
+paragraph they share is spoken: that is the part the tie agrees on.
 """
 from __future__ import annotations
 

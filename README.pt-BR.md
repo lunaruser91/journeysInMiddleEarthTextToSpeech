@@ -285,12 +285,21 @@ jime narrator.py --list-windows      # o que o backend de captura enxerga
 jime narrator.py --from-video FILE   # reproduz uma gravação, sem precisar de permissão
 ```
 
-**Se o jogo roda em tela cheia, use `--display`.** Uma aplicação em tela cheia no
-macOS ganha um Space próprio, e o macOS não desenha um Space que não está em
-primeiro plano: enquanto você olha o terminal, a janela do jogo não está apenas
-escondida, ela não está sendo desenhada, e nenhuma API de captura a alcança.
-Capturar o *display* contorna isso, porque um display sempre mostra o Space ativo
-— que, enquanto você joga, é o do jogo.
+**Se o jogo roda em tela cheia, use `--display`.** A captura de janela não
+alcança um jogo em tela cheia em nenhum dos dois sistemas, por motivos
+diferentes. No macOS ele ganha um Space próprio, e o macOS não desenha um Space
+que não está em primeiro plano: enquanto você olha o terminal, a janela não está
+apenas escondida, ela não está sendo desenhada. No Windows, a tela cheia
+*exclusiva* passa por cima do compositor de onde o Windows.Graphics.Capture lê —
+relatado em partida como "só lê se eu dou alt+tab", que é justamente o momento em
+que o jogo volta a ser composto. Configurar o jogo como borderless windowed
+resolve, onde essa opção existe.
+
+O que um display devolve é o monitor inteiro, e o jogo é só uma parte do que está
+nele. Por isso o narrador espera até o jogo ser a janela da frente, e enquanto
+observa não lê nada enquanto ele não estiver — senão lê a área de trabalho, e em
+uma sessão chegou a ler o próprio console, reportando "no match" contra o menu
+que ele mesmo tinha acabado de imprimir.
 
 A captura de janela continua existindo para jogo em janela, e espera (90 s por
 padrão, `--wait`) a janela aparecer, para você iniciar no terminal e depois mudar

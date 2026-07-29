@@ -280,12 +280,20 @@ jime narrator.py --list-windows      # what the capture backend can see
 jime narrator.py --from-video FILE   # replay a recording, no permission needed
 ```
 
-**If the game runs fullscreen, use `--display`.** A fullscreen application on
-macOS gets a Space of its own, and macOS does not draw a Space that is not in
-front: while you are looking at the terminal the game's window is not merely
-hidden, it is not being rendered, and no capture API can reach it. Capturing the
-*display* sidesteps this, because a display always shows whichever Space is
-active — which, while you are playing, is the game's.
+**If the game runs fullscreen, use `--display`.** Window capture cannot reach a
+fullscreen game on either platform, for different reasons. On macOS it gets a
+Space of its own, and macOS does not draw a Space that is not in front: while
+you are looking at the terminal the window is not merely hidden, it is not being
+rendered. On Windows, *exclusive* fullscreen bypasses the compositor that
+Windows.Graphics.Capture reads from — reported from play as "it only reads when
+I alt-tab", alt-tab being the moment the game drops back into composition.
+Setting the game to borderless windowed avoids this where it is offered.
+
+What a display gives you back is the whole monitor, and the game is only part of
+what is on it. So the narrator waits until the game is the window in front, and
+once watching, reads nothing while it is not — otherwise it reads the desktop,
+and in one session it read its own console back, reporting "no match" against
+the menu it had just printed.
 
 Window capture is still there for a windowed game, and waits (90 s by default,
 `--wait`) for the window to appear, so you can start in the terminal and switch

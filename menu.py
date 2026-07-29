@@ -324,7 +324,11 @@ def flow_play(lang: str) -> list[str]:
         (t("fullscreen", UI), t("capture the display — the usual case", UI)),
         (t("in a window", UI), t("find it by window title", UI)),
     ], 0)
-    return argv + (["--display", "--wait", "15"] if src == 0 else ["--wait", "60"])
+    # 15 seconds used to be a countdown, and a guess about how fast someone can
+    # alt-tab: when it guessed short, watching began on the desktop. The wait now
+    # ends the moment the game is the window in front, so this is only the
+    # timeout, and a generous one costs nothing.
+    return argv + (["--display", "--wait", "60"] if src == 0 else ["--wait", "60"])
 
 
 def flow_extract(lang: str) -> list[str] | None:
