@@ -297,6 +297,12 @@ def main() -> None:
                          "as the game is the window in front; with window "
                          "capture it ends when the window becomes capturable. "
                          "Either way it is how you start here and play there.")
+    ap.add_argument("--no-guard", action="store_true",
+                    help="with --display, read the monitor even while the game "
+                         "is not the window in front. The guard is what stops "
+                         "the narrator reading the desktop, so this is for when "
+                         "the guard itself is wrong about which window is the "
+                         "game.")
     ap.add_argument("--no-audio", action="store_true",
                     help="recognise and report, but stay silent")
     ap.add_argument("--manual", action="store_true",
@@ -360,9 +366,23 @@ def main() -> None:
     # no guard: it can only ever see the game.
     from capture.base import is_foreground
 
+    # It has to tolerate a gap. Reported from a real session, the guard flapped
+    # between quiet and watching several times a second: a fullscreen game does
+    # not hold the foreground steadily — overlays, the compositor, and whatever
+    # the window manager is doing between frames all show up as a sample where
+    # something else is in front. One sample is not evidence. A second of them
+    # is.
+    #
+    # The direction is deliberately asymmetric: it goes quiet slowly and comes
+    # back at once, because the cost of the two mistakes is not the same. Reading
+    # the desktop for a second is noise; missing the first line of a screen is
+    # the thing the narrator exists to prevent.
+    AWAY_AFTER = 1.5
     guard = (args.display is not None and not args.from_video
+             and not args.no_guard
              and is_foreground(args.app, args.window) is not None)
     away = False
+    not_since: float | None = None
 
     print("\n" + GREEN + t("watching. Ctrl+C to stop.", args.lang) + RESET + "\n")
     # Counted where it is known. A block reaching the queue is not a block
@@ -372,15 +392,26 @@ def main() -> None:
     try:
         for frame in source:
             if guard and not is_foreground(args.app, args.window):
-                if not away:
-                    away = True
-                    print(GRAY + "[waiting] " + t("the game is not in front — "
-                          "nothing on this monitor is being read", args.lang)
-                          + RESET, flush=True)
-                continue
-            if away:
-                away = False
-                print(f"{GRAY}[{t('resumed', args.lang)}]{RESET}", flush=True)
+                now = time.monotonic()
+                if not_since is None:
+                    not_since = now
+                if now - not_since >= AWAY_AFTER:
+                    if not away:
+                        away = True
+                        # Name what is in front. When this fires while the game
+                        # plainly is in front, that string is the whole answer:
+                        # the hint does not match what the system calls the game.
+                        from capture.base import foreground
+                        print(GRAY + "[waiting] "
+                              + t("the game is not in front — nothing on this "
+                                  "monitor is being read", args.lang)
+                              + f" ({foreground()})" + RESET, flush=True)
+                    continue
+            else:
+                not_since = None
+                if away:
+                    away = False
+                    print(f"{GRAY}[{t('resumed', args.lang)}]{RESET}", flush=True)
 
             settled = trigger.feed(frame)
             if settled is None:
@@ -425,8 +456,17 @@ def main() -> None:
                         source.setdefault(r.key, para)
                         break
             if not keys:
-                snippet = " ".join(text.split())[:70]
-                print(f"{YELLOW}[no match]{RESET} {GRAY}{snippet}{RESET}")
+                # Say why. "[no match]" plus 70 characters of screen was not
+                # enough to tell a screen that is genuinely not in the corpus
+                # from one the matcher refused for a reason — and the refusal
+                # reasons are the only thing that distinguishes a bad crop from
+                # bad OCR from a real gap in the corpus.
+                print(f"{YELLOW}[no match]{RESET} "
+                      f"{GRAY}{' '.join(text.split())[:70]}{RESET}")
+                for r in results[:3]:
+                    if r.key:
+                        print(f"           {GRAY}closest {r.key} "
+                              f"({r.score:.0f}) — {r.reason}{RESET}")
                 continue
 
             # Speak what is on the screen, and only that.
