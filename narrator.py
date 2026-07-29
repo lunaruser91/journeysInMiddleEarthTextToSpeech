@@ -76,7 +76,8 @@ from i18n import t  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
 from matcher import paragraphs as mparagraphs  # noqa: E402
-from ocr.base import crop, group_paragraphs, locales_for, open_ocr  # noqa: E402
+from ocr.base import (crop, group_paragraphs, locales_for,  # noqa: E402
+                      missing_recogniser, open_ocr)
 from player import Player  # noqa: E402
 from trigger import REGION, Trigger  # noqa: E402
 
@@ -418,6 +419,14 @@ def main() -> None:
     detail = getattr(engine, "settings", "")
     print(f"{GRAY}[ocr] {type(engine).__name__}"
           f"{' — ' + detail if detail else ''}{RESET}")
+
+    # An engine can succeed at the wrong thing. Reading the screen in a language
+    # that is not the game's works, costs nothing visible, and drops every accent
+    # on the way to the voice — so it gets a yellow line of its own rather than a
+    # tag inside the grey one, which is where it hid before.
+    warning = missing_recogniser(args.lang) or getattr(engine, "warning", "")
+    if warning:
+        print(f"{YELLOW}[ocr] {warning}{RESET}")
 
     # Load the Piper voice now, beside everything else that is starting, rather
     # than on the first screen that needs a live block.

@@ -190,7 +190,19 @@ Do not rediscover them.
    The narrator asks the window manager whether the game is foreground — and has
    to tolerate a gap, because a fullscreen game does not hold the foreground
    steadily and a single sample made it flap several times a second.
-13. **Never clone a famous voice actor.** In Brazil the voice is a personality right
+13. **The two OCR engines do not cover the same languages, and one map served
+   both.** Measured against `Get-WindowsCapability -Online -Name "Language.OCR*"`
+   on Windows 11 and Vision's `supportedRecognitionLanguages` on macOS 26, the
+   gaps point opposite ways: **Apple has no Hungarian; Windows has no Ukrainian**
+   — not under any tag — and Windows wants `zh-CN` where Apple wants `zh-Hans`.
+   An Apple-shaped map with `en-US` appended was being handed to both, which on
+   Windows is worse than wrong: `try_create_from_language` takes **one** language,
+   so the trailing English was not a hint but a silent replacement. A Portuguese
+   session on an English Windows got the English recogniser, reported success,
+   and dropped every accent — audible, because `live.py` cuts values out of the
+   original screen text. There are two maps now, and both the missing-recogniser
+   case and the not-installed case say so out loud.
+14. **Never clone a famous voice actor.** In Brazil the voice is a personality right
    (CF art. 5 XXVIII-a; CC arts. 20–21) and unauthorised use is actionable even
    without copyright infringement. This is now moot — Piper synthesises from a
    published model with no reference recording at all — but it is why the project

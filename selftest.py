@@ -238,11 +238,21 @@ def test_render(lang: str, corpus: Path | None) -> Path | None:
 def test_ocr(lang: str, corpus: Path | None) -> None:
     section("OCR")
     try:
-        from ocr.base import locales_for, open_ocr
+        from ocr.base import locales_for, missing_recogniser, open_ocr
         engine = open_ocr(languages=locales_for(lang))
         detail = getattr(engine, "settings", "")
         check("engine loaded", True,
               f"{type(engine).__name__}{' — ' + detail if detail else ''}"[:70])
+        # A wrong-language recogniser is a pass everywhere else and a defect
+        # here. This check exists because `WindowsOcr — language en-US` on a
+        # Portuguese session printed as a pass twice, on two machines, and read
+        # as a detail both times.
+        warning = missing_recogniser(lang) or getattr(engine, "warning", "")
+        if warning:
+            check("reads the game's own language", False,
+                  warning.splitlines()[0][:56])
+        else:
+            check("reads the game's own language", True, f"{lang} — as asked")
     except Exception as exc:  # noqa: BLE001
         check("engine loaded", False, f"{type(exc).__name__}: {exc}"[:56])
         return

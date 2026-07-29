@@ -95,6 +95,10 @@ class WindowsOcr(Ocr):
     languages: tuple[str, ...] = ("pt-BR",)
     _engine: object | None = field(default=None, init=False)
     settings: str = field(default="", init=False)
+    # Not a failure, so not an exception; not a detail, so not `settings`. The
+    # narrator prints this in its own right, because the whole cost of the case
+    # it reports is that nothing looks wrong.
+    warning: str = field(default="", init=False)
 
     def __post_init__(self) -> None:
         _reserve_onnxruntime()          # must precede every winrt import below
@@ -113,21 +117,30 @@ class WindowsOcr(Ocr):
         # Best first, as `locales_for` orders them. A tag Windows has no
         # recogniser for returns None rather than raising, so this cannot be a
         # try/except.
+        #
+        # `wanted` is the first entry and the only one that is not a compromise.
+        # Settling for anything else used to be silent, because from here it
+        # looked like success — the loop's second choice worked. `locales_for` no
+        # longer offers a second choice on Windows, and this records the
+        # difference so the caller can say it out loud rather than print a tag
+        # nobody reads.
+        wanted = self.languages[0] if self.languages else None
+        engine = None
         for tag in self.languages:
             engine = OcrEngine.try_create_from_language(Language(tag))
             if engine is not None:
                 break
-        else:
+        if engine is None:
             # Whatever the user's own language settings offer, before giving up:
-            # reading the screen in the wrong language still beats silence, and
-            # the caller is told which language it settled for.
+            # reading the screen in the wrong language still beats silence, as
+            # long as nobody is left thinking it read the right one.
             engine = OcrEngine.try_create_from_user_profile_languages()
 
         if engine is None:
             raise OcrError(
-                f"Windows has no OCR recogniser installed for any of "
-                f"{', '.join(self.languages)}. It has: "
-                f"{', '.join(installed) or 'none at all'}.\n"
+                f"Windows has no OCR recogniser installed"
+                + (f" for {', '.join(self.languages)}" if self.languages else "")
+                + f". It has: {', '.join(installed) or 'none at all'}.\n"
                 f"    Settings -> Time & language -> Language & region\n"
                 f"    -> the language -> Language options -> Optional features\n"
                 f"    -> add 'Basic typing'\n"
@@ -136,7 +149,28 @@ class WindowsOcr(Ocr):
 
         self._engine = engine
         self._max = int(OcrEngine.max_image_dimension)
-        self.settings = f"language {engine.recognizer_language.language_tag}"
+        got = engine.recognizer_language.language_tag
+        self.settings = f"language {got}"
+
+        # The one case worth interrupting somebody over. It is not a slow path or
+        # a broken one — it reads, and it reads the wrong language, and the only
+        # visible symptom is accents quietly going missing from names the voice
+        # then says wrong.
+        if wanted is None:
+            self.warning = (
+                f"this language has no Windows OCR recogniser at all, so the "
+                f"screen is being read as {got}. Accented words will come back "
+                f"without their accents, and the voice will say them that way. "
+                f"--ocr rapid reads it in a Latin-script model instead.")
+        elif got.lower() != wanted.lower():
+            self.warning = (
+                f"asked Windows for {wanted} and got {got}: the {wanted} "
+                f"recogniser is not installed. It reads, but accented words come "
+                f"back without their accents, and the voice says them that way.\n"
+                f"    In an elevated PowerShell:\n"
+                f"    Add-WindowsCapability -Online -Name "
+                f"\"Language.OCR~~~{wanted}~0.0.1.0\"\n"
+                f"    Installed now: {', '.join(installed) or 'none'}")
 
     def read(self, image: np.ndarray) -> list[Line]:
         from winrt.windows.graphics.imaging import (BitmapPixelFormat,

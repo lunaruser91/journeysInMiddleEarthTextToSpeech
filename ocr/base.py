@@ -194,24 +194,99 @@ def open_ocr(prefer: str = "auto", languages: tuple[str, ...] = ("pt-BR",)) -> O
 # language but Portuguese would have died on its first screen — or worse, run the
 # Portuguese recogniser over German text, which is the silent version.
 #
+# **There are two maps because the two engines really do differ, in both
+# directions.** One Apple-shaped map served both for a while, and it was wrong
+# each way: it denied Windows a Hungarian recogniser that exists, and promised it
+# a Ukrainian one that does not.
+#
 # Measured against Vision's own supportedRecognitionLanguages on macOS 26:
 # twelve of the game's thirteen are there. Hungarian is not, at all.
-OCR_LOCALE = {
+APPLE_OCR_LOCALE = {
     "cz": "cs-CZ", "de": "de-DE", "en": "en-US", "es": "es-ES", "fr": "fr-FR",
     "it": "it-IT", "ko": "ko-KR", "pl": "pl-PL", "pt": "pt-BR", "ru": "ru-RU",
     "uk": "uk-UA", "zh": "zh-Hans",
     # "hu" is deliberately absent: Apple Vision has no Hungarian recogniser.
 }
 
+# Measured on Windows 11 with `Get-WindowsCapability -Online -Name
+# "Language.OCR*"`, which lists all 35 recognisers Windows can install:
+#
+#   - **Hungarian is there** as hu-HU, where Apple has none. The shared map was
+#     handing a Hungarian player the English recogniser for no reason at all.
+#   - **Ukrainian is not there.** Not as uk-UA, not under any tag. Apple has it;
+#     Windows does not publish it, so `uk` is absent below and the engine says so
+#     rather than quietly reading Cyrillic with an English model.
+#   - **Chinese is zh-CN**, not Apple's script tag zh-Hans. Windows publishes
+#     zh-CN, zh-HK and zh-TW; the game's Chinese is simplified, so zh-CN. Whether
+#     Language("zh-Hans") would have resolved to it is unknown and not worth
+#     depending on when the real tag is right here.
+#
+# Everything else lines up with Apple's, which is why this looked safe to share.
+WINDOWS_OCR_LOCALE = {
+    "cz": "cs-CZ", "de": "de-DE", "en": "en-US", "es": "es-ES", "fr": "fr-FR",
+    "hu": "hu-HU", "it": "it-IT", "ko": "ko-KR", "pl": "pl-PL", "pt": "pt-BR",
+    "ru": "ru-RU", "zh": "zh-CN",
+    # "uk" is deliberately absent: Windows publishes no Ukrainian recogniser.
+}
+
 
 def locales_for(lang: str) -> tuple[str, ...]:
-    """OCR locales for a game language, best first.
+    """OCR locales for a game language, best first, for this platform's engine.
 
-    English is appended as a second choice everywhere: the game's screens carry
-    proper nouns and interface words that read the same either way, and giving
-    the recogniser a fallback costs nothing.
+    ## Why English is appended on macOS and not on Windows
+
+    Apple Vision takes the whole list and uses it *together*, so a second
+    language is a hint and costs nothing — the screens carry proper nouns and
+    interface words that read the same either way.
+
+    `Windows.Media.Ocr` takes **one** language per engine, and `WindowsOcr` walks
+    this list until one can be created. There, a trailing "en-US" is not a hint:
+    it is a silent replacement. On a machine with only the English recogniser
+    installed — an English Windows, which is most of them — asking for Portuguese
+    got English, the engine reported success because its second choice worked,
+    and the only trace was the word `en-US` in a grey line. The accents went with
+    it, and `live.py` cuts values out of the *original* screen text, so a hero's
+    name reached the voice stripped.
+
+    So on Windows this returns the one locale that is actually wanted, and the
+    engine is left to say plainly that it could not have it.
     """
-    primary = OCR_LOCALE.get(lang)
+    if platform.system() == "Windows":
+        primary = WINDOWS_OCR_LOCALE.get(lang)
+        return (primary,) if primary else ()
+    primary = APPLE_OCR_LOCALE.get(lang)
     if primary is None:
         return ("en-US",)
     return (primary,) if primary == "en-US" else (primary, "en-US")
+
+
+def missing_recogniser(lang: str) -> str:
+    """Why this platform cannot read `lang`, or "" if it can.
+
+    There are two different ways the screen ends up being read in the wrong
+    language, and only an engine can answer the second:
+
+      - **the platform has no recogniser for it at all.** Hungarian on macOS,
+        Ukrainian on Windows. That is a property of the maps above, so it is
+        knowable before anything is opened, and it is what this reports.
+      - **the platform has one and this machine has not installed it.** A
+        Portuguese session on an English Windows. Only the engine can see that,
+        and `WindowsOcr.warning` is where it says so.
+
+    Both were silent. The second cost two sessions on two machines; the first has
+    been true for Hungarian since the map was written and nobody would have found
+    out except by listening.
+    """
+    if platform.system() == "Windows":
+        if lang not in WINDOWS_OCR_LOCALE:
+            return (f"Windows publishes no OCR recogniser for {lang!r} in any "
+                    f"variant, so the screen will be read as English. Accented "
+                    f"words come back without their accents and the voice says "
+                    f"them that way. --ocr rapid reads it with its own model "
+                    f"instead, slower.")
+    elif lang not in APPLE_OCR_LOCALE:
+        return (f"Apple Vision has no OCR recogniser for {lang!r}, so the screen "
+                f"will be read as English. Accented words come back without "
+                f"their accents and the voice says them that way. --ocr rapid "
+                f"reads it with its own model instead, slower.")
+    return ""
