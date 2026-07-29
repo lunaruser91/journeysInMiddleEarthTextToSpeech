@@ -120,26 +120,39 @@ def rendered_by_campaign(lang: str) -> dict[str, int]:
     return out
 
 
-def language_rows() -> list[tuple[str, str, str]]:
-    """(code, label, detail) for every language the game ships."""
+def language_rows() -> list[tuple[str, str, str, bool]]:
+    """(code, label, detail, has_corpus) for every language the game ships.
+
+    `has_corpus` for the same reason campaign_rows carries a state: reading it
+    back out of `detail` breaks the moment `detail` is translated.
+    """
     import jime
 
     rows = []
     for code in jime.GAME_LANGUAGES:
         name = jime.LANGUAGE_NAMES.get(code, code)
         corpus = jime.corpus_path(code)
-        if not corpus.exists():
+        has = corpus.exists()
+        if not has:
             detail = t("no corpus yet — extract first", UI)
         else:
             done = sum(rendered_by_campaign(code).values())
             detail = (t("corpus ready, {n} blocks rendered", UI, n=f"{done:,}")
                       if done else t("corpus ready", UI))
-        rows.append((code, f"{code}  {NATIVE_NAME.get(code, name)}", detail))
+        rows.append((code, f"{code}  {NATIVE_NAME.get(code, name)}", detail, has))
     return rows
 
 
-def campaign_rows(lang: str) -> list[tuple[str, str, str]]:
-    """(campaign, label, progress) — progress is the point of this screen."""
+def campaign_rows(lang: str) -> list[tuple[str, str, str, str]]:
+    """(campaign, label, progress, state).
+
+    `state` is "complete", "partial" or "none" — a value, not something to be
+    read back out of `progress`. The first version had callers testing whether
+    the word "complete" appeared in the progress text, which worked until the
+    interface was translated and that text started saying "completo": a fully
+    rendered campaign was then announced as partly rendered. Display strings are
+    for display.
+    """
     import jime
 
     done = rendered_by_campaign(lang)
@@ -151,17 +164,20 @@ def campaign_rows(lang: str) -> list[tuple[str, str, str]]:
         have = done.get(camp, 0)
         pct = have / total * 100
         if have >= total:
+            state = "complete"
             detail = (f"{GREEN}{t('complete', UI)}{RESET}{GRAY} — "
                       f"{t('{n} blocks', UI, n=f'{total:,}')}{RESET}")
         elif have:
+            state = "partial"
             detail = (f"{YELLOW}{pct:.0f}%{RESET}{GRAY} — "
                       f"{t('{done} of {total}', UI, done=f'{have:,}', total=f'{total:,}')}{RESET}")
         else:
+            state = "none"
             detail = (f"{GRAY}{t('not started', UI)} — "
                       f"{t('{n} blocks', UI, n=f'{total:,}')}{RESET}")
         label = camp + (f"   {t('(shared by every campaign)', UI)}"
                         if camp == "main" else "")
-        rows.append((camp, label, detail))
+        rows.append((camp, label, detail, state))
     return rows
 
 
@@ -210,7 +226,7 @@ def flow_render(lang: str) -> list[str] | None:
     i = choose(t("Which campaign?", UI), [(r[1], r[2]) for r in rows] + extra, None)
 
     if i == len(rows):
-        pending = [r[0] for r in rows if "complete" not in r[2]]
+        pending = [r[0] for r in rows if r[3] != "complete"]
         if not pending:
             print(f"\n{GREEN}"
                   f"{t('Everything is already rendered for {lang}.', UI, lang=lang)}{RESET}")
@@ -221,7 +237,7 @@ def flow_render(lang: str) -> list[str] | None:
 
     if "main" not in campaigns and any(c != "main" for c in campaigns):
         main_row = next((r for r in rows if r[0] == "main"), None)
-        if main_row and "complete" not in main_row[2]:
+        if main_row and main_row[3] != "complete":
             print(f"\n{YELLOW}  {t('`main` is not fully rendered.', UI)}{RESET} "
                   f"{GRAY}{t('It holds the text every campaign shares — interface, tiles,', UI)}"
                   f"\n  {t('enemies, treasure — and 48.8% of what gets spoken comes from it.', UI)}"
@@ -255,7 +271,7 @@ def flow_play(lang: str) -> list[str]:
     if default is not None:
         rows[default] = (rows[default][0],
                          rows[default][1] + f"   {t('(your most recent save)', UI)}",
-                         rows[default][2])
+                         rows[default][2], rows[default][3])
     i = choose(t("Which campaign are you playing?", UI),
                [(r[1], r[2]) for r in rows], default)
     campaign = rows[i][0]
@@ -263,8 +279,8 @@ def flow_play(lang: str) -> list[str]:
     # Missing audio used to offer only "carry on anyway?", which is a dead end:
     # the answer you want is almost always to render it, and being told to quit
     # and come back is the thing this menu exists to avoid.
-    if "complete" not in rows[i][2]:
-        partial = t("not started", UI) not in rows[i][2]
+    if rows[i][3] != "complete":
+        partial = rows[i][3] == "partial"
         head = (t("{campaign} has partly rendered.", UI, campaign=campaign) if partial
                 else t("{campaign} has no audio.", UI, campaign=campaign))
         print(f"\n{YELLOW}  {head}{RESET} "
@@ -272,7 +288,7 @@ def flow_play(lang: str) -> list[str]:
               f"{t('silent, except the blocks synthesised during play.', UI)}{RESET}")
         missing = [campaign]
         main_row = next((r for r in campaign_rows(lang) if r[0] == "main"), None)
-        if main_row and "complete" not in main_row[2]:
+        if main_row and main_row[3] != "complete":
             missing.append("main")
         what = " and ".join(missing)
         pick = choose(t("What now?", UI), [
@@ -335,13 +351,13 @@ def _run(argv: list[str]) -> int:
 def banner() -> None:
     import jime
 
-    langs = [r for r in language_rows() if "no corpus" not in r[2]]
+    langs = [r for r in language_rows() if r[3]]
     print(f"\n{BOLD}Journeys in Middle-earth — narrator{RESET}")
     if not langs:
         print(f"{GRAY}{t('nothing extracted yet', UI)}{RESET}")
         return
     parts = []
-    for code, label, _ in langs:
+    for code, label, _, _ in langs:
         done = sum(rendered_by_campaign(code).values())
         parts.append(f"{code} ({t('{n} blocks', UI, n=f'{done:,}')})" if done
                      else f"{code} ({t('no audio', UI)})")
