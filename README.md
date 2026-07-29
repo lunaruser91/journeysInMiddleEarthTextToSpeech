@@ -1,5 +1,7 @@
 # Automatic narrator for *Journeys in Middle-earth*
 
+***English** · [Português](README.pt-BR.md)*
+
 Reads aloud, **entirely offline**, the text the official *The Lord of the Rings:
 Journeys in Middle-earth* app (Fantasy Flight / Asmodee) puts on screen during
 play. It watches the screen, works out which block of the game's text is showing,
@@ -142,7 +144,8 @@ Afterwards only step 3 matters, until you start a different campaign.
 | **Check this machine** | Whether everything is installed and permitted | When something does not work |
 | **Voices** | Which voice speaks each language | To change or calibrate a voice |
 
-`b` goes back a question, `q` quits, and Enter takes the highlighted default.
+The language is the first question and applies to everything after it. `b` goes
+back a question, `q` quits, and Enter takes the highlighted default.
 
 ### If something goes wrong
 
@@ -373,6 +376,7 @@ legacy/          the original extraction script, kept for comparison
 | `player.py` | queue, interrupt, repeat, and what to stay silent about |
 | `narrator.py` | the loop that joins all of the above |
 | `check_pace.py` | finds blocks whose pace strays from the median |
+| `selftest.py` | checks the whole machine, end to end |
 | `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
 
 ---
@@ -517,7 +521,12 @@ Do not rediscover them.
    two identical runs on this Mac have differed by 30%.
 8. **`afplay` does not decode Opus.** It exits 0 after 1.9 s on a 33 s file, so it
    looks like it worked. The player uses `ffplay`.
-9. **Never clone a famous voice actor.** In Brazil the voice is a personality right
+9. **The Windows console is not UTF-8.** It takes its encoding from the code page
+   — cp1252 on most installs — and a character that does not fit raises rather
+   than degrading. It is not only the symbols: `ě`, `ł`, and every Russian and
+   Chinese character in the corpus break. `console.setup()` forces UTF-8 at every
+   entry point.
+10. **Never clone a famous voice actor.** In Brazil the voice is a personality right
    (CF art. 5 XXVIII-a; CC arts. 20–21) and unauthorised use is actionable even
    without copyright infringement. This is now moot — Piper synthesises from a
    published model with no reference recording at all — but it is why the project
