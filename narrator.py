@@ -392,6 +392,30 @@ def main() -> None:
     not_since: float | None = None
 
     print("\n" + GREEN + t("watching. Ctrl+C to stop.", args.lang) + RESET + "\n")
+
+    # Say it out loud, not only in the terminal.
+    #
+    # With the game fullscreen the terminal is on another Space, so while you are
+    # playing you cannot see a word of this. That left no way to tell a narrator
+    # that is watching from one that is waiting — and a session was spent on
+    # exactly that confusion, the log afterwards showing the guard had been
+    # quiet the whole time because the game never came forward.
+    #
+    # The one channel the player definitely has is the one the program is for.
+    def announce(phrase: str) -> None:
+        nonlocal live
+        if args.no_audio:
+            return
+        try:
+            if live is None:
+                live = LiveVoice(lang=args.lang)
+            path = live.say(t(phrase, args.lang))
+            if path:
+                player.enqueue([f"_cue:{phrase}"], audio={f"_cue:{phrase}": path})
+        except Exception:  # noqa: BLE001
+            pass          # a cue is a courtesy; never let it stop the session
+
+    announce("ready. I am watching the game.")
     # Counted where it is known. A block reaching the queue is not a block
     # heard: the next screen interrupts what is playing, so the honest label
     # for this number is the one it measures.
@@ -409,6 +433,7 @@ def main() -> None:
                         # plainly is in front, that string is the whole answer:
                         # the hint does not match what the system calls the game.
                         from capture.base import foreground
+                        announce("the game is not in front. nothing is being read.")
                         print(GRAY + "[waiting] "
                               + t("the game is not in front — nothing on this "
                                   "monitor is being read", args.lang)

@@ -127,6 +127,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "resumed": "voltou",
         "{screens} screens settled, {queued} blocks queued":
             "{screens} telas reconhecidas, {queued} blocos enfileirados",
+        "ready. I am watching the game.": "pronto. estou observando o jogo.",
+        "the game is not in front. nothing is being read.":
+            "o jogo não está na frente. nada está sendo lido.",
         "cannot align with the screen": "não bate com a tela",
         "none of it is on the screen": "nada dele está na tela",
         "live synthesis produced nothing": "a síntese ao vivo não produziu nada",
