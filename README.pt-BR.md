@@ -37,10 +37,54 @@ Os **treze** idiomas do jogo podem ser narrados.
 
 ---
 
-## Primeiros passos
+## Instalação
 
-Se você tem familiaridade com terminal, pule para [Instalação](#instalação).
-Caso contrário, esta seção não pressupõe nada. Siga a parte do seu sistema.
+**macOS**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
+```
+
+**Windows**, no PowerShell
+
+```powershell
+irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
+```
+
+Isso instala o que estiver faltando, clona o projeto, monta o ambiente e roda o
+autoteste. Rodar de novo é também como você **atualiza**.
+
+Duas coisas que ele não faz por você:
+
+- **O jogo precisa estar instalado neste mesmo computador.** O narrador lê os
+  arquivos de texto do próprio jogo.
+- **O macOS exige permissão de gravação de tela.** Ajustes do Sistema →
+  Privacidade e Segurança → Gravação de Tela → marque o Terminal, depois encerre
+  o Terminal (`Cmd`+`Q`) e abra de novo. O Windows não exige permissão.
+
+Então inicie — ele pergunta o resto:
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python jime.py            # macOS
+```
+
+```powershell
+cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py   # Windows
+```
+
+**Na primeira vez, nesta ordem:** extrair o corpus, gerar o áudio, e então
+narrar. A extração leva um minuto, a geração cerca de meia hora por campanha, e
+depois disso só narrar importa.
+
+Se algo der errado, ou se preferir ver cada etapa, continue lendo.
+
+---
+
+## Passo a passo
+
+O instalador acima faz tudo isto. Esta seção é para quando ele falha, ou para
+quando você prefere rodar cada parte e ver o que acontece. Não pressupõe nada;
+siga a parte do seu sistema.
 
 ### O que você precisa antes
 
@@ -224,20 +268,11 @@ As três respostas mais comuns:
 
 ---
 
-## Instalação
+### O mesmo à mão
 
-**macOS** — um comando:
+Para quem já tem as ferramentas, ou quer ver exatamente o que o instalador faz.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
-```
-
-Instala as ferramentas de linha de comando, Homebrew, Python, ffmpeg e git se
-faltarem, clona o projeto, monta o ambiente e roda o autoteste. Pode rodar de
-novo sem medo — é assim que você **atualiza** também, já que a segunda execução
-faz `git pull` e não mexe no resto.
-
-À mão, para quem já tem Python e Homebrew:
+**macOS**
 
 ```bash
 brew install ffmpeg python@3.13 git
@@ -246,36 +281,13 @@ python3.13 -m venv ~/jime-venv
 ~/jime-venv/bin/pip install -e ~/jime'[tts,ocr,capture]'
 ```
 
-**Windows** — um comando, no PowerShell:
-
-```powershell
-irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
-```
-
-Isso instala Python, Git, ffmpeg e o Visual C++ Redistributable se estiverem
-faltando, clona o projeto, monta o ambiente e roda o autoteste. Pode rodar de
-novo sem medo — a segunda execução atualiza o projeto e não mexe no resto.
-
-O `iex` no fim é proposital: um `.ps1` baixado é bloqueado pela política de
-execução, que é a primeira coisa que trava as pessoas.
-
-Para fazer à mão:
+**Windows**, no PowerShell — um pacote por comando, o `winget` aceita um único
+`--id`:
 
 ```powershell
 winget install --id Python.Python.3.13 -e --accept-source-agreements --accept-package-agreements
 winget install --id Git.Git -e --accept-package-agreements
 winget install --id Gyan.FFmpeg -e --accept-package-agreements
-```
-
-Um pacote por comando — o `winget` aceita um único `--id`.
-
-O `onnxruntime`, de que o Piper precisa, não carrega sem o **Microsoft Visual C++
-Redistributable**. Uma imagem nova do Windows costuma não tê-lo, e a falha não
-menciona nem o Piper nem o redistributable:
-
-    DLL load failed while importing onnxruntime_pybind11_state
-
-```powershell
 winget install --id Microsoft.VCRedist.2015+.x64 -e
 ```
 
@@ -288,22 +300,17 @@ py -3.13 -m venv $HOME\jime-venv
 & $HOME\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
 ```
 
-`ocr` e `capture` se resolvem por plataforma: no Windows trazem o RapidOCR e o
-`windows-capture`, que envolve o Windows.Graphics.Capture — a única API que
-enxerga uma janela Unity, já que BitBlt e PrintWindow devolvem quadros pretos.
+O Visual C++ Redistributable não é opcional: sem ele o motor de fala não carrega,
+com uma mensagem que não menciona nem a si mesmo nem o que falta.
 
-O Windows não pede permissão para capturar. O Windows 11 desenha uma borda
-amarela em volta da janela capturada; isso é cosmético e não dá para desligar.
-
-Confira a máquina antes de confiar nela:
-
-```powershell
-& $HOME\jime-venv\Scripts\python selftest.py
-```
+`ocr` e `capture` se resolvem por plataforma — Apple Vision e ScreenCaptureKit no
+macOS, RapidOCR e `windows-capture` no Windows, este último envolvendo o
+Windows.Graphics.Capture, a única API que enxerga uma janela Unity, já que
+BitBlt e PrintWindow devolvem quadros pretos.
 
 A síntese é o [Piper](https://github.com/OHF-Voice/piper1-gpl): um modelo ONNX
-pequeno que roda na CPU. Uma voz tem cerca de 60 MB e é baixada na primeira vez
-que for necessária. Não exige GPU e não há nada para assinar.
+pequeno, na CPU. Uma voz tem cerca de 60 MB, baixada na primeira vez. Sem GPU,
+sem nada para assinar.
 
 Um atalho poupa digitação:
 
