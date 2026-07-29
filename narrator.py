@@ -142,6 +142,25 @@ def _visible(parts: list[str], norm_screen: str) -> list[bool]:
     return out
 
 
+def matched_paragraph(block_text: str, norm_matched: str) -> str | None:
+    """The block's own wording for the paragraph the matcher scored.
+
+    Used when two blocks tie. A tie means the text scored identically against
+    both, which means it is present in both — so speaking exactly that paragraph
+    is right whichever key won, and everything *else* in the block is precisely
+    what the guess would have got wrong. Refusing ties instead costs 7% of all
+    screens; guessing costs 0.5% of them spoken wrong. Saying only what tied
+    costs neither.
+
+    The matcher hands back its normalised form — lowercased, unaccented — which
+    is for locating and not for speaking. The words come from the block.
+    """
+    for para in mparagraphs(block_text):
+        if normalize(para) == norm_matched:
+            return para
+    return None
+
+
 def await_game(app_hint: str, title_hint: str, wait: float,
                lang: str = "en") -> None:
     """Hold until the game is the window in front, or until `wait` runs out.
@@ -368,6 +387,16 @@ def main() -> None:
                     if r.accepted and r.key and corpus.get(r.key, {}).get("narration")]
             keys = list(dict.fromkeys(keys))
 
+            # Blocks that scored level with another. The matcher lets a long
+            # paragraph through on a tie, because refusing every tie silences 7%
+            # of all screens to prevent 0.5% being spoken wrong — but the key it
+            # then picks is the first in corpus order, which is a guess. What is
+            # not a guess is the paragraph that tied: it scored the same against
+            # both, so it is in both. Speaking only that is right either way.
+            tied = {r.key: r.text for r in results
+                    if r.accepted and r.key and r.text
+                    and r.margin < matcher.min_tie_margin}
+
             # Which paragraph did each block match? A template whose placeholder
             # sits at the start — "{0}\n\nPlace a search token" — has no anchor
             # before the gap, so given the whole screen it takes everything up to
@@ -418,7 +447,21 @@ def main() -> None:
                 if not block:
                     continue
 
-                if block.get("placeholders"):
+                # A one-paragraph block that ties needs nothing: its recording is
+                # that paragraph, so whichever key won says the same words.
+                if key in tied and len(mparagraphs(block["text"])) > 1:
+                    say_text = matched_paragraph(block["text"], tied[key])
+                    if say_text is None:
+                        mute[key] = t("cannot align with the screen", args.lang)
+                        continue
+                    if block.get("placeholders") and "{" in say_text:
+                        say_text = fill_template(say_text,
+                                                 source.get(key) or text)
+                        if say_text is None:
+                            mute[key] = t("cannot align with the screen",
+                                          args.lang)
+                            continue
+                elif block.get("placeholders"):
                     say_text = None
                     for context in (source.get(key), text):
                         if context is None:

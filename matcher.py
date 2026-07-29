@@ -119,10 +119,15 @@ class Matcher:
     min_tie_margin: float = 1.0
     # The tie guard only applies below this length. Measured by sweeping it: at 40
     # the harness is unchanged (98.2% hit, 1.0% wrong) while the real-world false
-    # positive disappears; at 60 the hit rate already drops to 96.8%. A long
-    # paragraph that ties is rare and the length-ratio tie-break usually resolves
-    # it correctly — a short one that ties is a generic instruction that
-    # identifies nothing.
+    # positive disappears; at 60 the hit rate already drops to 96.8%. A short
+    # paragraph that ties is a generic instruction that identifies nothing.
+    #
+    # A long one that ties is a different case, and applying the guard to it
+    # costs more than it saves: measured, hit falls 99.2% -> 92.1% to take wrong
+    # from 0.5% to zero — 45 screens silenced for every 3 spoken wrong. So a long
+    # tie is still accepted here, and `narrator.matched_paragraph` speaks only
+    # the paragraph that tied, which is the part both candidates agree on. The
+    # guess is confined to a key; it never reaches what the player hears.
     tie_guard_chars: int = 40
     _keys: list[str] = field(default_factory=list, init=False)
     _norms: list[str] = field(default_factory=list, init=False)
