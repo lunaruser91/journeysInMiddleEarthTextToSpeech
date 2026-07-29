@@ -372,7 +372,13 @@ def main() -> None:
 
     engine = open_ocr(languages=locales_for(args.lang))
     trigger = Trigger(region=(top, bottom))
-    print(f"{GRAY}[ocr] {type(engine).__name__}{RESET}")
+    # Say which settings the engine actually came up with, not just its name.
+    # RapidOCR spent a day being configured through a parameter that does not
+    # exist, and the only reason that survived a day is that nothing ever
+    # printed what it was really doing.
+    detail = getattr(engine, "settings", "")
+    print(f"{GRAY}[ocr] {type(engine).__name__}"
+          f"{' — ' + detail if detail else ''}{RESET}")
 
     if args.from_video:
         source = frames_from_video(args.from_video, args.fps)

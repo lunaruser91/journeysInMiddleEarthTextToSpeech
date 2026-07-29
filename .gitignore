@@ -82,6 +82,3 @@ bench_results.json
 voices/
 *.onnx
 *.onnx.json
-
-# generated: RapidOCR config with this project's detection settings
-ocr/.rapidocr.yaml

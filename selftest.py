@@ -240,7 +240,9 @@ def test_ocr(lang: str, corpus: Path | None) -> None:
     try:
         from ocr.base import locales_for, open_ocr
         engine = open_ocr(languages=locales_for(lang))
-        check("engine loaded", True, type(engine).__name__)
+        detail = getattr(engine, "settings", "")
+        check("engine loaded", True,
+              f"{type(engine).__name__}{' — ' + detail if detail else ''}"[:70])
     except Exception as exc:  # noqa: BLE001
         check("engine loaded", False, f"{type(exc).__name__}: {exc}"[:56])
         return
