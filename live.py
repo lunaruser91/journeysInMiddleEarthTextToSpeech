@@ -242,14 +242,38 @@ def fill_template(template: str, screen: str) -> str | None:
 class LiveVoice:
     """Piper, loaded once, synthesising to a cache on demand.
 
-    Loading costs about half a second, so it is deferred until something
-    actually needs speaking — most sessions never do. Results are cached by the
-    exact text, because the same screen tends to come back.
+    Loading is deferred until something actually needs speaking — most sessions
+    never do. Results are cached by the exact text, because the same screen
+    tends to come back.
+
+    ## Loading is the most contention-sensitive thing in this project
+
+    Measured on a Windows laptop, four logical cores busy out of eight:
+
+        spinning threads      synthesise 4.6s of speech      load the voice
+                       0                        0.41s                3.15s
+                       2                        1.26s               63.84s
+                       4                        2.60s              161.77s
+
+    Synthesis degrades three to six times under load, like everything else on
+    that machine. Loading degrades twenty to fifty. Two competing threads turn
+    three seconds into a minute, which is why a session reported `synth 26.46s`
+    for a block carrying four and a half seconds of speech: almost none of that
+    was synthesis.
+
+    So `warm()` exists, and the caller is expected to use it while nothing is
+    waiting on it. **This cannot be left to the cue the narrator speaks before
+    the game starts.** That was the accidental arrangement before, and `say()`
+    returns a cached file *without* loading anything — so it warmed the voice on
+    the very first session a machine ever ran and never again, which is exactly
+    the shape of a bug that survives being tested.
     """
 
     def __init__(self, voice: str | None = None, lang: str = "pt",
                  length_scale: float | None = None,
                  cache: Path | None = None) -> None:
+        import threading
+
         import voices as V
 
         self.lang = lang
@@ -260,17 +284,40 @@ class LiveVoice:
         self.cache.mkdir(parents=True, exist_ok=True)
         self._voice = None
         self._cfg = None
+        # `warm()` is meant to be called from another thread while the main one
+        # keeps reading the screen, so two callers can arrive here at once. The
+        # lock is what stops them building two PiperVoices — two onnxruntime
+        # sessions over the same 60 MB, on a machine that has just been shown to
+        # handle one of them badly.
+        self._lock = threading.Lock()
 
     def _load(self):
-        if self._voice is None:
-            import voices as V
-            from piper import PiperVoice, SynthesisConfig
+        with self._lock:
+            if self._voice is None:
+                import voices as V
+                from piper import PiperVoice, SynthesisConfig
 
-            self._voice = PiperVoice.load(str(V.ensure(self.name, quiet=True)))
-            self._cfg = SynthesisConfig(length_scale=self.length_scale,
-                                        noise_scale=0.9, noise_w_scale=1.0,
-                                        volume=1.0)
+                self._voice = PiperVoice.load(
+                    str(V.ensure(self.name, quiet=True)))
+                self._cfg = SynthesisConfig(length_scale=self.length_scale,
+                                            noise_scale=0.9, noise_w_scale=1.0,
+                                            volume=1.0)
         return self._voice, self._cfg
+
+    def warm(self) -> str:
+        """Load the voice now, so no screen ever pays for it.
+
+        Returns "" on success and the reason otherwise. It returns rather than
+        raises because a voice that will not load must not stop a session that
+        can still recognise screens and play everything already rendered — but a
+        silent failure here would show up much later as one slow block, which is
+        the hardest thing in this project to trace back.
+        """
+        try:
+            self._load()
+            return ""
+        except Exception as exc:  # noqa: BLE001
+            return f"{type(exc).__name__}: {exc}"
 
     def say(self, text: str) -> Path | None:
         """Audio for this exact text, synthesising it if it is new."""

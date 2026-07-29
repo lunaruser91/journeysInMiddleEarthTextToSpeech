@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -387,6 +388,46 @@ def main() -> None:
     detail = getattr(engine, "settings", "")
     print(f"{GRAY}[ocr] {type(engine).__name__}"
           f"{' — ' + detail if detail else ''}{RESET}")
+
+    # Load the Piper voice now, beside everything else that is starting, rather
+    # than on the first screen that needs a live block.
+    #
+    # Measured: loading costs 3.15s on an idle machine and 161.77s with four of
+    # eight logical cores busy — twenty to fifty times, where synthesis itself
+    # degrades three to six. A session reported `synth 26.46s` for four and a
+    # half seconds of speech, and that is what it was.
+    #
+    # In a thread, and not in front of the wait for the game: warming takes as
+    # long as it takes, and a narrator that is not yet watching misses screens.
+    # This way it overlaps the wait, the alt-tab, and the first screens — all of
+    # which the player is spending on something else anyway.
+    #
+    # Daemon, because Ctrl+C during the wait is how this program is normally
+    # stopped and must not hang for a minute waiting on a model nobody is going
+    # to hear. The exposure is a native load being cut off at interpreter exit;
+    # it is bounded, it happens once, and the alternative is a hang.
+    if not args.no_audio:
+        # Building it used to happen inside `announce`, where an exception was
+        # already caught. Out here it would take the session down, and a voice
+        # is a courtesy: the narrator still recognises screens and still plays
+        # everything already rendered without one.
+        try:
+            live = LiveVoice(lang=args.lang)
+        except Exception as exc:  # noqa: BLE001
+            print(f"{GRAY}[voice] no live voice — {type(exc).__name__}: "
+                  f"{exc}{RESET}")
+        else:
+            def _warm(voice: LiveVoice = live) -> None:
+                reason = voice.warm()
+                if reason:
+                    # Say it rather than swallow it. A voice that failed to load
+                    # here surfaces otherwise as one slow block much later,
+                    # which is the hardest kind of thing to trace back.
+                    print(f"{GRAY}[voice] {voice.name} did not load — {reason}"
+                          f"{RESET}", flush=True)
+
+            threading.Thread(target=_warm, name="warm-voice",
+                             daemon=True).start()
 
     if args.from_video:
         source = frames_from_video(args.from_video, args.fps)
