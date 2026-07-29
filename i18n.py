@@ -40,7 +40,24 @@ STRINGS: dict[str, dict[str, str]] = {
         "Check this machine": "Verificar esta máquina",
         "is everything installed?": "está tudo instalado?",
         "Voices": "Vozes",
+        "which voice reads, and change it": "qual voz lê, e trocar",
         "which voice speaks each language": "qual voz fala cada idioma",
+
+        # --- picking a voice ---
+        "Which voice should read?": "Qual voz deve ler?",
+        "in use": "em uso",
+        "pace measured": "ritmo medido",
+        "downloaded": "baixada",
+        "no voice for this language": "nenhuma voz para este idioma",
+        "{name} has no measured pace.": "{name} não tem ritmo medido.",
+        "It reads at its own speed until measured:":
+            "Ela lê na velocidade dela até alguém medir:",
+        "{n} blocks are rendered with the voice in use.":
+            "{n} blocos já foram gerados com a voz em uso.",
+        "Changing it renders every one of them again.":
+            "Trocar significa gerar todos de novo.",
+        "Use {name}?": "Usar {name}?",
+        "{name} it is.": "{name}, então.",
         "Change language": "Trocar de idioma",
         "currently {name}": "atualmente {name}",
 

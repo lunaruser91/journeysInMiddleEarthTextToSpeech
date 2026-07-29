@@ -46,7 +46,7 @@ Qual idioma você quer usar?
 O que você quer fazer?  [Português (BR)]
    ›  1. Narrar uma partida      assiste à tela e lê em voz alta
       2. Verificar esta máquina  está tudo instalado?
-      3. Vozes                   qual voz fala cada idioma
+      3. Vozes                   qual voz lê, e trocar
       4. Trocar de idioma        atualmente Português (BR)
   [enter = Narrar uma partida, q = sair]
 
@@ -144,7 +144,7 @@ não precisar lembrar onde parou.
 |---|---|---|
 | **Narrar uma partida** | Assiste à tela e lê cada bloco em voz alta | Toda sessão |
 | **Verificar esta máquina** | Se está tudo instalado e permitido | Quando algo não funciona |
-| **Vozes** | Qual voz fala cada idioma | Para trocar ou calibrar uma voz |
+| **Vozes** | Lista as vozes deste idioma, e troca | Para trocar ou calibrar uma voz |
 | **Trocar de idioma** | Muda o idioma de tudo que vem depois | Sem reiniciar |
 
 Extrair e gerar não são tarefas separadas. Narrar pergunta: escolha um idioma sem

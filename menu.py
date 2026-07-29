@@ -325,6 +325,67 @@ def banner() -> None:
 
 # (subcommand, label, detail, flow, takes_lang). `status` and `doctor` describe
 # the whole installation and have no --lang; passing one is an argparse error.
+def flow_voices(lang: str) -> list[str] | None:
+    """Pick the voice for this language, and say what picking one costs.
+
+    Listing was all this option did, which made it a dead end: a catalogue of
+    forty readers and no way to act on it. Choosing is the point of looking.
+
+    The cost belongs at the moment of choosing, because it is large and not
+    obvious. Voice is part of the render's cache key — it has to be, or two
+    recipes end up mixed inside one session — so a swap re-renders every block
+    already done. And pace is per voice: the response to `length_scale` is not
+    linear, so a reader whose pace nobody has measured speaks at whatever speed
+    it was trained at.
+    """
+    import voices as V
+
+    try:
+        found = V.for_language(lang)
+    except Exception as exc:  # noqa: BLE001
+        print(f"\n{YELLOW}  {exc}{RESET}")
+        raise Abort from None
+    if not found:
+        print(f"\n{YELLOW}  {t('no voice for this language', UI)}{RESET}")
+        raise Abort
+
+    now = V.resolve(lang)
+    rows, names = [], []
+    for v in found:
+        marks = [v["quality"], f"{v['mb']} MB"]
+        if v["name"] == now:
+            marks.append(f"{GREEN}{t('in use', UI)}{RESET}")
+        if v["name"] in V.CALIBRATION:
+            marks.append(t("pace measured", UI))
+        elif v["installed"]:
+            marks.append(t("downloaded", UI))
+        names.append(v["name"])
+        rows.append((v["name"], "  ".join(marks)))
+
+    default = names.index(now) if now in names else 0
+    pick = names[choose(t("Which voice should read?", UI), rows, default)]
+    if pick == now:
+        return None
+
+    if pick not in V.CALIBRATION:
+        print(f"\n{YELLOW}  {t('{name} has no measured pace.', UI, name=pick)}{RESET}")
+        print(f"{GRAY}  {t('It reads at its own speed until measured:', UI)}{RESET}")
+        print(f"{GRAY}    jime voices --calibrate --lang {lang}{RESET}")
+
+    done = sum(rendered_by_campaign(lang).values())
+    if done:
+        print(f"\n{YELLOW}  "
+              f"{t('{n} blocks are rendered with the voice in use.', UI, n=f'{done:,}')}"
+              f"{RESET}")
+        print(f"{GRAY}  {t('Changing it renders every one of them again.', UI)}{RESET}")
+
+    if not confirm(t("Use {name}?", UI, name=pick), False):
+        return None
+    V.choose(lang, pick)
+    print(f"{GREEN}  {t('{name} it is.', UI, name=pick)}{RESET}")
+    return None
+
+
 # Extracting and rendering are not offered here, because narrating already asks.
 # `pick_language` runs before every action and offers to extract a language that
 # has no corpus; `flow_play` notices a campaign with no audio, offers to render
@@ -340,7 +401,7 @@ def banner() -> None:
 ACTIONS = [
     ("play", "Narrate a game", "watch the screen and read it aloud", flow_play, True),
     ("doctor", "Check this machine", "is everything installed?", None, False),
-    ("voices", "Voices", "which voice speaks each language", None, True),
+    ("voices", "Voices", "which voice reads, and change it", flow_voices, True),
 ]
 
 

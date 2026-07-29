@@ -43,7 +43,7 @@ Which language to work in?
 What would you like to do?  [English]
    ›  1. Narrate a game       watch the screen and read it aloud
       2. Check this machine   is everything installed?
-      3. Voices               which voice speaks each language
+      3. Voices               which voice reads, and change it
       4. Change language      currently English
   [enter = Narrate a game, q = quit]
 
@@ -138,7 +138,7 @@ so you do not have to remember where you left off.
 |---|---|---|
 | **Narrate a game** | Watches the screen and reads each block aloud | Every session |
 | **Check this machine** | Whether everything is installed and permitted | When something does not work |
-| **Voices** | Which voice speaks each language | To change or calibrate a voice |
+| **Voices** | Lists every voice for this language, and changes it | To change or calibrate a voice |
 | **Change language** | Switches the language everything after it uses | Without restarting |
 
 Extracting and rendering are not separate errands. Narrating asks: pick a

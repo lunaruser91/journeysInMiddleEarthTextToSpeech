@@ -133,6 +133,41 @@ def for_language(lang: str) -> list[dict]:
     return found
 
 
+CHOSEN = VOICE_DIR / "chosen.json"
+
+
+def chosen(lang: str) -> str | None:
+    """The voice this machine was told to use for a language, if any.
+
+    Kept beside the models rather than in the repository: it is a property of an
+    installation, like which languages have been downloaded, and two people
+    playing in the same language may well want different readers.
+    """
+    if not CHOSEN.exists():
+        return None
+    try:
+        return json.loads(CHOSEN.read_text(encoding="utf-8")).get(lang)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def choose(lang: str, name: str | None) -> None:
+    """Remember a voice for this language, or forget it when `name` is None."""
+    data = {}
+    if CHOSEN.exists():
+        try:
+            data = json.loads(CHOSEN.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            data = {}
+    if name:
+        data[lang] = name
+    else:
+        data.pop(lang, None)
+    CHOSEN.parent.mkdir(parents=True, exist_ok=True)
+    CHOSEN.write_text(json.dumps(data, indent=1, ensure_ascii=False),
+                      encoding="utf-8")
+
+
 def resolve(lang: str, override: str | None = None) -> str:
     """The voice name to use, checked against the catalogue.
 
@@ -141,7 +176,7 @@ def resolve(lang: str, override: str | None = None) -> str:
     first pass, and both would have surfaced as a download failure much later.
     Checking here turns that into a message naming the real candidates.
     """
-    name = override or DEFAULT_VOICE.get(lang)
+    name = override or chosen(lang) or DEFAULT_VOICE.get(lang)
     if name is None:
         raise RuntimeError(
             f"no default voice for {lang!r}. Pick one with --voice; "
