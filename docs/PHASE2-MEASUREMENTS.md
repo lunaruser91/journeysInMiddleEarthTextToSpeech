@@ -1,5 +1,12 @@
 # Phase 2 — what was measured about Chatterbox's performance
 
+> **A record of measurements taken in July 2026, not a description of the code
+> today.** File names, flags and defaults quoted below were the ones that
+> existed when the measurement was made; several were renamed or removed after.
+> For what the project does now, read the [README](../README.md) and
+> [ENGINEERING](ENGINEERING.md). A measurement is not made wrong by the code
+> moving on, which is why none of them have been edited.
+
 > **Chatterbox has been removed from the project.** Everything below about it is
 > kept because it is why the decision went the way it did, not because the code
 > still exists. §6c is the measurement that settled it: RTF 0.049 against 3.7, on
@@ -12,8 +19,9 @@
 
 This document closes the "🔴 OPEN PROBLEM" from §5 of the briefing. Everything
 here is measurement on this hardware, not estimate. Where the measurement
-contradicts the briefing, the measurement wins — and the briefing is annotated as
-corrected.
+contradicts the briefing, the measurement wins. The briefing is kept unedited
+and carries a note at the top saying it is historical; the corrections live
+here and in [ENGINEERING](ENGINEERING.md), not in it.
 
 **Hardware:** MacBook Pro 14" M5 Pro, 24 GB, macOS Tahoe 26.5.2
 **Stack:** Python 3.13.13, torch 2.6.0, transformers 5.2.0, chatterbox-tts 0.1.7, MPS
@@ -297,11 +305,11 @@ Conclusions, in this order of confidence:
    test, 14 seeds on the whole block — there were only 2 events in ~60 attempts,
    and none reproduced the original case.
 4. Therefore, **the only real defense is after-the-fact detection**:
-   `--check-ritmo` measures words/s and re-renders with another seed. It is the
+   `--check-pace` measures words/s and re-renders with another seed. It is the
    right mechanism for a rare, stochastic event — it cannot be prevented, it can
    be caught.
 
-## 6c. Game icons in the text — fixed in `glifos.py`
+## 6c. Game icons in the text — fixed in `glyphs.py`
 
 **2,396 of the 9,192 blocks (26.1%)** contain 3,303 Private Use Area characters
 (U+F460–U+F47A): the symbols of the game's font. The Phase 1 cleanup removes
@@ -347,5 +355,5 @@ python3 bench3.py 12
 The pace detector, that one is permanent:
 
 ```bash
-python3 check_ritmo.py audio/manifest.json --mad 2.0
+python3 check_pace.py audio/manifest.json --mad 2.0
 ```

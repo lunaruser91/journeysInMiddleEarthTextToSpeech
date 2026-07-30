@@ -1,8 +1,8 @@
 [project]
 name = "jime-narrador"
-version = "0.1.0"
+version = "1.0.0"
 description = "Offline automatic narrator for the Journeys in Middle-earth companion app"
-requires-python = ">=3.12,<3.14"   # 3.14 has no PyTorch wheels
+requires-python = ">=3.12,<3.14"   # 3.14 has no wheels for onnxruntime yet
 license = { text = "MIT" }
 
 dependencies = [
@@ -11,6 +11,12 @@ dependencies = [
     "num2words",            # numbers spelled out (otherwise the TTS reads them in Spanish)
     "pillow",               # image cropping before OCR
 ]
+
+# `jime` as a command, so the docs can say `jime render` and mean it. Without
+# this the entry point is `python jime.py` from inside the clone, which is what
+# every message in the program used to tell people to type.
+[project.scripts]
+jime = "jime:main"
 
 [project.optional-dependencies]
 # Speech synthesis. Light: a 60 MB voice, on the CPU. The engine this replaced
@@ -50,6 +56,25 @@ capture = [
 ]
 
 [tool.setuptools]
-py-modules = ["glyphs", "matcher", "check_pace", "demo", "batch",
-              "watch_log", "trigger", "player", "narrator"]
+# Every module the installed program can reach, which is not the same as
+# every module it imports: `jime check`, `jime extract` and the rest run
+# their worker by FILENAME through subprocess (jime._run), so those files
+# have to be installed even though no `import` names them.
+py-modules = ["batch",
+              "check_pace",
+              "console",
+              "glyphs",
+              "i18n",
+              "jime",
+              "live",
+              "matcher",
+              "menu",
+              "narrator",
+              "phase1_extract",
+              "phase2_render",
+              "player",
+              "prosody",
+              "selftest",
+              "trigger",
+              "voices"]
 packages = ["capture", "ocr"]

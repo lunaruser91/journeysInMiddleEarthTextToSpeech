@@ -244,7 +244,9 @@ A block whose `.opus` already exists is skipped and the manifest is rewritten
 every 50 blocks and on Ctrl+C, so stopping and restarting costs nothing.
 
 `render_all.sh` renders a campaign plus the shared text unattended — macOS and
-Linux only; on Windows use the menu's *everything not yet rendered*.
+Linux only. On Windows, `jime render --lang <code>` with no `--campaign` does
+the same thing, and the menu offers a campaign plus `main` when it notices one
+is missing.
 
 **Phase 3 — narrate a live game**
 
@@ -313,11 +315,12 @@ macOS, Windows.Media.Ocr and `windows-capture` on Windows, the latter wrapping
 Windows.Graphics.Capture, the only API that sees a Unity window since BitBlt and
 PrintWindow return black frames.
 
-RapidOCR is installed everywhere as the fallback, and that is all it is: on the
-same crop with the machine equally quiet it reads a dialogue box in 539 ms
-against the native engine's 25 ms, and a dense screen in 1480 ms against 40 ms.
-It is what runs on Linux, or on a Windows with no OCR language feature
-installed. `--ocr windows|apple|rapid` names one and makes its failure fatal
+RapidOCR is the fallback, and that is all it is — and it is not installed on
+macOS at all: `pyproject.toml` pins it to `sys_platform != 'darwin'`, so a Mac
+gets ocrmac and nothing else. Measured on Windows, same crops, machine equally
+quiet in every row: it reads a dialogue box in 539 ms against
+Windows.Media.Ocr's 25 ms, and a dense screen in 1480 ms against 40 ms. It is
+what runs on Linux, or on a Windows with no OCR language feature installed. `--ocr windows|apple|rapid` names one and makes its failure fatal
 rather than silent — worth doing when a session is slow, since a fallback that
 works is indistinguishable from the engine you meant to use except by the clock.
 
@@ -334,6 +337,7 @@ works is indistinguishable from the engine you meant to use except by the clock.
 | `phase1_extract.py` | the game's AssetBundles → JSON/CSV corpus |
 | `phase2_render.py` | corpus → audio, with a resumable hash-based cache |
 | `voices.py` | which voice speaks each language, and its measured pace |
+| `prosody.py` | one block read clause by clause; the pace band every clause is clamped into |
 | `glyphs.py` | game icons → spoken words; numbers spelled out; per language |
 | `capture/` | one screen-capture backend per platform |
 | `ocr/` | one OCR engine per platform, plus paragraph rebuilding |

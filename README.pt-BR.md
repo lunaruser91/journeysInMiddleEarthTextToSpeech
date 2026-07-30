@@ -210,7 +210,7 @@ recupera; narrar o bloco errado não, porque o jogador age pelo que ouve.
 Escolha **Verificar esta máquina** no menu. Ele diz o que está faltando, em vez
 de falhar de forma obscura.
 
-As quatro respostas mais comuns:
+As respostas mais comuns:
 
 - **Não encontra a janela do jogo, ou só lê quando você dá alt+tab.** Escolha a
   opção de tela cheia. No Windows, configure o jogo como borderless windowed se
@@ -234,7 +234,7 @@ As quatro respostas mais comuns:
   o `--stable-frames 6` tirou 0,5 s de cada tela sem nenhuma leitura parcial:
 
   ```bash
-  ~/jime-venv/bin/python jime.py play --display --stable-frames 6
+  cd ~/jime && ~/jime-venv/bin/python jime.py play --display --stable-frames 6
   ```
 
   Confira os seus próprios números de `paused` antes de baixar — uma gravação
@@ -287,11 +287,15 @@ chars". Isso basta para distinguir uma tela de menu recusada corretamente de um
 bloco real perdido por três pontos.
 
 ```bash
-~/jime-venv/bin/python jime.py play --display --profile --share
+cd ~/jime && ~/jime-venv/bin/python jime.py play --display --profile --share
 ```
 
 A saída do `selftest.py` já pode ser enviada como está — ela não tem texto nenhum
-do jogo, e os caminhos são escritos com `~` no lugar da sua pasta pessoal.
+do jogo, e os caminhos são escritos com `~` no lugar da sua pasta pessoal:
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python selftest.py
+```
 
 ---
 
@@ -324,12 +328,14 @@ cd ~/jime
 ~/jime-venv/bin/python jime.py clean               # áudio sobrando de uma voz antiga
 ```
 
-O último precisa que aquele idioma já tenha sido extraído — ele lê o seu corpus.
+O `clean` precisa que aquele idioma já tenha sido **gerado** — ele lê o manifest
+ao lado do seu áudio, nunca o seu corpus. O `glyphs` é o que precisa de extração.
 
-Só o português tem ritmo de leitura **medido**; os outros doze usam o ritmo da
-própria voz, que é mais rápido do que qualquer um narra. `jime voices --calibrate
---lang de` gera uma amostra, informa o ritmo e imprime a linha para colar no
-`voices.py`.
+Só o português tem ritmo de leitura **medido**. Os outros doze leem a 1,20, o
+mais rápido que o `prosody.py` permite — não é o ritmo da própria voz, e é mais
+lento que ele. O `jime voices --calibrate --lang de` mede um, mas precisa que
+aquele idioma já tenha sido extraído, e avisa em vez de chutar quando o ritmo
+que você busca está fora do que dá para pedir à voz.
 
 Os ícones do jogo são falados como palavras em português e inglês. Acrescentar um
 idioma são cerca de 21 palavras, não uma investigação nova — o `jime glyphs` diz

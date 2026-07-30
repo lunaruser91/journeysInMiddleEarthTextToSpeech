@@ -16,10 +16,10 @@ reimplemented here. `jime <command> --help` shows that module's full options.
 
 ## Languages
 
-The game ships 13 localisations. Ten of them can be narrated, because that is
-where the game's languages and the speech model's languages overlap. Czech,
-Hungarian and Ukrainian have game text but no voice — the corpus extracts fine
-and every language the game ships can also be spoken.
+The game ships 13 localisations and all 13 can be narrated: every one of them
+has a Piper voice, so there is nothing that can be read but not heard. The
+previous engine covered ten, which is why parts of this project still carry a
+distinction between what extracts and what speaks.
 
 Icon vocabularies (`glyphs.py`) are filled for Portuguese and English. Any other
 language extracts and renders, but the game's icons will be dropped rather than

@@ -81,7 +81,11 @@ def section(title: str) -> None:
 def test_environment() -> None:
     section(f"environment — {platform.system()} {platform.machine()}")
     v = sys.version_info
-    check("python >= 3.11", v >= (3, 11), f"{v.major}.{v.minor}.{v.micro}", fatal=True)
+    # 3.12, matching requires-python in pyproject.toml and the check in
+    # jime.py:doctor. This said 3.11 and would have passed a machine the
+    # installer refuses.
+    check("python >= 3.12", v >= (3, 12), f"{v.major}.{v.minor}.{v.micro}",
+          fatal=True)
     for tool in ("ffmpeg", "ffprobe"):
         check(f"{tool} on PATH", shutil.which(tool) is not None,
               short(shutil.which(tool)) if shutil.which(tool) else "not found",

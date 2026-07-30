@@ -31,11 +31,11 @@ behind it, so nothing has to be remembered between sessions.
 
 ```
 Journeys in Middle-earth — narrator
-ready: en (3,386 blocks)
+ready: en (3,518 blocks)
 
 Which language to work in?
       1. cz  Čeština          no corpus yet — extract first
-   ›  3. en  English          corpus ready, 3,386 blocks rendered
+   ›  3. en  English          corpus ready, 3,518 blocks rendered
      10. pt  Português (BR)   no corpus yet — extract first
      13. zh  中文             no corpus yet — extract first
   [enter = en  English, q = quit]
@@ -48,9 +48,9 @@ What would you like to do?  [English]
   [enter = Narrate a game, q = quit]
 
 Which campaign are you playing?
-   ›  1. bonesofarnor  (your most recent save)  complete — 1,200 blocks
-      2. embercrown                             not started — 1,105 blocks
-      5. shadowedpaths                          not started — 927 blocks
+   ›  1. bonesofarnor  (your most recent save)  complete — 1,259 blocks
+      2. embercrown                             not started — 1,157 blocks
+      5. shadowedpaths                          not started — 976 blocks
   [enter = bonesofarnor  (your most recent save), b = back, q = quit]
 
 How is the game running?
@@ -59,7 +59,7 @@ How is the game running?
   [enter = fullscreen, b = back, q = quit]
 
 [scope] campaign=bonesofarnor | 7,314 candidates
-[audio] 3,386 blocks rendered
+[audio] 3,518 blocks rendered
 [ocr] AppleVision
 [source] display 0 — everything drawn on this monitor, including this window
 switch to the game now — this starts when it is in front
@@ -207,7 +207,7 @@ they hear.
 Choose **Check this machine** from the menu. It names what is missing rather
 than failing obscurely.
 
-The four most common answers:
+The most common answers:
 
 - **It finds no game window, or only reads when you alt-tab.** Choose the
   fullscreen option. On Windows, set the game to borderless windowed if it
@@ -231,7 +231,7 @@ The four most common answers:
   `--stable-frames 6` took 0.5 s off every screen with no half-drawn read:
 
   ```bash
-  ~/jime-venv/bin/python jime.py play --display --stable-frames 6
+  cd ~/jime && ~/jime-venv/bin/python jime.py play --display --stable-frames 6
   ```
 
   Check your own `paused` numbers before lowering it — an older recording on
@@ -282,11 +282,15 @@ the text becomes its own shape, "3 paragraph(s), 412 chars". That is enough to
 tell a menu screen correctly refused from a real block missed by three points.
 
 ```bash
-~/jime-venv/bin/python jime.py play --display --profile --share
+cd ~/jime && ~/jime-venv/bin/python jime.py play --display --profile --share
 ```
 
 `selftest.py` output is safe to send as it stands — it contains no game text at
-all, and paths are written with `~` in place of your home folder.
+all, and paths are written with `~` in place of your home folder:
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python selftest.py
+```
 
 ---
 
@@ -319,12 +323,14 @@ cd ~/jime
 ~/jime-venv/bin/python jime.py clean               # audio left over from an older voice
 ```
 
-The last one needs that language extracted first — it reads your corpus.
+`clean` needs that language **rendered** first — it reads the manifest beside
+your audio, never your corpus. `glyphs` is the one that needs an extract.
 
-Only Portuguese has a **measured** reading pace; the other twelve fall back to
-the voice's own, which is faster than anyone narrates. `jime voices --calibrate
---lang de` renders a sample, reports the pace and prints the line to paste into
-`voices.py`.
+Only Portuguese has a **measured** reading pace. The other twelve read at 1.20,
+the fastest `prosody.py` allows — not the voice's own speed, and slower than it.
+`jime voices --calibrate --lang de` measures one, but it needs that language
+extracted first, and it will tell you rather than guess when the pace you are
+aiming for is outside what the voice can be asked for.
 
 The game's icons are spoken as words in Portuguese and English. Adding a
 language is about 21 words, not a fresh investigation — `jime glyphs` says

@@ -23,6 +23,11 @@ output/
 audio/
 audio_piper/
 entrega/
+
+# legacy/jime_extract.py dumps the game's TextAssets here — its own help says
+# `-o out/`, and nothing above covers that name. It is the extractor whose whole
+# output is the thing this file exists to keep out.
+out/
 validacao_clone/
 *.opus
 *.mp3

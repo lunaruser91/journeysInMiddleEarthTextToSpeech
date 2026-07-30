@@ -1,5 +1,11 @@
 # Automatic narrator for *Journeys in Middle-earth* — briefing for Claude Code
 
+> **The brief this project started from, kept unedited.** It describes what was
+> known before anything was built, including guesses that measurement later
+> overturned. Nothing here should be followed as instruction; it is here so the
+> reasoning behind the shape of the project can be traced. The current state is
+> the [README](../README.md) and [ENGINEERING](ENGINEERING.md).
+
 > Paste this whole file as the first prompt in the new repository.
 > It contains everything already discovered, what already works, what is missing,
 > and above all the pitfalls that have already cost time — do not rediscover them.

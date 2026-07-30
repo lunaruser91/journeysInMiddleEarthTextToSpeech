@@ -1,5 +1,13 @@
 # Phase 3 — syncing the audio with the game
 
+> **This is the plan as it stood before Phase 3 was built, kept for its
+> reasoning.** Several of its constraints turned out to be false and the
+> shipped narrator does not have them — notably that macOS capture would need a
+> signed `.app` and a developer account (it does not: the screen-recording
+> grant attaches to the terminal), and that Piper was not installed (it is the
+> only synthesiser the project has). For what was actually built and measured,
+> read [ENGINEERING](ENGINEERING.md).
+
 > **Conclusion, after testing:** the trigger is still the screen, as §6 of the
 > briefing predicted — but the problem became **much** easier.
 >
@@ -207,7 +215,7 @@ Even when late, it is valuable:
 
 1. **Ground truth for the OCR harness.** The test session produced 9 real screens
    with the exact key for each one, saved in
-   `entrega/ocr-fixtures/sessao-2026-07-27.json`. It is exactly what §10 item 4
+   `output/ocr-fixtures/sessao-2026-07-27.json`. It is exactly what §10 item 4
    of the briefing asks for, and it came for free. Every game played generates more.
 2. **After-the-fact correction.** At the end of a session, you can check what was
    narrated against what the game recorded, and measure the real hit rate of the
@@ -337,7 +345,7 @@ the wrong block is not — the player acts on what they hear.
 ## 7. Order of work
 
 1. **OCR harness.** Real, labeled fixtures already exist in
-   `entrega/ocr-fixtures/`, generated without transcribing anything — the log
+   `output/ocr-fixtures/`, generated without transcribing anything — the log
    gives the key of each screen. Accumulate more by playing, and measure the CER
    of Apple Vision vs RapidOCR with data, not with faith.
 2. **`matcher.py`** — rapidfuzz against the set of the current adventure (~62 blocks),
