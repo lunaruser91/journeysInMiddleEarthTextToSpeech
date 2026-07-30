@@ -5,8 +5,9 @@
 > shipped narrator does not have them — notably that macOS capture would need a
 > signed `.app` and a developer account (it does not: the screen-recording
 > grant attaches to the terminal), and that Piper was not installed (it is the
-> only synthesiser the project has). For what was actually built and measured,
-> read [ENGINEERING](ENGINEERING.md).
+> only synthesiser the project has). File names below are the ones planned or
+> existing at the time; several were never created and several were renamed. For
+> what was actually built and measured, read [ENGINEERING](ENGINEERING.md).
 
 > **Conclusion, after testing:** the trigger is still the screen, as §6 of the
 > briefing predicted — but the problem became **much** easier.
