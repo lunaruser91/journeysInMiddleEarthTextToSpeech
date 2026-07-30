@@ -331,11 +331,14 @@ cd ~/jime
 O `clean` precisa que aquele idioma já tenha sido **gerado** — ele lê o manifest
 ao lado do seu áudio, nunca o seu corpus. O `glyphs` é o que precisa de extração.
 
-Só o português tem ritmo de leitura **medido**. Os outros doze leem a 1,20, o
-mais rápido que o `prosody.py` permite — não é o ritmo da própria voz, e é mais
-lento que ele. O `jime voices --calibrate --lang de` mede um, mas precisa que
-aquele idioma já tenha sido extraído, e avisa em vez de chutar quando o ritmo
-que você busca está fora do que dá para pedir à voz.
+O português e o inglês têm ritmo de leitura **medido** — 155 e 154 palavras por
+minuto nos mesmos blocos, que os corpora têm nos dois idiomas porque são
+traduções um do outro. Os outros onze leem no ritmo da própria voz, que é o que
+o autor dela escolheu e não vai combinar.
+
+O `jime voices --calibrate --lang de` mede um em alguns minutos. Ele precisa que
+aquele idioma já tenha sido extraído, e imprime a linha para colar no
+`voices.py`.
 
 Os ícones do jogo são falados como palavras em português e inglês. Acrescentar um
 idioma são cerca de 21 palavras, não uma investigação nova — o `jime glyphs` diz

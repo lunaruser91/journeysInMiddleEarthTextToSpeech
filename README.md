@@ -326,11 +326,13 @@ cd ~/jime
 `clean` needs that language **rendered** first — it reads the manifest beside
 your audio, never your corpus. `glyphs` is the one that needs an extract.
 
-Only Portuguese has a **measured** reading pace. The other twelve read at 1.20,
-the fastest `prosody.py` allows — not the voice's own speed, and slower than it.
-`jime voices --calibrate --lang de` measures one, but it needs that language
-extracted first, and it will tell you rather than guess when the pace you are
-aiming for is outside what the voice can be asked for.
+Portuguese and English have a **measured** reading pace — 155 and 154 words per
+minute on the same blocks, which the corpora hold in both languages because
+they are translations of each other. The other eleven read at their voice's own
+pace, which is whatever its author chose and will not match.
+
+`jime voices --calibrate --lang de` measures one in a few minutes. It needs that
+language extracted first, and it prints the line to paste into `voices.py`.
 
 The game's icons are spoken as words in Portuguese and English. Adding a
 language is about 21 words, not a fresh investigation — `jime glyphs` says

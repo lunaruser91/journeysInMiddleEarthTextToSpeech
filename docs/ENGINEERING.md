@@ -25,10 +25,12 @@ they are. This file holds what does not belong to any one module.
 Those come from `output/render-20260727-2325.log`: 744.1 minutes of speech
 produced in 21.9 minutes of wall clock.
 
-The 155 wpm is the measured output of the shipped recipe. `voices.py` carries a
-comment saying 161 and a `TARGET_WPS` of 2.68 — those are the stale pair, kept
-because the calibration procedure reports in words per second. Do not "correct"
-the README to match them.
+The 155 wpm is the measured output of the shipped recipe, and it is now also the
+target a new voice is swept against. It used to disagree with itself: `voices.py`
+carried a comment saying 161 and a `TARGET_WPS` of 2.68, which nothing produced —
+1.35 was chosen by ear and delivers 155. A second voice aimed at 161 would have
+come out 6 wpm faster than the first, which is the mismatch the target exists to
+prevent, so the target is what the ear-tuned voice actually does.
 
 ### Screen recognition
 
@@ -371,22 +373,37 @@ works is indistinguishable from the engine you meant to use except by the clock.
    `PREPARED` and `CORRUPTION` were checked against the rulebooks and hold; the
    English lexicon no longer flags them. What remains open for Portuguese is the
    printed wording, since all four manuals are in English.
-4. **Twelve of the thirteen languages have no measured pace, and the target they
-   would be measured against is Portuguese.** `TARGET_WPS` is 2.68 words per
-   second for every language, which came from calibrating `pt_BR-faber-medium`
-   and was never claimed to be universal.
+4. **Eleven of the thirteen languages have no measured pace.** Portuguese and
+   English do: 155 and 154 wpm on the same blocks, which the corpora hold in
+   both languages because they are translations of each other.
 
-   Measured on `en_GB-alan-medium`, 25 blocks: the whole range the renderer can
-   be asked for is **1.94 to 2.25 w/s**, because `prosody.synthesize` clamps
-   every clause into `[MIN_SCALE, MAX_SCALE]` = `[1.20, 1.50]`. So 2.68 is not
-   merely unmet for English, it is unreachable, and `jime voices --calibrate`
-   now says so instead of extrapolating to a length_scale outside the band —
-   which it did once, returning 0.39, a value that renders identically to 1.0.
+   Getting the second one there meant fixing two things that only look like one.
+   `prosody.synthesize` clamped every clause into an absolute `[1.20, 1.50]`,
+   written when there was one voice calibrated to 1.35 — at that base an absolute
+   band and a band relative to the base are the same thing, so nothing
+   distinguished them. A second voice separates them: English reaches audiobook
+   pace at about 1.05, which the absolute floor forbade, so it read at 137 wpm
+   and could not be asked to do otherwise. The band is `[1.20/1.35, 1.50/1.35]`
+   of the base now — identical output for the calibrated voice, verified across
+   all eight multiplier combinations and 92 clauses of real blocks, so nothing
+   already rendered changed.
 
-   Deciding this needs ears, not arithmetic: either English takes 1.20 (2.25
-   w/s, 135 wpm, inside the audiobook range) and `TARGET_WPS` gains a per
-   language entry, or the prosody band widens and every existing render changes.
-   Nothing here should be picked without listening to both.
+   And `TARGET_WPS` was 2.68 w/s, 161 wpm, which nothing produced: 1.35 was
+   chosen by ear and delivers 155. Aiming a second voice at 161 would have made
+   it 6 wpm faster than the first — the mismatch the target exists to prevent. It
+   is 2.58 now, which is what the ear-tuned voice actually does.
+
+   Words per second looked like the wrong unit for this and was measured rather
+   than assumed. On the same 14 blocks, Portuguese and English differ by 21% in
+   words per second at equal `length_scale`, 26% in characters, and **55% in
+   syllables** — the unit that was supposed to be the stable one is the worst of
+   the three. No unit converges, which is why pace is per voice and `TARGET_WPS`
+   per language starts empty.
+
+   The remaining eleven are mechanical now: extract, fetch the voice, sweep.
+   What no measurement settles is whether the number sounds right — 1.35 was
+   picked by listening to four values on 125 words of prose, and that step needs
+   somebody who speaks the language.
 
    Separately, eleven languages have no icon vocabulary — `jime glyphs --lang
    <code>` says which words are needed.

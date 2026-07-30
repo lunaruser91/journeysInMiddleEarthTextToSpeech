@@ -27,9 +27,18 @@ number to another is how a session ends up with one screen rushing and the next
 not. A voice with no measured entry says so rather than borrowing a number from
 a different speaker.
 
-Words per second is a poor target across languages — German compounds and
-Chinese characters do not count the same way — so `TARGET_WPS` is per language
-too, and only Portuguese is measured. Calibrate with:
+Words per second looks like a poor target across languages — German compounds
+and Chinese characters do not count the same way — and it was measured rather
+than assumed. On the same 14 blocks, which the corpora hold in every language
+because they are translations of each other, Portuguese and English differ by
+21% in words per second at the same `length_scale`, 26% in characters, and 55%
+in syllables. No unit converges, so none of them is the one that makes a single
+number correct.
+
+What settles it is that the differences are in the *voice*, and pace is stored
+per voice. Both measured voices reach the same target inside their own band, so
+`TARGET_WPS` starts empty and a language earns an entry there by being listened
+to. Calibrate with:
 
     jime voices --calibrate --lang de
 """
@@ -80,12 +89,26 @@ DEFAULT_VOICE = {
 # It is per *voice*: carrying one speaker's number to another is how a session
 # ends up with one screen rushing and the next not.
 CALIBRATION = {
-    "pt_BR-faber-medium": 1.35,   # 2.68 w/s, 161 wpm
+    "pt_BR-faber-medium": 1.35,   # 2.58 w/s, 155 wpm, chosen by ear
+    "en_GB-alan-medium": 1.02,    # 2.56 w/s, 154 wpm, swept against the above
 }
 
-# Reading pace to aim for, per language. Only pt is measured.
-TARGET_WPS = {"pt": 2.68}
-DEFAULT_TARGET_WPS = 2.68
+# The pace to aim a new voice at, and it is not a preference — it is what the one
+# voice that was tuned by ear actually delivers.
+#
+# This was 2.68 w/s, 161 wpm, and nothing produced that. The 1.35 above was
+# settled by listening; measured over the 3,386-block render it reads at 155 wpm,
+# and over 14 blocks through the live path at 152. 161 was the number the
+# calibration procedure had converged on for a different reason and it stayed
+# after the pace moved, so a second voice aimed at it would have come out 6 to 9
+# wpm faster than the first — the exact mismatch the target exists to prevent.
+#
+# 155 wpm is also inside the audiobook range, which 161 sits at the top of.
+DEFAULT_TARGET_WPS = 2.58
+# Per language, when one turns out to want its own. Nothing does yet: the two
+# measured voices are within noise of each other on this target, and a language
+# earns an entry here by being listened to, not by being different on paper.
+TARGET_WPS: dict[str, float] = {}
 
 
 def _fetch(url: str) -> bytes:
@@ -387,26 +410,28 @@ def ensure(name: str, quiet: bool = False) -> Path:
 def length_scale(name: str, lang: str = "pt", quiet: bool = False) -> float:
     """Pace for this voice, or a warned-about fallback.
 
-    The fallback is `prosody.MIN_SCALE` and not 1.0, and the difference is only
-    that one of them is true. `prosody.synthesize` clamps every clause into
-    [MIN_SCALE, MAX_SCALE], so asking for 1.0 has always produced MIN_SCALE —
-    measured on one paragraph of en_GB-alan-medium, 1.0 and 0.39 both render in
-    about 9.3 s where 1.20 takes 9.8 s. Saying "using 1.0" named a number that
-    never reached the audio, in a warning whose whole job is to tell you what
-    the audio will sound like.
+    1.0 is the voice as its author made it, and it now reaches the audio.
 
-    It is the fastest reading available rather than a middle one, deliberately:
-    an uncalibrated voice is most likely to be judged against a calibrated one,
-    and slow is the failure people notice.
+    This said 1.0 for a long time and was wrong to, because `prosody` clamped
+    every clause into an absolute [1.20, 1.50] and a base of 1.0 came out as
+    1.20. That was corrected here by returning 1.20 and saying so — and then
+    corrected again, in the other direction, once the measurement showed the
+    absolute band was itself the defect: it was one voice's range imposed on
+    twelve, and it pinned `en_GB-alan-medium` at 137 wpm when audiobook
+    narration is 150 to 160. The band is a fraction of the base now, so 1.0
+    means 1.0 again.
+
+    Unmeasured, so the voice's own pace is the only honest answer: the author
+    chose it, and this project has no measurement saying otherwise. For the one
+    uncalibrated voice that has been measured since, it lands at about 157 wpm,
+    inside the range. That is luck rather than design, which is why the warning
+    stays.
     """
     if name in CALIBRATION:
         return CALIBRATION[name]
-    from prosody import MIN_SCALE
-
     if not quiet:
-        print(f"[warning] {name} has no measured pace, so it reads at "
-              f"{MIN_SCALE} — the fastest prosody.py allows. It will not match "
-              f"the calibrated voices.\n"
+        print(f"[warning] {name} has no measured pace, so it reads at 1.0 — the "
+              f"voice's own. It will not match the calibrated voices.\n"
               f"          Measure it with: jime voices --calibrate --lang {lang}",
               file=sys.stderr)
-    return MIN_SCALE
+    return 1.0

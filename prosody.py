@@ -49,9 +49,38 @@ import wave
 # Where a clause is long enough to deserve its own breath.
 LONG = 90
 
-# The pace the owner settled on by ear, and the band around it. Anything outside
-# this is a different decision, not a shade of this one.
-MIN_SCALE, MAX_SCALE = 1.20, 1.50
+# How far a clause may drift from the pace the voice was calibrated to. Anything
+# outside this is a different decision, not a shade of this one.
+#
+# ## Why this is a fraction and not two numbers
+#
+# It was `MIN_SCALE, MAX_SCALE = 1.20, 1.50`: an absolute band, written when the
+# project had one voice, calibrated to 1.35 by ear. At that base an absolute band
+# and a relative one are the same thing, so nothing distinguished them.
+#
+# A second voice separates them, and the absolute version is wrong. Measured on
+# the same 14 blocks — the corpora are translations of each other, so this is the
+# same content in both languages:
+#
+#     length_scale   pt_BR-faber   en_GB-alan
+#             1.05        186 wpm      162 wpm
+#             1.20        172 wpm      146 wpm
+#             1.35        157 wpm      130 wpm
+#
+# Audiobook narration is 150 to 160 wpm. Portuguese reaches it at 1.35, which is
+# why 1.35 was chosen. English reaches it at about 1.05 — and 1.05 was outside
+# the band, so every non-Portuguese voice was pinned at the bottom of a range
+# that means something different for it. English read at 137 wpm through this
+# module and could not be asked to do otherwise.
+#
+# 1.20/1.35 and 1.50/1.35 are 0.889 and 1.111. Written that way the band is
+# **identical for the calibrated voice** — verified across all eight
+# multiplier combinations below, and against rendered audio — and becomes each
+# voice's own ±11% rather than one voice's absolute range imposed on twelve.
+#
+# So no existing render changes, and `CALIBRATION` can hold a number that means
+# what it says for any voice.
+MIN_FACTOR, MAX_FACTOR = 1.20 / 1.35, 1.50 / 1.35
 
 DARK = re.compile(r"\b(escurid|sombra|medo|terror|morte|morto|sangue|gritos?|"
                   r"uivo|fedor|podre|ru[ií]na|amea|inimig|orc|goblin|troll|"
@@ -142,7 +171,8 @@ def plan(text: str, base: float) -> list[tuple[str, float, float]]:
                 pause = 0.0                 # the block ends; the player decides
             elif last:
                 pause = 0.55                # between story and rule, a beat
-            out.append((c, min(MAX_SCALE, max(MIN_SCALE, scale)), pause))
+            out.append((c, min(base * MAX_FACTOR,
+                               max(base * MIN_FACTOR, scale)), pause))
     return out
 
 
