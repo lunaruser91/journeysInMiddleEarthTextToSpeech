@@ -121,11 +121,13 @@ starts, so a running terminal keeps the old answer. Without it, capture hangs
 rather than failing, which is why this is worth doing before anything else.
 Windows needs no permission.
 
-Then start it:
+Then start it — **macOS**:
 
 ```bash
 cd ~/jime && ~/jime-venv/bin/python jime.py
 ```
+
+**Windows**, in PowerShell:
 
 ```powershell
 cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py

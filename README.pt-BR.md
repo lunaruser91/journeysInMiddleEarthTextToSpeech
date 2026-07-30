@@ -126,11 +126,13 @@ lida quando o programa inicia, então um terminal já aberto mantém a resposta
 antiga. Sem ela a captura trava em vez de dar erro, e é por isso que vale
 resolver antes de qualquer outra coisa. O Windows não pede permissão.
 
-Depois é só iniciar:
+Depois é só iniciar — **macOS**:
 
 ```bash
 cd ~/jime && ~/jime-venv/bin/python jime.py
 ```
+
+**Windows**, no PowerShell:
 
 ```powershell
 cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py
