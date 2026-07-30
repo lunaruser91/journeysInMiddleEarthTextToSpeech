@@ -66,10 +66,15 @@ switch to the game now — this starts when it is in front
 ```
 
 Pick a campaign with nothing rendered and it says so before you waste a
-session, and offers to render it. Once the game is in front, each screen it
-reads is one line — the key, whether it was spoken, and why not when it was
-not. (The block's own words are printed too; they are the game's, so they are
-not reproduced here.)
+session, and offers to render it:
+
+![Choosing English, then a campaign with no audio yet. It says so, says roughly
+how long rendering takes, and offers to do it before you sit down to
+play](docs/images/render-windows.png)
+
+Once the game is in front, each screen it reads is one line — the key, whether it
+was spoken, and why not when it was not. (The block's own words are printed too;
+they are the game's, so they are not reproduced here.)
 
 ```
 watching. Ctrl+C to stop.
@@ -97,6 +102,10 @@ curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTe
 ```
 
 **Windows**, in PowerShell
+
+![One command, and this is the whole of it: the tools it found, the clone, the
+environment, which languages Windows can read the screen in, and a self-test that
+tries every part on real data](docs/images/install-windows.png)
 
 ```powershell
 irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex

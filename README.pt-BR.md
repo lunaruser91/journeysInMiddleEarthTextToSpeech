@@ -69,7 +69,11 @@ vá para o jogo agora — começa quando ele estiver na frente
 ```
 
 Se você escolher uma campanha sem áudio gerado, ele avisa antes de você perder
-a sessão, e oferece gerar.
+a sessão, e oferece gerar:
+
+![Escolhendo inglês, depois uma campanha que ainda não tem áudio. Ele avisa, diz
+mais ou menos quanto tempo leva para gerar, e oferece fazer isso antes de você
+sentar para jogar](docs/images/render-windows.png)
 
 Com o jogo na frente, cada tela lida vira uma linha — a chave, se foi falada, e
 por que não quando não foi. (O texto do bloco também é impresso; ele é do jogo,
@@ -103,6 +107,10 @@ curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTe
 ```
 
 **Windows**, no PowerShell
+
+![Um comando, e isto é tudo: as ferramentas que ele encontrou, o clone, o
+ambiente, em que idiomas o Windows sabe ler a tela, e um autoteste que
+experimenta cada peça com dados reais](docs/images/install-windows.png)
 
 ```powershell
 irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
