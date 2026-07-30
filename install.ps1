@@ -124,20 +124,24 @@ Write-Step 'Screen reading'
 $tags = & $python -c "from winrt.windows.media.ocr import OcrEngine; print(','.join(x.language_tag for x in OcrEngine.available_recognizer_languages))" 2>$null
 if ($LASTEXITCODE -eq 0 -and $tags) {
     Write-Ok "Windows can read the screen in: $tags"
-    Write-Host @"
-    If you play the game in a language that is not in that list, Windows needs
-    its recogniser too. In an elevated PowerShell, with your language in place
-    of pt-BR:
+    # The explanation only when it might be needed. A machine with two or more
+    # recognisers has had one added deliberately, and printing fifteen lines at
+    # it teaches people that this section is scenery. One is the shape of a fresh
+    # Windows that has never been told about another language.
+    if ($tags.Split(',').Count -eq 1) {
+        Write-Host @"
+   That is the only one. If you play the game in another language, Windows needs
+   its recogniser too, or the narrator reads the screen in English and drops
+   every accent on the way to the voice — it still plays, names just come out
+   wrong. In an elevated PowerShell, with your language in place of pt-BR:
 
-        Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
+       Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
 
-    Without it the narrator reads the screen in another language and drops the
-    accents. It still plays; names just come out wrong.
+   This lists all 35 that Windows can install:
 
-    This lists all 35 recognisers Windows can install:
-
-        Get-WindowsCapability -Online -Name "Language.OCR*"
+       Get-WindowsCapability -Online -Name "Language.OCR*"
 "@ -ForegroundColor DarkGray
+    }
 } else {
     Write-Ok 'could not ask Windows which languages it can read — the check below will say'
 }
