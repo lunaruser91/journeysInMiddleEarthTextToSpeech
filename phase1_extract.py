@@ -69,12 +69,45 @@ def clean(text: str, keep_markup: bool = False) -> str:
     return text.strip()
 
 
+# A sentence ends differently outside the Latin alphabet, and a word is not
+# always delimited by a space. Both halves of the old test assumed otherwise.
+SENTENCE_END = ".!?…。！？"
+# The CJK blocks the game's Chinese actually uses, plus fullwidth punctuation.
+CJK = re.compile(r"[㐀-䶿一-鿿豈-﫿＀-￯]")
+
+
 def is_narration(key: str, text: str) -> bool:
-    """Heuristic: does the block look like text to be read out loud?"""
+    """Heuristic: does the block look like text to be read out loud?
+
+    ## This returned False for every Chinese block in the game
+
+    It was `len(text.split()) >= 8 and any(c in text for c in ".!?…")`, and
+    Chinese fails both halves: it puts no spaces between words, so `split()`
+    counts a whole paragraph as one, and it ends sentences with `。`, `！`, `？`
+    rather than the Latin marks.
+
+    Measured after extracting it: **13,054 keys and zero narration**. `jime
+    render --lang zh` would have produced nothing at all, the narrator would have
+    been silent for the entire language, and the README's claim that all thirteen
+    localisations can be narrated was false for one of them. Nothing caught it
+    because nobody had extracted Chinese — the two languages this project has
+    used both have spaces and Latin full stops.
+
+    Korean passes the old test and is not affected: it spaces its phrases and the
+    game's Korean uses Latin punctuation.
+
+    Twelve characters rather than eight words, where there are no spaces to
+    count: eight words of Portuguese narration is 40 to 50 characters, and
+    Chinese says about as much in 15 to 20. It is the same threshold expressed in
+    the unit the script actually offers.
+    """
     if any(h in key.upper() for h in UI_KEY_HINTS):
         return False
-    words = len(text.split())
-    return words >= 8 and any(c in text for c in ".!?…")
+    if not any(c in text for c in SENTENCE_END):
+        return False
+    if CJK.search(text):
+        return len(text) >= 12
+    return len(text.split()) >= 8
 
 
 def extract_bundle(path: Path) -> tuple[str, str]:
