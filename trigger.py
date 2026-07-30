@@ -38,6 +38,28 @@ looking only at the dialogue box region:
   Honest caveat: that clean separation comes from 15 events in one recording. A
   larger sample could blur it, so the parameter is exposed.
 
+  **It blurred.** Measured later on a Windows VM with no graphics card, where
+  the game renders in software — 15 screens across two sessions, using the
+  `paused Nf` figure `--profile` now prints:
+
+      1 3 2 1 1 1 0        with the floor at 11
+      1 2 1 1 2 1 2 0      with the floor at 6
+
+  Nothing above 3, where the recording above found runs up to 10. Both are real,
+  and they may both be right about their own machine: a game that is dropping
+  frames to keep up animates as continuous motion, and the pauses a smooth
+  machine shows between drawing steps never appear. That would make this
+  measurement the optimistic one, and exactly the wrong one to generalise from.
+
+  So `STABLE_FRAMES` stays at 11, and `--stable-frames 6` is what the machine
+  above should run: it clears its observed maximum twice over, takes 0.5 s off
+  every screen — 5 frames at 10 fps, arithmetic rather than hoped for — and a
+  session at 6 read no half-drawn screen, produced no wrong block, and refused
+  the same menus for the same reasons as at 11.
+
+  What would settle the default is the same number from a machine with a
+  graphics card. Nobody has one of those pointed at this yet.
+
 ## Cropping the dialogue box is not an optimisation
 
 The map animates on its own — tiles being placed, fog moving — so a full-screen

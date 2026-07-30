@@ -374,6 +374,17 @@ works is indistinguishable from the engine you meant to use except by the clock.
    takes about 88% of the processor; the narrator needs roughly 0.7 s of CPU per
    screen and was getting a few percent of a core. `--profile` exists to settle
    this on real hardware.
+
+   This now blocks a specific decision rather than being a general wish.
+   `STABLE_FRAMES` is a 1.1 s floor on every screen — about half of what a player
+   waits, now that the rest of the pipeline runs in under two seconds. Two
+   measurements of the pause it guards against disagree: a recording found
+   mid-animation pauses up to 10 frames, and 15 screens on the GPU-less VM found
+   nothing above 3. A machine that drops frames animates as continuous motion, so
+   the VM is plausibly the optimistic one and the wrong one to generalise from.
+   `--stable-frames 6` is measured-safe there and takes 0.5 s off every screen;
+   the default stays at 11 until the same figure comes from a machine that draws
+   the game properly. Run `--profile` and read `paused Nf`.
 6. **The hero name behind a numeric `Id` is unresolved.** Log parameter type 3
    carries a number this project cannot yet map to a hero, which matters only for
    fixture generation.
