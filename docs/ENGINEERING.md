@@ -365,10 +365,25 @@ works is indistinguishable from the engine you meant to use except by the clock.
    `PREPARED` and `CORRUPTION` were checked against the rulebooks and hold; the
    English lexicon no longer flags them. What remains open for Portuguese is the
    printed wording, since all four manuals are in English.
-4. **Twelve of the thirteen languages have no measured pace.** They fall back to
-   the voice's own, which is faster than a narrator should read.
-   `jime voices --calibrate` fixes one in a few minutes. Separately, eleven have
-   no icon vocabulary — `jime glyphs --lang <code>` says which words are needed.
+4. **Twelve of the thirteen languages have no measured pace, and the target they
+   would be measured against is Portuguese.** `TARGET_WPS` is 2.68 words per
+   second for every language, which came from calibrating `pt_BR-faber-medium`
+   and was never claimed to be universal.
+
+   Measured on `en_GB-alan-medium`, 25 blocks: the whole range the renderer can
+   be asked for is **1.94 to 2.25 w/s**, because `prosody.synthesize` clamps
+   every clause into `[MIN_SCALE, MAX_SCALE]` = `[1.20, 1.50]`. So 2.68 is not
+   merely unmet for English, it is unreachable, and `jime voices --calibrate`
+   now says so instead of extrapolating to a length_scale outside the band —
+   which it did once, returning 0.39, a value that renders identically to 1.0.
+
+   Deciding this needs ears, not arithmetic: either English takes 1.20 (2.25
+   w/s, 135 wpm, inside the audiobook range) and `TARGET_WPS` gains a per
+   language entry, or the prosody band widens and every existing render changes.
+   Nothing here should be picked without listening to both.
+
+   Separately, eleven languages have no icon vocabulary — `jime glyphs --lang
+   <code>` says which words are needed.
 5. **Latency has never been measured on a machine with a graphics card.** The
    Windows testing was done on a GPU-less VM, where the game software-renders and
    takes about 88% of the processor; the narrator needs roughly 0.7 s of CPU per

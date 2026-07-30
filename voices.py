@@ -385,12 +385,28 @@ def ensure(name: str, quiet: bool = False) -> Path:
 
 
 def length_scale(name: str, lang: str = "pt", quiet: bool = False) -> float:
-    """Pace for this voice, or a warned-about fallback."""
+    """Pace for this voice, or a warned-about fallback.
+
+    The fallback is `prosody.MIN_SCALE` and not 1.0, and the difference is only
+    that one of them is true. `prosody.synthesize` clamps every clause into
+    [MIN_SCALE, MAX_SCALE], so asking for 1.0 has always produced MIN_SCALE —
+    measured on one paragraph of en_GB-alan-medium, 1.0 and 0.39 both render in
+    about 9.3 s where 1.20 takes 9.8 s. Saying "using 1.0" named a number that
+    never reached the audio, in a warning whose whole job is to tell you what
+    the audio will sound like.
+
+    It is the fastest reading available rather than a middle one, deliberately:
+    an uncalibrated voice is most likely to be judged against a calibrated one,
+    and slow is the failure people notice.
+    """
     if name in CALIBRATION:
         return CALIBRATION[name]
+    from prosody import MIN_SCALE
+
     if not quiet:
-        print(f"[warning] {name} has no measured pace, using 1.0. It will not "
-              f"match the calibrated voices.\n"
+        print(f"[warning] {name} has no measured pace, so it reads at "
+              f"{MIN_SCALE} — the fastest prosody.py allows. It will not match "
+              f"the calibrated voices.\n"
               f"          Measure it with: jime voices --calibrate --lang {lang}",
               file=sys.stderr)
-    return 1.0
+    return MIN_SCALE

@@ -433,15 +433,44 @@ def _calibrate(args: argparse.Namespace, V) -> int:
         w = [v["wps"] for v in man.values() if v.get("wps")]
         return statistics.median(w)
 
+    # Sweep only where the renderer will listen.
+    #
+    # `prosody.synthesize` clamps every clause into [MIN_SCALE, MAX_SCALE], so a
+    # length_scale outside that band is not a slower or faster reading — it is
+    # the edge of the band, silently. Sweeping 1.2 and 1.8 and interpolating
+    # produced 0.39 for en_GB-alan-medium, and 0.39 renders identically to 1.0:
+    # measured on one paragraph, 9.26 s against 9.31 s, both about 2.37 w/s.
+    # That number would have gone into CALIBRATION as a fact about a setting that
+    # cannot arrive — the same shape as the RapidOCR config file that was never
+    # read.
+    #
+    # So the ends of the sweep are the ends of the band, and a target outside
+    # what the band can reach is reported rather than extrapolated to.
+    from prosody import MAX_SCALE, MIN_SCALE
+
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         try:
-            a, b = 1.2, 1.8
+            a, b = MIN_SCALE, MAX_SCALE
             wa, wb = measure(a, tmp / "a"), measure(b, tmp / "b")
-            print(f"  length_scale {a}  ->  {wa:.2f} w/s")
-            print(f"  length_scale {b}  ->  {wb:.2f} w/s")
+            print(f"  length_scale {a}  ->  {wa:.2f} w/s   (the fastest prosody "
+                  f"allows)")
+            print(f"  length_scale {b}  ->  {wb:.2f} w/s   (the slowest)")
             if abs(wb - wa) < 1e-6:
                 return _fail("pace did not respond to length_scale")
+            lo, hi = min(wa, wb), max(wa, wb)
+            if not lo <= target <= hi:
+                near = a if abs(target - wa) < abs(target - wb) else b
+                print(f"\n{YELLOW}{target} w/s is outside what this voice can be "
+                      f"asked for.{RESET}")
+                print(f"Between {lo:.2f} and {hi:.2f} w/s is the whole range, "
+                      f"because prosody.py clamps every clause into "
+                      f"[{MIN_SCALE}, {MAX_SCALE}].")
+                print(f"The closest is length_scale {near} at "
+                      f"{wa if near == a else wb:.2f} w/s. Either take that, or "
+                      f"decide that {lang!r} wants a different target and put it "
+                      f"in TARGET_WPS — {target} came from Portuguese.")
+                return 1
             best = a + (target - wa) * (b - a) / (wb - wa)
             got = measure(best, tmp / "c")
             print(f"  length_scale {best:.2f}  ->  {got:.2f} w/s   {GREEN}<-{RESET}")
