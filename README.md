@@ -207,6 +207,24 @@ The four most common answers:
   screen, so you can see whether the delay is the game's own animation, the
   OCR, the matcher or the synthesis. On a machine without a graphics card the
   game itself can take the whole processor and leave nothing for the narrator.
+
+  If the slow line is `settling`, some of it is yours to take back. The narrator
+  waits for the screen to hold still before reading it — 11 quiet frames, which
+  at the default 10 fps is 1.1 s on every screen — because a dialogue box that
+  pauses mid-animation looks exactly like one that has finished, and reading it
+  early means reading half-drawn text.
+
+  `--profile` also prints `paused Nf`: the longest the game was actually seen to
+  pause mid-animation, in frames. `--stable-frames` only has to clear that.
+  Measured on one Windows machine over 15 screens, nothing went above 3, and
+  `--stable-frames 6` took 0.5 s off every screen with no half-drawn read:
+
+  ```bash
+  ~/jime-venv/bin/python jime.py play --display --stable-frames 6
+  ```
+
+  Check your own `paused` numbers before lowering it — an older recording on
+  different hardware found pauses up to 10, which is why the default is 11.
 - **Windows: the speech engine will not load.** The Visual C++ Redistributable
   is missing: `winget install --id Microsoft.VCRedist.2015+.x64 -e`
 - **Windows: it reads, but eats the accents.** The screen is being recognised in

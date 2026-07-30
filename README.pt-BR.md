@@ -211,6 +211,25 @@ As quatro respostas mais comuns:
   cada etapa por tela, e aí dá para ver se a demora é a animação do próprio jogo,
   o OCR, o reconhecimento ou a síntese. Numa máquina sem placa de vídeo o jogo
   sozinho pode tomar o processador inteiro e não sobrar nada para o narrador.
+
+  Se a linha lenta for a `settling`, parte dela é sua para recuperar. O narrador
+  espera a tela ficar parada antes de ler — 11 quadros parados, que aos 10 fps
+  padrão são 1,1 s em toda tela — porque uma caixa de diálogo que pausa no meio
+  da animação é idêntica a uma que terminou, e ler cedo é ler texto meio
+  desenhado.
+
+  O `--profile` também imprime `paused Nf`: a maior pausa que o jogo realmente
+  deu no meio da animação, em quadros. O `--stable-frames` só precisa ser maior
+  que isso. Medido numa máquina Windows ao longo de 15 telas, nada passou de 3, e
+  o `--stable-frames 6` tirou 0,5 s de cada tela sem nenhuma leitura parcial:
+
+  ```bash
+  ~/jime-venv/bin/python jime.py play --display --stable-frames 6
+  ```
+
+  Confira os seus próprios números de `paused` antes de baixar — uma gravação
+  antiga, em outro hardware, achou pausas de até 10, e é por isso que o padrão
+  é 11.
 - **Windows: o motor de fala não carrega.** Falta o Visual C++ Redistributable:
   `winget install --id Microsoft.VCRedist.2015+.x64 -e`
 - **Windows: ele lê, mas come os acentos.** A tela está sendo reconhecida no
