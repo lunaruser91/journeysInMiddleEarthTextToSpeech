@@ -267,6 +267,12 @@ def test_ocr(lang: str, corpus: Path | None) -> None:
         if warning:
             check("reads the game's own language", False,
                   warning.splitlines()[0][:56])
+            # The 56 characters above identify the problem and cannot carry the
+            # fix. This one names an install command, so it is printed whole —
+            # a failure whose remedy is a line of PowerShell should not make
+            # anybody go and look for it.
+            for line in warning.splitlines()[1:]:
+                print(f"        {GRAY}{line.strip()}{RESET}")
         else:
             check("reads the game's own language", True, f"{lang} — as asked")
     except Exception as exc:  # noqa: BLE001

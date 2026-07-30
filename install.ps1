@@ -109,6 +109,39 @@ $python = Join-Path $Venv 'Scripts\python.exe'
 if ($LASTEXITCODE -ne 0) { throw 'the install failed — the output above says why' }
 Write-Ok 'dependencies installed'
 
+# The one thing this installer cannot install.
+#
+# `Add-WindowsCapability` needs elevation and this does not run elevated, so the
+# recogniser has to be a sentence rather than a step. It is worth the sentence:
+# without it the narrator still works, reads the screen with whatever recogniser
+# Windows does have — English, on most images — and drops every accent on the way
+# to the voice. Nothing looks wrong; a hero's name is just said wrong.
+#
+# Asked through the project's own venv rather than through Get-WindowsCapability,
+# which needs elevation to answer. This is the same API the narrator uses, so it
+# reports what will actually happen and not what ought to.
+Write-Step 'Screen reading'
+$tags = & $python -c "from winrt.windows.media.ocr import OcrEngine; print(','.join(x.language_tag for x in OcrEngine.available_recognizer_languages))" 2>$null
+if ($LASTEXITCODE -eq 0 -and $tags) {
+    Write-Ok "Windows can read the screen in: $tags"
+    Write-Host @"
+    If you play the game in a language that is not in that list, Windows needs
+    its recogniser too. In an elevated PowerShell, with your language in place
+    of pt-BR:
+
+        Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
+
+    Without it the narrator reads the screen in another language and drops the
+    accents. It still plays; names just come out wrong.
+
+    This lists all 35 recognisers Windows can install:
+
+        Get-WindowsCapability -Online -Name "Language.OCR*"
+"@ -ForegroundColor DarkGray
+} else {
+    Write-Ok 'could not ask Windows which languages it can read — the check below will say'
+}
+
 if (-not $SkipSelfTest) {
     Write-Step 'Checking'
     Push-Location $Path
