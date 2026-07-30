@@ -137,6 +137,7 @@ class Trigger:
     # on, waiting to hear. The hash and TTL gates below stop it repeating.
     _dirty: bool = field(default=True, init=False)
     _changed_at: float = field(default=0.0, init=False)
+    _peak_quiet: int = field(default=0, init=False)
     _settled_hash: int | None = field(default=None, init=False)
     _recent: list[Seen] = field(default_factory=list, init=False)
     _last_norm: str = field(default="", init=False)
@@ -175,12 +176,19 @@ class Trigger:
         self._prev = box
 
         if delta > self.change_threshold:
+            # A run of quiet frames that movement then interrupted: the screen
+            # looked finished and was not. The longest of those across one
+            # animation is exactly what `stable_frames` has to clear, so it is
+            # kept — see `interrupted_quiet`.
+            if self._dirty and self._quiet:
+                self._peak_quiet = max(self._peak_quiet, self._quiet)
             if not self._dirty:
                 # When the screen started moving. The gap between this and the
                 # frame that settles is the part of the delay that belongs to
                 # the game's own animation rather than to anything downstream,
                 # and without it a slow reaction cannot be attributed.
                 self._changed_at = self.now()
+                self._peak_quiet = 0        # a new screen, measured on its own
             self._dirty = True
             self._quiet = 0
             return None
@@ -211,6 +219,32 @@ class Trigger:
         slow reaction can be attributed instead of guessed at.
         """
         return max(0.0, self.now() - self._changed_at) if self._changed_at else 0.0
+
+    @property
+    def interrupted_quiet(self) -> int:
+        """Longest run of quiet frames that movement then interrupted.
+
+        `stable_frames` is a floor on every screen — eleven quiet frames at ten a
+        second is 1.1 s added to whatever the game's animation costs, and on a
+        machine where the rest of the pipeline now runs in under two, that floor
+        is about half the delay a player feels.
+
+        It cannot simply be lowered. It is there because a screen that pauses
+        mid-animation looks exactly like a screen that has finished, and firing
+        early means reading half-drawn text — which either matches nothing or, far
+        worse, matches something else.
+
+        So the question is not how low it could go but **how long this game
+        actually pauses mid-animation**, and that is this number: the longest
+        stretch the screen held still before moving again. `stable_frames` only
+        has to be larger than this, and everything above it is latency bought for
+        nothing. Reported per screen under `--profile`, in frames, because that
+        is the unit the constant is written in.
+
+        0 means the screen went from moving to finished without ever pausing —
+        the case where the floor is pure cost.
+        """
+        return self._peak_quiet
 
     # -------------------------------------------------------------- text --
 

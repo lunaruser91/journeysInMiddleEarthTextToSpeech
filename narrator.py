@@ -564,6 +564,9 @@ def main() -> None:
                 continue
             screens += 1
             settling = trigger.settling
+            # Read now, beside `settling`: both describe the screen that just
+            # fired, and both are overwritten when the next one starts moving.
+            paused = trigger.interrupted_quiet
             t0 = time.monotonic()
 
             box = crop(settled, (0.0, top, 1.0, bottom))
@@ -671,6 +674,7 @@ def main() -> None:
                     print(f"{GRAY}  [profile] settling {settling:5.2f}s  "
                           f"ocr {t_ocr - t0:5.2f}s  "
                           f"match {time.monotonic() - t_ocr:5.2f}s  "
+                          f"paused {paused:>2}f  "
                           f"(no match){RESET}", flush=True)
                 continue
 
@@ -768,7 +772,7 @@ def main() -> None:
             if args.profile:
                 print(f"{GRAY}  [profile] settling {settling:5.2f}s  "
                       f"ocr {t_ocr - t0:5.2f}s  match {t_match - t_ocr:5.2f}s  "
-                      f"synth {t_synth - t_match:5.2f}s  "
+                      f"synth {t_synth - t_match:5.2f}s  paused {paused:>2}f  "
                       f"queued {player.pending}, "
                       f"{'playing' if player.playing else 'idle'}{RESET}",
                       flush=True)
