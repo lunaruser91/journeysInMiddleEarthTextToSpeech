@@ -19,7 +19,7 @@
 .NOTES
     The PATH is refreshed in-session after each install. Without that, winget
     installs a program and the very next command cannot find it, because this
-    shell's PATH was read when it opened — which is exactly what happened the
+    shell's PATH was read when it opened - which is exactly what happened the
     first time this setup was walked through by hand.
 #>
 [CmdletBinding()]
@@ -66,7 +66,7 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     throw 'winget was not found. It ships with Windows 11 and recent Windows 10; update App Installer from the Microsoft Store.'
 }
 
-Write-Host 'Journeys in Middle-earth — narrator' -ForegroundColor White
+Write-Host 'Journeys in Middle-earth - narrator' -ForegroundColor White
 Write-Host 'installing to ' -NoNewline; Write-Host $Path -ForegroundColor White
 
 Write-Step 'Tools'
@@ -106,7 +106,7 @@ $python = Join-Path $Venv 'Scripts\python.exe'
 # ${Path} not $Path: inside double quotes PowerShell reads $Path[...] as an
 # index into the string, so the extras would never reach pip.
 & $python -m pip install --quiet -e "${Path}[tts,ocr,capture]"
-if ($LASTEXITCODE -ne 0) { throw 'the install failed — the output above says why' }
+if ($LASTEXITCODE -ne 0) { throw 'the install failed - the output above says why' }
 Write-Ok 'dependencies installed'
 
 # The one thing this installer cannot install.
@@ -114,7 +114,7 @@ Write-Ok 'dependencies installed'
 # `Add-WindowsCapability` needs elevation and this does not run elevated, so the
 # recogniser has to be a sentence rather than a step. It is worth the sentence:
 # without it the narrator still works, reads the screen with whatever recogniser
-# Windows does have — English, on most images — and drops every accent on the way
+# Windows does have - English, on most images - and drops every accent on the way
 # to the voice. Nothing looks wrong; a hero's name is just said wrong.
 #
 # Asked through the project's own venv rather than through Get-WindowsCapability,
@@ -132,7 +132,7 @@ if ($LASTEXITCODE -eq 0 -and $tags) {
         Write-Host @"
    That is the only one. If you play the game in another language, Windows needs
    its recogniser too, or the narrator reads the screen in English and drops
-   every accent on the way to the voice — it still plays, names just come out
+   every accent on the way to the voice - it still plays, names just come out
    wrong. In an elevated PowerShell, with your language in place of pt-BR:
 
        Add-WindowsCapability -Online -Name "Language.OCR~~~pt-BR~0.0.1.0"
@@ -143,7 +143,7 @@ if ($LASTEXITCODE -eq 0 -and $tags) {
 "@ -ForegroundColor DarkGray
     }
 } else {
-    Write-Ok 'could not ask Windows which languages it can read — the check below will say'
+    Write-Ok 'could not ask Windows which languages it can read - the check below will say'
 }
 
 if (-not $SkipSelfTest) {
