@@ -32,16 +32,16 @@ the README to match them.
 
 ### Screen recognition
 
-Measured against **631 real screens** rebuilt from the game's own logs — without
-transcribing any of them by hand. Campaign scope (`bonesofarnor` + `main`),
-which is what the narrator uses.
+Measured against **653 real screens** rebuilt from the game's own logs — without
+transcribing any of them by hand, 112 of them composite of two or more keys.
+Campaign scope (`bonesofarnor` + `main`), which is what the narrator uses.
 
 | OCR noise | hit rate | **wrong** | refusal |
 |---:|---:|---:|---:|
 | 0% | **99.2%** | 0.5% | 0.3% |
-| 2% | 95.6% | 0.5% | 4.0% |
-| 5% | 94.8% | 0.5% | 4.8% |
-| 10% | 73.4% | 1.0% | 25.7% |
+| 2% | 95.6% | 0.6% | 3.8% |
+| 5% | 94.2% | 0.8% | 5.1% |
+| 10% | 73.4% | 0.9% | 25.7% |
 
 Refusing is the right behaviour: silence is recoverable, narrating the wrong
 block is not, because the player acts on what they hear.
@@ -49,9 +49,11 @@ block is not, because the player acts on what they hear.
 Scoping by the save (campaign, adventure) barely changes the result — the work is
 done by the length and margin guards, and by matching per paragraph.
 
-The screen count is per-machine: it depends on how much you have played.
-`render_all.sh` and `docs/PHASE3-STRATEGY.md` still quote 627 from an earlier
-run.
+The screen count is per-machine: it depends on how much you have played, which
+is why this table moves without the matcher changing. It said 631 until the log
+grew to 653, and `render_all.sh` and `docs/PHASE3-STRATEGY.md` still quote 627
+from a run before that. Re-measure rather than trust any of them:
+`python test_matcher.py`.
 
 ### Why Piper
 
