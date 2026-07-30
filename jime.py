@@ -442,7 +442,36 @@ def cmd_render(args: argparse.Namespace) -> int:
         argv += ["--key", key]
     if getattr(args, "keys_from", None):
         argv += ["--keys-from", str(args.keys_from)]
-    return _run("phase2_render.py", argv)
+    rc = _run("phase2_render.py", argv)
+    if rc or args.dry_run or args.limit or args.key or getattr(args, "keys_from", None):
+        return rc
+
+    # The blocks that cannot be rendered above, prepared anyway.
+    #
+    # A `{0}` block takes its value off the screen, so it has no audio here and
+    # is synthesised mid-game — reported from a loaded machine as `synth 13.24s`
+    # with the player waiting. Measured over 653 real screens, the value is
+    # empty in 146 of the 157 cases that arise, which makes the spoken text a
+    # constant. A constant can be made now.
+    try:
+        import json
+
+        from live import LiveVoice
+        data = json.loads(corpus.read_text(encoding="utf-8"))
+        voice = LiveVoice(voice=args.voice, lang=args.lang,
+                          length_scale=args.length_scale)
+        print(f"{GRAY}[templates] preparing the blocks whose value comes off "
+              f"the screen…{RESET}", flush=True)
+        made, skipped = voice.prewarm(data, campaign=args.campaign)
+        print(f"{GRAY}[templates] {made} synthesised, {skipped} already "
+              f"there{RESET}")
+    except Exception as exc:  # noqa: BLE001
+        # Never fail a good render over the extra step. Without it the session
+        # still works; it just pays for these at the table, which is what it did
+        # before this existed.
+        print(f"{YELLOW}note: could not prepare the templates — "
+              f"{type(exc).__name__}: {exc}{RESET}")
+    return rc
 
 
 # -------------------------------------------------------------------- play --

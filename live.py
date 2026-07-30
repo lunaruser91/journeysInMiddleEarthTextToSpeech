@@ -236,7 +236,22 @@ def fill_template(template: str, screen: str) -> str | None:
     # A placeholder that recovered nothing leaves a hole; close the spacing so it
     # reads as an ordinary sentence rather than a gap.
     filled = re.sub(r"\s+([.,;:!?])", r"\1", re.sub(r"\s{2,}", " ", filled))
-    return filled.strip()
+    filled = filled.strip()
+
+    # Never hand a brace to the voice.
+    #
+    # When the alignment goes wrong at a placeholder's own edge, half the marker
+    # survives into the value: `{0}Encontre pistas...` came back as
+    # `0}Encontre pistas...`, and `spell_out_numbers` then turned that into
+    # "zero}", so the narrator would have said the words "zero fecha-chaves"
+    # before the sentence. Nothing in this game's prose contains a brace, so one
+    # here is always this failure and never the text.
+    #
+    # Refusing costs the block. Speaking it costs the player's trust in every
+    # block, because they cannot tell which parts of what they hear are real.
+    if "{" in filled or "}" in filled:
+        return None
+    return filled
 
 
 class LiveVoice:
@@ -319,6 +334,74 @@ class LiveVoice:
         except Exception as exc:  # noqa: BLE001
             return f"{type(exc).__name__}: {exc}"
 
+    def prewarm(self, corpus: dict, campaign: str | None = None,
+                progress=None) -> tuple[int, int]:
+        """Synthesise the templates that are about to be needed, before play.
+
+        ## Why this earns its minute
+
+        A block carrying `{0}` cannot be rendered ahead of time, because its
+        value comes off the screen — so it is synthesised during the game, and
+        that is what a session on a loaded machine reported as `synth 13.24s`
+        with the screen already showing.
+
+        But measured over the 653 real screens rebuilt from the game's logs, the
+        value is **empty in 146 of the 157 cases** that come up: the game injects
+        the prose as a separate paragraph, the matcher recognises it on its own,
+        and the span stops at it — so what the template actually asks to have
+        spoken is its own fixed text, with nothing in the gap. That is a
+        constant, and a constant can be made hours earlier while nobody is
+        listening. 129 of those 146 are reproducible here byte for byte; the rest
+        do get a value and still pay at the table.
+
+        Returns (synthesised, skipped).
+
+        ## The transformations are not optional
+
+        `narrator` calls `say()` on the text **after** glyph substitution and
+        number spelling, and the cache key is the exact string. Preparing the
+        raw template instead would fill the cache with several hundred files
+        whose keys nothing ever asks for — work done, nothing faster, and no
+        symptom to notice. So the same two passes are applied here, from the same
+        functions.
+        """
+        import glyphs as G
+
+        glyph_map = G.glyph_map_from_corpus(corpus)
+        made = skipped = 0
+        for key, block in corpus.items():
+            if not block.get("narration") or not block.get("placeholders"):
+                continue
+            if campaign and key.split(":", 1)[0] not in (campaign, "main"):
+                continue
+            # The screen this template would describe if the gap were empty: its
+            # own fixed text. `fill_template` is what the narrator runs, so it
+            # is what runs here — reimplementing "strip the placeholder" would
+            # be a second definition of the same thing, free to drift.
+            bare = re.sub(r"[ \t]{2,}", " ", PLACEHOLDER.sub(" ", block["text"])).strip()
+            filled = fill_template(block["text"], bare)
+            if not filled:
+                continue
+            text = G.spell_out_numbers(G.substitute(filled, glyph_map, self.lang),
+                                       self.lang)
+            if not text.strip():
+                continue
+            key_hash = self._key(text)
+            if (self.cache / f"{key_hash}.opus").exists():
+                skipped += 1
+                continue
+            if self.say(text):
+                made += 1
+                if progress:
+                    progress(made)
+        return made, skipped
+
+    def _key(self, text: str) -> str:
+        """The cache name for a piece of text. One definition, two callers."""
+        return hashlib.blake2b(
+            f"{self.name}|{self.length_scale}|p2|{text}".encode(),
+            digest_size=10).hexdigest()
+
     def say(self, text: str) -> Path | None:
         """Audio for this exact text, synthesising it if it is new."""
         if not text.strip():
@@ -327,9 +410,7 @@ class LiveVoice:
         # cache key. A live block and a pre-rendered one have to be read the same
         # way or the join between them is audible, and a cache from before the
         # change must not be served after it.
-        key = hashlib.blake2b(
-            f"{self.name}|{self.length_scale}|p2|{text}".encode(),
-            digest_size=10).hexdigest()
+        key = self._key(text)
         dest = self.cache / f"{key}.opus"
         if dest.exists():
             return dest
