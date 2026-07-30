@@ -79,7 +79,7 @@ from matcher import paragraphs as mparagraphs  # noqa: E402
 from ocr.base import (crop, group_paragraphs, locales_for,  # noqa: E402
                       missing_recogniser, open_ocr)
 from player import Player  # noqa: E402
-from trigger import REGION, Trigger  # noqa: E402
+from trigger import REGION, STABLE_FRAMES, Trigger  # noqa: E402
 
 GREEN, YELLOW, RED, GRAY, RESET = ("\033[92m", "\033[93m", "\033[91m",
                                    "\033[90m", "\033[0m")
@@ -317,6 +317,15 @@ def main() -> None:
                          "which needs nothing installed but is orders of "
                          "magnitude slower. Naming one makes its failure say "
                          "so instead of quietly costing seconds a screen.")
+    ap.add_argument("--stable-frames", type=int, default=STABLE_FRAMES,
+                    help=f"quiet frames before a screen counts as finished "
+                         f"(default {STABLE_FRAMES}). At --fps 10 this is a "
+                         f"floor of {STABLE_FRAMES / 10:.1f}s on every screen, "
+                         f"which is about half the delay before speaking. "
+                         f"Lower it only against the `paused Nf` figure "
+                         f"--profile prints: that is the longest the game was "
+                         f"seen to pause mid-animation, and this has to clear "
+                         f"it or the narrator reads half-drawn text.")
     ap.add_argument("--share", action="store_true",
                     help="print not one word of the game's text, so the log can "
                          "be sent to somebody else. Keys, scores, reasons and "
@@ -428,7 +437,7 @@ def main() -> None:
             pass          # a cue is a courtesy; never let it stop the session
 
     engine = open_ocr(args.ocr, languages=locales_for(args.lang))
-    trigger = Trigger(region=(top, bottom))
+    trigger = Trigger(region=(top, bottom), stable_frames=args.stable_frames)
     # Say which settings the engine actually came up with, not just its name.
     # RapidOCR spent a day being configured through a parameter that does not
     # exist, and the only reason that survived a day is that nothing ever

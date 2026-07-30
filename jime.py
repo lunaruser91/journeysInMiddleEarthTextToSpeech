@@ -566,6 +566,8 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--no-guard"]
     if args.share:
         argv += ["--share"]
+    if args.stable_frames:
+        argv += ["--stable-frames", str(args.stable_frames)]
     if args.ocr != "auto":
         argv += ["--ocr", args.ocr]
     if args.fps:
@@ -786,6 +788,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-guard", action="store_true",
                    help="with --display, read the monitor even while the game "
                         "is not the window in front")
+    p.add_argument("--stable-frames", type=int,
+                   help="quiet frames before a screen counts as finished. At "
+                        "--fps 10 the default of 11 is a floor of 1.1s on every "
+                        "screen. Lower it only against the `paused Nf` figure "
+                        "--profile reports")
     p.add_argument("--share", action="store_true",
                    help="print none of the game's text, so the log can be sent "
                         "to somebody else. Keys, scores and timings stay; the "
