@@ -412,9 +412,17 @@ def report() -> None:
 
 
 def main() -> int:
+    import jime          # imported here, as everywhere else in this file: the
+                         # import checks above have to be able to report jime.py
+                         # failing to import, which they cannot if this module
+                         # already died on the same import at startup.
+
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--lang", default="pt")
+    ap.add_argument("--lang", default=jime.default_language(),
+                    help="which language to check. Defaults to what this "
+                         "machine is already set up for, then to the "
+                         "system language, then to English")
     ap.add_argument("--skip-render", action="store_true")
     args = ap.parse_args()
 

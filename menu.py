@@ -200,7 +200,8 @@ def pick_language(action: str = "use", current: str | None = None,
     import jime
 
     rows = language_rows()
-    default = next((i for i, r in enumerate(rows) if r[0] == (current or "pt")), 0)
+    default = next((i for i, r in enumerate(rows)
+                    if r[0] == (current or jime.default_language())), 0)
     while True:
         i = choose(t("Which language to work in?", UI),
                    [(r[1], r[2]) for r in rows], default,

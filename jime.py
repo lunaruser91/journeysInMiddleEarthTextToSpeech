@@ -48,7 +48,14 @@ GREEN, YELLOW, RED, GRAY, BOLD, RESET = ("\033[92m", "\033[93m", "\033[91m",
                                          "\033[90m", "\033[1m", "\033[0m")
 
 # The game's localisations, and whether the speech model can voice them.
-DEFAULT_LANG = "pt"
+#
+# Not a default. This is the language everything rendered before manifests
+# carried one was in, because Portuguese was the only language that could be
+# rendered then — a fact about old folders on disk, used once, below. The
+# default a command uses when nobody said is `default_language()`, which asks
+# the machine. Renamed from DEFAULT_LANG so that the next person to make the
+# defaults follow the system does not "fix" this one along with them.
+PRE_MANIFEST_LANG = "pt"
 GAME_LANGUAGES = ["cz", "de", "en", "es", "fr", "hu", "it", "ko", "pl",
                   "pt", "ru", "uk", "zh"]
 # Every localisation the game ships has a Piper voice, so there is nothing that
@@ -108,6 +115,41 @@ def audio_dir(lang: str) -> Path:
     # pt as bare "audio/", which meant a second language landed somewhere that
     # looked unrelated to the first.
     return ROOT / "output" / f"audio_{lang}"
+
+
+def default_language() -> str:
+    """The language a command works on when nobody said which.
+
+    Every `--lang` in this project used to default to `pt`, which is not a
+    decision — it is the language the author happens to play in, left where a
+    default belongs. On somebody else's machine it is simply wrong, and it is
+    wrong expensively: `selftest.py` runs unattended at the end of the installer,
+    so an English player on an English Windows extracted the Portuguese corpus,
+    downloaded a 63 MB Portuguese voice, and was then failed for not having a
+    Portuguese OCR recogniser installed. Nobody had typed the word Portuguese.
+
+    So: what this machine is already set up for, then what the operating system
+    speaks, then English. Rendered audio outranks an extracted corpus because
+    rendering is the expensive, deliberate act — a corpus can be extracted while
+    poking around, 40 minutes of synthesis cannot.
+
+    Where several qualify, the system language wins if it is among them; the game
+    speaks thirteen and a machine with two corpora has no obvious favourite.
+    """
+    from i18n import system_language
+
+    guess = system_language(set(GAME_LANGUAGES))
+    rendered = {d.name.split("_", 1)[1] for d in (ROOT / "output").glob("audio_*")
+                if (d / "manifest.json").exists()}
+    extracted = {p.stem.split("_", 1)[1]
+                 for p in (ROOT / "corpus").glob("corpus_*.json")}
+    for pool in (rendered, extracted):
+        pool &= set(GAME_LANGUAGES)
+        if guess in pool:
+            return guess
+        if pool:
+            return sorted(pool)[0]
+    return guess or "en"
 
 
 def _run(module: str, argv: list[str]) -> int:
@@ -524,7 +566,7 @@ def cmd_play(args: argparse.Namespace) -> int:
         elif declared is None:
             unlabelled.append(d)
 
-    if unlabelled and args.lang == DEFAULT_LANG:
+    if unlabelled and args.lang == PRE_MANIFEST_LANG:
         # Everything rendered before manifests carried a language was Portuguese,
         # because Portuguese was the only language that could be rendered.
         spare.extend(unlabelled)
@@ -752,12 +794,12 @@ def build_parser() -> argparse.ArgumentParser:
                    ).set_defaults(func=cmd_languages)
 
     p = sub.add_parser("extract", help="game assets -> corpus")
-    p.add_argument("--lang", default="pt", choices=GAME_LANGUAGES)
+    p.add_argument("--lang", default=default_language(), choices=GAME_LANGUAGES)
     p.add_argument("--bundles", type=Path, help="folder holding manifest.dat")
     p.set_defaults(func=cmd_extract)
 
     p = sub.add_parser("render", help="corpus -> audio")
-    p.add_argument("--lang", default="pt", choices=sorted(VOICEABLE))
+    p.add_argument("--lang", default=default_language(), choices=sorted(VOICEABLE))
     p.add_argument("--campaign", choices=CAMPAIGNS)
     p.add_argument("--voice",
                    help="Piper voice name; defaults to the one chosen for the "
@@ -774,7 +816,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_render)
 
     p = sub.add_parser("play", help="narrate a live game")
-    p.add_argument("--lang", default="pt")
+    p.add_argument("--lang", default=default_language())
     p.add_argument("--campaign", choices=CAMPAIGNS,
                    help="defaults to the campaign in the most recent save")
     p.add_argument("--manual", action="store_true",
@@ -818,7 +860,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_play)
 
     p = sub.add_parser("test", help="exercise recognition without capturing")
-    p.add_argument("--lang", default="pt")
+    p.add_argument("--lang", default=default_language())
     p.add_argument("--video", type=Path, help="replay a recording")
     p.add_argument("--images", type=Path, nargs="+", help="screenshots")
     p.add_argument("--capture", action="store_true",
@@ -840,7 +882,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_voices)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")
-    p.add_argument("--lang", default="pt")
+    p.add_argument("--lang", default=default_language())
     p.add_argument("--mad", type=float, default=2.5)
     p.set_defaults(func=cmd_check)
 
@@ -867,7 +909,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_clean)
 
     p = sub.add_parser("glyphs", help="icon coverage for a language")
-    p.add_argument("--lang", default="pt")
+    p.add_argument("--lang", default=default_language())
     p.set_defaults(func=cmd_glyphs)
 
     return ap
