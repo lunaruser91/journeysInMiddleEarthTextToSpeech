@@ -376,5 +376,10 @@ their own explanation at the top of the file.
 
 ## License
 
-The code is MIT (see `LICENSE`). The game content is not distributed by this repository
-and is not covered by it.
+The code is MIT (see [`LICENSE`](LICENSE)). The game content is not distributed by
+this repository and is not covered by it.
+
+`LICENSE` also lists what each dependency declares, because pip installs several
+and they are not all MIT — `piper-tts`, which does the speaking, is
+GPL-3.0-or-later and is imported directly. That changes nothing about running
+this yourself; it is worth reading before redistributing anything built on it.

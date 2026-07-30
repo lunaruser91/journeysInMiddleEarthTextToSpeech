@@ -381,5 +381,10 @@ a própria explicação no topo do arquivo.
 
 ## Licença
 
-O código é MIT (veja `LICENSE`). O conteúdo do jogo não é distribuído por este
-repositório e não é coberto por ela.
+O código é MIT (veja [`LICENSE`](LICENSE)). O conteúdo do jogo não é distribuído
+por este repositório e não é coberto por ela.
+
+O `LICENSE` também lista o que cada dependência declara, porque o pip instala
+várias e nem todas são MIT — o `piper-tts`, que faz a fala, é GPL-3.0-or-later e
+é importado diretamente. Isso não muda nada para você rodar em casa; vale ler
+antes de redistribuir qualquer coisa construída em cima.

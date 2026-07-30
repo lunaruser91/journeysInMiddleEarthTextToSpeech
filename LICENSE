@@ -19,3 +19,52 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+================================================================================
+WHAT THIS COVERS, AND WHAT IT DOES NOT
+================================================================================
+
+The MIT licence above covers the code in this repository and nothing else.
+
+It does not cover the game's text or its audio. Those belong to Fantasy Flight
+Games and Middle-earth Enterprises. This repository never contains them: it
+publishes an extractor and a renderer, and each person runs the extraction
+against their own installation for their own local, non-distributed use. The
+licence notice at the top of the README is the one that matters there, and the
+.gitignore is what enforces it.
+
+
+THIRD-PARTY COMPONENTS
+
+None of these are included here. pip fetches each at install time, and each is
+governed by its own licence rather than by this one. Read as declared by the
+installed package metadata on a Mac, 2026-07-30:
+
+  piper-tts                          GPL-3.0-or-later
+  num2words                          LGPL
+  UnityPy                            MIT
+  rapidfuzz                          MIT
+  pillow                             MIT-CMU
+  ocrmac                             MIT
+  pyobjc-framework-ScreenCaptureKit  MIT
+  pyobjc-framework-Quartz            MIT
+  onnxruntime                        MIT
+  numpy                              BSD-3-Clause, and others per component
+
+Three more install only on their own platform and so could not be read from this
+machine. They are listed with what their projects declare, which is worth
+confirming on a machine that has them:
+
+  rapidocr-onnxruntime               Apache-2.0   (Windows and Linux)
+  windows-capture                    MIT          (Windows)
+  winrt-*                            MIT          (Windows)
+
+**piper-tts is GPL-3.0-or-later, and this project imports it directly.** That
+does not affect running it yourself, which is what this is for. It is the first
+thing to read if you intend to redistribute something built on top of this,
+because a combined work is not covered by the MIT above. num2words being LGPL is
+the same question in a milder form.
+
+This list is a convenience and not legal advice. Each package's own licence is
+authoritative, and versions change.
