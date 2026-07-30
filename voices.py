@@ -251,11 +251,20 @@ def missing_phonemes(name: str, lang: str) -> list[str]:
     try:
         meta = json.loads(config.read_text(encoding="utf-8"))
         table = meta.get("phoneme_id_map") or {}
-        espeak = (meta.get("espeak") or {}).get("voice")
-        if table and espeak:
-            text = SAMPLE.get(lang) or SAMPLE["en"]
-            need = set(_phonemize(espeak, text))
-            out = sorted(p for p in need if p not in table and p.strip())
+        text = SAMPLE.get(lang) or SAMPLE["en"]
+        # Not every voice is phonetic. `phoneme_type: text` means the table holds
+        # *characters*, and running espeak over the sample to compare IPA against
+        # it answers a question nobody asked: for the Ukrainian voice it returned
+        # 23 IPA symbols, none of which is what that model is missing. What it is
+        # actually missing is capitals and angle quotes, which this now sees.
+        if str(meta.get("phoneme_type", "")).lower() == "text":
+            if table:
+                out = sorted({c for c in text if c not in table and c.strip()})
+        else:
+            espeak = (meta.get("espeak") or {}).get("voice")
+            if table and espeak:
+                need = set(_phonemize(espeak, text))
+                out = sorted(p for p in need if p not in table and p.strip())
     except Exception:  # noqa: BLE001
         out = []
     _PHONEMES[(name, lang)] = out

@@ -192,6 +192,58 @@ def _trim(frames: bytes, width: int, rate: int, thresh: int = 260) -> bytes:
     return a.tobytes()
 
 
+def speakable(voice, text: str) -> str:
+    """Text the voice can actually pronounce, for voices that read characters.
+
+    Most Piper voices are `phoneme_type: espeak`: espeak turns text into IPA and
+    the model has an id for each sound, so case and quotation marks never reach
+    it. A few are `phoneme_type: text`, where the "phonemes" *are* the characters
+    and the table is whatever the model was trained on.
+
+    `uk_UA-ukrainian_tts-medium`, the default Ukrainian voice, is one of those.
+    Its table holds 49 entries — lowercase Cyrillic and basic punctuation. No
+    capitals, and not the angle quotes Ukrainian uses for speech. Every one of
+    them was dropped silently: over 200 corpus blocks, piper logged a missing
+    phoneme thousands of times and read the words with letters missing.
+
+    So the text is folded into what the table has: lowercase, and quotes mapped
+    to a mark the voice knows. Nothing is invented — a character with no
+    reasonable equivalent is left alone, and the voice drops it exactly as it did
+    before.
+
+    Voices with an espeak table are returned untouched, and that is checked
+    rather than assumed by name.
+    """
+    table = getattr(getattr(voice, "config", None), "phoneme_id_map", None)
+    kind = str(getattr(getattr(voice, "config", None), "phoneme_type", ""))
+    if not table or "TEXT" not in kind.upper():
+        return text
+
+    # Candidates in order, because which one a table has is not predictable: the
+    # Ukrainian one carries `'` and not `"`, so mapping the angle quotes to `"`
+    # replaced one character it cannot say with another.
+    swaps = {"«": ('"', "'", ""), "»": ('"', "'", ""),
+             "“": ('"', "'", ""), "”": ('"', "'", ""),
+             "‘": ("'", '"', ""), "’": ("'", '"', ""),
+             "–": ("-", ","), "—": ("-", ","), "…": ("...", ".")}
+    out = []
+    for ch in text:
+        if ch in table:
+            out.append(ch)
+            continue
+        low = ch.lower()
+        if low in table:
+            out.append(low)
+            continue
+        for swap in swaps.get(ch, ()):
+            if all(c in table for c in swap):
+                out.append(swap)
+                break
+        else:
+            out.append(ch)      # unknown either way; leave it as it was
+    return "".join(out)
+
+
 def synthesize(voice, text: str, base: float, path, config) -> None:
     """Write the block to `path` as a wav, read clause by clause.
 
@@ -224,7 +276,7 @@ def synthesize(voice, text: str, base: float, path, config) -> None:
         buf = io.BytesIO()
         try:
             with wave.open(buf, "wb") as fh:
-                voice.synthesize_wav(clause, fh, syn_config=cfg)
+                voice.synthesize_wav(speakable(voice, clause), fh, syn_config=cfg)
         except (wave.Error, EOFError):
             continue
         buf.seek(0)
