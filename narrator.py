@@ -361,6 +361,14 @@ def main() -> None:
     player = Player(manifests=folders, manual=args.manual, verbose=False)
     print(f"{GRAY}[audio] {len(player):,} blocks rendered{RESET}")
 
+    # Two voice recipes in one session is audible and had no way of being
+    # noticed: the guard that exists to prevent it lives in the cache key, and a
+    # `render --campaign X` moves only that campaign's keys. Yellow, because it
+    # is a thing to go and fix rather than a fact about the run.
+    mixed = player.recipe_warning({c for c in (campaign, "main") if c})
+    if mixed:
+        print(f"{YELLOW}[audio] {mixed}{RESET}")
+
     glyph_map = glyphs.glyph_map_from_corpus(corpus)
     live: LiveVoice | None = None
     live_failed = ""

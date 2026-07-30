@@ -285,8 +285,44 @@ def main() -> None:
     # audio: nothing on disk says which language it speaks, and filling a gap in
     # a Portuguese session with an English block is worse than silence. Keys
     # starting with "_" are metadata, and readers skip them.
+    #
+    # ## Why the version is recorded per campaign
+    #
+    # `version` goes into every cache key, so changing the voice or the pace
+    # re-renders everything — that is deliberate, and it is what stops two
+    # recipes mixing inside one session. But a single manifest-wide field only
+    # tells the truth when the whole corpus is rendered at once, and `--campaign`
+    # exists precisely so it does not have to be.
+    #
+    # Reported from a real machine: `render --campaign bonesofarnor` after a
+    # recipe change re-made those 1,200 blocks and left `main`'s 2,186 as they
+    # were, then stamped the new version over the whole file. The manifest
+    # asserted one recipe for 3,386 entries of which 1,200 had it. A session
+    # scoped to that campaign plays both — `bonesofarnor:A2_M1_S1_SEARCH` and
+    # `main:PLACE_SEARCH`, one after the other, at two different paces — and
+    # nothing anywhere noticed. The guard against mixing recipes did not cover
+    # the path the README recommends for getting started quickly.
+    #
+    # So each campaign carries its own, and only the ones rendered now are
+    # restamped. `version` stays alongside as what the most recent run used.
+    meta = dict(manifest.get("_meta") or {})
+    by_campaign = dict(meta.get("versions") or {})
+    if not by_campaign and meta.get("version"):
+        # An older manifest said one thing about everything. That claim is only
+        # safe for what is on disk already, so it is carried across as-is rather
+        # than thrown away — and this run will correct whatever it touches.
+        #
+        # Seeded from the manifest's own entries, not from `blocks`: `blocks` is
+        # the scope being rendered now, and the campaigns that need carrying
+        # across are exactly the ones that are NOT in it.
+        for k, e in manifest.items():
+            if not k.startswith("_") and isinstance(e, dict) and e.get("campaign"):
+                by_campaign.setdefault(e["campaign"], meta["version"])
+    for v in blocks.values():
+        by_campaign[v["campaign"]] = version
     manifest["_meta"] = {"lang": args.lang, "voice": voice_name,
-                         "length_scale": scale, "version": version}
+                         "length_scale": scale, "version": version,
+                         "versions": by_campaign}
 
     t0, done, skipped, failed, speech = time.time(), 0, 0, 0, 0.0
     total = len(blocks)

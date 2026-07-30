@@ -138,6 +138,9 @@ class Player:
     grow_window: float = 10.0
 
     _index: dict[str, Path] = field(default_factory=dict, init=False)
+    # {recipe version: {campaigns rendered under it}}, only when there is more
+    # than one. See `recipe_warning`.
+    _mixed_recipes: dict[str, set[str]] = field(default_factory=dict, init=False)
     _queue: deque[Track] = field(default_factory=deque, init=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, init=False)
     _wake: threading.Event = field(default_factory=threading.Event, init=False)
@@ -151,6 +154,7 @@ class Player:
     _worker: threading.Thread | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
+        recipes: dict[str, set[str]] = {}
         for folder in self.manifests:
             manifest = Path(folder) / "manifest.json"
             if not manifest.exists():
@@ -159,12 +163,16 @@ class Player:
                 entries = json.loads(manifest.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 continue
+            meta = entries.get("_meta") or {}
+            for camp, ver in (meta.get("versions") or {}).items():
+                recipes.setdefault(ver, set()).add(camp)
             for key, entry in entries.items():
                 if key.startswith("_"):
                     continue          # "_meta" and friends describe the render
                 audio = Path(folder) / entry["file"]
                 if audio.exists():
                     self._index.setdefault(key, audio)
+        self._mixed_recipes = recipes if len(recipes) > 1 else {}
         warning = require_ffplay()
         if warning and self._index:
             print(f"{YELLOW}[player] {warning}{RESET}", file=sys.stderr)
@@ -308,6 +316,31 @@ class Player:
     def pending(self) -> int:
         with self._lock:
             return len(self._queue)
+
+    def recipe_warning(self, campaigns: set[str]) -> str:
+        """"" unless the campaigns about to be played were rendered differently.
+
+        The voice recipe goes into every cache key so that two of them can never
+        end up in one session — but the check only ever existed at render time,
+        and `render --campaign X` renders one campaign. Reported from a real
+        machine: a recipe change, a scoped re-render, and a session that then
+        played `bonesofarnor:A2_M1_S1_SEARCH` and `main:PLACE_SEARCH` one after
+        the other at two different paces, with the manifest asserting a single
+        recipe over both.
+
+        Scoped on purpose. A session plays its campaign and `main`; a third
+        campaign left on an older recipe is not this session's problem, and
+        warning about it would train people to ignore the line.
+        """
+        here = {ver: sorted(c for c in camps if c in campaigns)
+                for ver, camps in self._mixed_recipes.items()}
+        here = {v: c for v, c in here.items() if c}
+        if len(here) < 2:
+            return ""
+        return ("this session mixes two voice recipes, so the pace changes "
+                "between blocks: "
+                + "; ".join(f"{', '.join(c)} at {v}" for v, c in sorted(here.items()))
+                + ". Re-render without --campaign to settle it.")
 
     def why_silent(self, key: str) -> str:
         """Why the last enqueue did not play this key."""
