@@ -292,6 +292,7 @@ cd ~/jime
 ~/jime-venv/bin/python jime.py voices              # a voz padrão de cada idioma
 ~/jime-venv/bin/python jime.py languages           # o que cada localização suporta
 ~/jime-venv/bin/python jime.py glyphs --lang pt    # quais palavras de ícone faltam
+~/jime-venv/bin/python jime.py clean               # áudio sobrando de uma voz antiga
 ```
 
 O último precisa que aquele idioma já tenha sido extraído — ele lê o seu corpus.

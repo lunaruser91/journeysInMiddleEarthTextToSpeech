@@ -287,6 +287,7 @@ cd ~/jime
 ~/jime-venv/bin/python jime.py voices              # the default voice per language
 ~/jime-venv/bin/python jime.py languages           # what each localisation supports
 ~/jime-venv/bin/python jime.py glyphs --lang pt    # which icon words are missing
+~/jime-venv/bin/python jime.py clean               # audio left over from an older voice
 ```
 
 The last one needs that language extracted first — it reads your corpus.

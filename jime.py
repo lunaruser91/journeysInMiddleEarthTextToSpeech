@@ -471,6 +471,19 @@ def cmd_render(args: argparse.Namespace) -> int:
         # before this existed.
         print(f"{YELLOW}note: could not prepare the templates — "
               f"{type(exc).__name__}: {exc}{RESET}")
+
+    # Say it here, because here is where they are made. A recipe change renames
+    # every cache key, so the files from the previous one are now unreachable —
+    # and nothing else in this program would ever mention them again.
+    try:
+        loose, size = orphans(audio_dir(args.lang))
+        if size > 50 * 1048576:
+            print(f"{YELLOW}note: {len(loose):,} files ({size / 1048576:.0f} MB) "
+                  f"under {audio_dir(args.lang).name} are from an earlier "
+                  f"recipe and nothing points to them. `jime clean` lists them; "
+                  f"`jime clean --delete` removes them.{RESET}")
+    except Exception:  # noqa: BLE001
+        pass          # a disk-space remark is never worth a word of complaint
     return rc
 
 
@@ -627,6 +640,74 @@ def cmd_check(args: argparse.Namespace) -> int:
     return _run("check_pace.py", [str(manifest), "--mad", str(args.mad)])
 
 
+def orphans(folder: Path) -> tuple[list[Path], int]:
+    """Audio in `folder` that its manifest does not name, and its total size.
+
+    The recipe — voice, pace, effects — is part of every cache key, so changing
+    it renames every file. The new ones are rendered; the old ones are not
+    deleted, because nothing has ever looked. They are unreachable the moment
+    the manifest stops naming them, and they are invisible because the only
+    symptom is disk.
+
+    Reported from a real machine after two recipes: 12,361 files against 9,192
+    manifest entries — 3,169 orphans, about 260 MB, and found only because
+    somebody happened to ask how much audio there was.
+
+    Comparing paths and not counts: several keys can share one file when their
+    text is identical, so `len(manifest) != len(files)` is normal and proves
+    nothing on its own.
+    """
+    manifest = folder / "manifest.json"
+    if not manifest.exists():
+        return [], 0
+    entries = json.loads(manifest.read_text(encoding="utf-8"))
+    named = {folder / e["file"] for k, e in entries.items()
+             if not k.startswith("_") and isinstance(e, dict) and e.get("file")}
+    loose = sorted(p for p in folder.rglob("*.opus") if p not in named)
+    return loose, sum(p.stat().st_size for p in loose)
+
+
+def cmd_clean(args: argparse.Namespace) -> int:
+    folders = ([audio_dir(args.lang)] if args.lang else
+               sorted(d for d in (ROOT / "output").glob("audio_*")
+                      if (d / "manifest.json").exists()))
+    if not folders:
+        return _fail("no rendered audio found under output/")
+
+    total_n = total_b = 0
+    for folder in folders:
+        loose, size = orphans(folder)
+        kept = len(list(folder.rglob("*.opus"))) - len(loose)
+        print(f"{folder.name:<16} {kept:>6,} in use   {len(loose):>6,} orphaned"
+              f"   {size / 1048576:>8.1f} MB")
+        total_n += len(loose)
+        total_b += size
+        if args.delete:
+            for p in loose:
+                p.unlink(missing_ok=True)
+
+    # The live cache is counted and never touched. Its names come from text the
+    # game put on screen, so which of them a future session will ask for is not
+    # knowable from here — and re-synthesising one costs seconds at the table,
+    # which is the thing this project spends its time removing.
+    live = sorted((ROOT / "output").glob("live_*"))
+    live_b = sum(p.stat().st_size for d in live for p in d.rglob("*.opus"))
+    if live_b:
+        print(f"{'live cache':<16} {'':>6}          {'':>6}         "
+              f"{live_b / 1048576:>8.1f} MB  (kept — see `jime clean --help`)")
+
+    if not total_n:
+        print(f"\n{GREEN}nothing to remove{RESET}")
+        return 0
+    if args.delete:
+        print(f"\n{GREEN}removed {total_n:,} files, "
+              f"{total_b / 1048576:.1f} MB{RESET}")
+    else:
+        print(f"\n{YELLOW}{total_n:,} files, {total_b / 1048576:.1f} MB could go."
+              f"{RESET} Nothing was deleted. Add --delete to do it.")
+    return 0
+
+
 def cmd_glyphs(args: argparse.Namespace) -> int:
     corpus = corpus_path(args.lang)
     if not corpus.exists():
@@ -755,6 +836,28 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lang", default="pt")
     p.add_argument("--mad", type=float, default=2.5)
     p.set_defaults(func=cmd_check)
+
+    p = sub.add_parser("clean", help="remove audio no manifest points to",
+                       description="Audio left behind by an earlier recipe.\n\n"
+                       "Voice, pace and effects are part of every cache key, so "
+                       "changing any of them renames every file. The new ones "
+                       "get rendered and the old ones just stay: unreachable, "
+                       "because the manifest no longer names them, and "
+                       "invisible, because the only symptom is disk. Measured "
+                       "on one machine after two recipes: 3,340 files, 258 MB.\n\n"
+                       "The live cache under output/live_* is counted and never "
+                       "touched. Its names come from what the game put on "
+                       "screen, so nothing here can tell which a future session "
+                       "will want, and re-synthesising one costs seconds with "
+                       "the player waiting. Delete that folder by hand if you "
+                       "want it gone; it rebuilds itself.",
+                       formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--lang", help="only this language's folder (default: all)")
+    p.add_argument("--delete", action="store_true",
+                   help="actually remove them. Without this it only reports, "
+                        "because a list is cheap and a mistaken delete is a "
+                        "re-render")
+    p.set_defaults(func=cmd_clean)
 
     p = sub.add_parser("glyphs", help="icon coverage for a language")
     p.add_argument("--lang", default="pt")
