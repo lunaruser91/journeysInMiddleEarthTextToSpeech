@@ -338,6 +338,9 @@ if __name__ == "__main__":
     ap.add_argument("corpus", type=Path)
     ap.add_argument("--lang", default="pt")
     ap.add_argument("--examples", type=int, default=8)
+    ap.add_argument("--template", action="store_true",
+                    help="print a fillable LEXICON block for this language, "
+                         "commonest icon first, with the English beside each")
     args = ap.parse_args()
 
     corpus = json.loads(args.corpus.read_text(encoding="utf-8"))
@@ -355,6 +358,43 @@ if __name__ == "__main__":
         print(f"         ~ not checked against the manual yet: {report['inferred']}")
     if not report["unnamed"] and not report["missing_from_lexicon"]:
         print("         full coverage")
+
+    if args.template:
+        # A speaker of the language should have to translate 21 words, not read
+        # this file and work out a dict-of-dicts. The counts order it so that
+        # stopping halfway still covers the icons that actually occur: FEAR
+        # appears 705 times in German narration and LORE once.
+        counts = {}
+        for v in corpus.values():
+            if not v.get("narration"):
+                continue
+            for ch in PUA.findall(v["text"]):
+                name = glyph_map.get(ch)
+                if name:
+                    counts[name] = counts.get(name, 0) + 1
+        en = LEXICON.get("en", {})
+        # Every glyph the corpus defines, not only the ones that occur: a name
+        # with no count is one this language never speaks today, and saying so
+        # is better than a list that is quietly five short of the table it is
+        # meant to fill.
+        for name in set(glyph_map.values()):
+            counts.setdefault(name, 0)
+        print(f'\n    "{args.lang}": {{')
+        for name in sorted(counts, key=lambda n: (-counts[n], n)):
+            ref = en.get(name)
+            hint = (f'{ref["official"]} / {ref["spoken"][0]}, {ref["spoken"][1]}'
+                    if ref else "not in the English lexicon either")
+            n = counts[name]
+            quanto = f"{n:>4}x" if n else "   -"
+            chave = f'"{name}":'
+            print(f'        {chave:<22} {{"official": "", "spoken": ("", "")}},'
+                  f'   # {quanto}  en: {hint}')
+        print("    },")
+        print(f"\nPaste that into LEXICON in glyphs.py and fill the two strings "
+              f"per line:\n  official — what the printed {args.lang!r} edition "
+              f"calls the icon\n  spoken   — how it is said, singular and plural, "
+              f"in the middle of a sentence")
+        raise SystemExit(0)
 
     print("\nderived table:")
     for ch, name in sorted(glyph_map.items(), key=lambda x: x[1]):

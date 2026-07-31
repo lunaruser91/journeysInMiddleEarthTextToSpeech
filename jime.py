@@ -776,7 +776,10 @@ def cmd_glyphs(args: argparse.Namespace) -> int:
     corpus = corpus_path(args.lang)
     if not corpus.exists():
         return _fail(f"no corpus for {args.lang!r}")
-    return _run("glyphs.py", [str(corpus), "--lang", args.lang])
+    argv = [str(corpus), "--lang", args.lang]
+    if getattr(args, "template", False):
+        argv.append("--template")
+    return _run("glyphs.py", argv)
 
 
 def cmd_languages(args: argparse.Namespace) -> int:
@@ -930,6 +933,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("glyphs", help="icon coverage for a language")
     p.add_argument("--lang", default=default_language())
+    p.add_argument("--template", action="store_true",
+                   help="print a fillable lexicon block for that language, "
+                        "commonest icon first, with the English beside each")
     p.set_defaults(func=cmd_glyphs)
 
     return ap
