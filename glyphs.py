@@ -174,6 +174,72 @@ LEXICON: dict[str, dict[str, dict]] = {
         "DOUBLE_HAND": {"official": "Objeto de dos manos",
                         "spoken": ("objeto de dos manos", "objetos de dos manos")},
     },
+    # Read off the icon glossary on page 8 of the German rulebook, sent by a
+    # player. Eighteen of the twenty-one are printed there — two more than the
+    # Spanish page carries: it lists *Universal* among the hero attributes and
+    # *Reittier* among the items, which are WILD and MOUNT. Coverage of German
+    # narration is 100.0%: every icon that occurs has a word.
+    #
+    # PREPARED, CORRUPTION and REVEAL_CARD_DRAW are on neither page and occur
+    # once each in German narration.
+    #
+    # `official` is what the page prints. `spoken` is derived here: German takes
+    # no preposition where Portuguese does — "2 Schaden" against "2 de dano" — so
+    # the bare noun is right. WILD is the one to look at: the page calls it
+    # *Universal*, which is a label rather than something to say inside "Probe
+    # auf ... 2", and Portuguese solved the same problem by speaking it as
+    # "qualquer atributo" rather than "Curinga".
+    "de": {
+        "FOCUS":   {"official": "Beweglichkeit", "spoken": ("Beweglichkeit", "Beweglichkeit")},
+        "SPIRIT":  {"official": "Wille",         "spoken": ("Wille", "Wille")},
+        "WIT":     {"official": "Scharfsinn",    "spoken": ("Scharfsinn", "Scharfsinn")},
+        "MIGHT":   {"official": "Körperkraft",   "spoken": ("Körperkraft", "Körperkraft")},
+        "WISDOM":  {"official": "Weisheit",      "spoken": ("Weisheit", "Weisheit")},
+        "SUCCESS": {"official": "Erfolg",        "spoken": ("Erfolg", "Erfolge")},
+        "FATE":    {"official": "Schicksal",     "spoken": ("Schicksal", "Schicksal")},
+        "DAMAGE":  {"official": "Schaden",       "spoken": ("Schaden", "Schaden")},
+        "FEAR":    {"official": "Furcht",        "spoken": ("Furcht", "Furcht")},
+        "RANGED":  {"official": "Fernkampf",     "spoken": ("Fernkampf", "Fernkampf")},
+        "LORE":    {"official": "Wissen",        "spoken": ("Wissen", "Wissen")},
+        "ACTION":  {"official": 'Aktion "Interagieren"', "spoken": ("Aktion:", "Aktion:")},
+        "TRINKET":     {"official": "Schmuckstück", "spoken": ("Schmuckstück", "Schmuckstücke")},
+        "ARMOR":       {"official": "Rüstung",      "spoken": ("Rüstung", "Rüstungen")},
+        "SINGLE_HAND": {"official": "Einhand-Gegenstand",
+                        "spoken": ("Einhand-Gegenstand", "Einhand-Gegenstände")},
+        "DOUBLE_HAND": {"official": "Zweihand-Gegenstand",
+                        "spoken": ("Zweihand-Gegenstand", "Zweihand-Gegenstände")},
+        "MOUNT":   {"official": "Reittier",   "spoken": ("Reittier", "Reittiere")},
+        "WILD":    {"official": "Universal",  "spoken": ("Universal", "Universal")},
+    },
+    # Read off the icon glossary of the French rulebook, sent by a player.
+    # Sixteen entries, the same set the Spanish page carries — no Mount, no
+    # wildcard — covering 99.3% of the icons in French narration.
+    #
+    # This one is the evidence that guessing does not transfer. French calls the
+    # Might icon *Force*, which is exactly what I guessed for Portuguese and got
+    # wrong: Portuguese and Spanish both say *Vigor*, German says
+    # *Körperkraft*. Four editions, three different words, and the English
+    # "Might" predicts none of them.
+    "fr": {
+        "FOCUS":   {"official": "Agilité",      "spoken": ("Agilité", "Agilité")},
+        "SPIRIT":  {"official": "Esprit",       "spoken": ("Esprit", "Esprit")},
+        "WIT":     {"official": "Ingéniosité",  "spoken": ("Ingéniosité", "Ingéniosité")},
+        "MIGHT":   {"official": "Force",        "spoken": ("Force", "Force")},
+        "WISDOM":  {"official": "Sagesse",      "spoken": ("Sagesse", "Sagesse")},
+        "SUCCESS": {"official": "Succès",       "spoken": ("succès", "succès")},
+        "FATE":    {"official": "Destin",       "spoken": ("destin", "destin")},
+        "DAMAGE":  {"official": "Dégât",        "spoken": ("dégât", "dégâts")},
+        "FEAR":    {"official": "Peur",         "spoken": ("peur", "peur")},
+        "RANGED":  {"official": "À Distance",   "spoken": ("à distance", "à distance")},
+        "LORE":    {"official": "Connaissance", "spoken": ("connaissance", "connaissance")},
+        "ACTION":  {"official": "Action Interagir", "spoken": ("Action :", "Action :")},
+        "TRINKET":     {"official": "Trouvaille", "spoken": ("trouvaille", "trouvailles")},
+        "ARMOR":       {"official": "Armure",     "spoken": ("armure", "armures")},
+        "SINGLE_HAND": {"official": "Objet à une main",
+                        "spoken": ("objet à une main", "objets à une main")},
+        "DOUBLE_HAND": {"official": "Objet à deux mains",
+                        "spoken": ("objet à deux mains", "objets à deux mains")},
+    },
     "en": {
         "FOCUS":   {"official": "Agility",  "spoken": ("Agility", "Agility")},
         "SPIRIT":  {"official": "Spirit",   "spoken": ("Spirit", "Spirit")},
