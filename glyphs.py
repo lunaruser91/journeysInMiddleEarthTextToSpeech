@@ -139,6 +139,41 @@ LEXICON: dict[str, dict[str, dict]] = {
         "REVEAL_CARD_DRAW": {"official": "Compra de Carta",
                              "spoken": ("compra de carta", "compras de carta"), "inferred": True},
     },
+    # Read off the icon glossary on page 16 of the Spanish rulebook, sent by a
+    # player. Sixteen of the twenty-one are printed there and they cover 99.3%
+    # of the icon occurrences in Spanish narration; MOUNT (18x) and WILD (9x) are
+    # not on that page and have no entry, so they are dropped rather than
+    # guessed.
+    #
+    # `official` is what the page prints. `spoken` is derived from it here — the
+    # preposition and the plural are this project's, not the book's, the same way
+    # the Portuguese "de dano" is.
+    #
+    # Worth recording: Spanish calls the Agility icon *Agilidad* and the Might
+    # icon *Vigor*, which is what Portuguese does too — and both are the ones a
+    # translation from English gets wrong.
+    "es": {
+        "FOCUS":   {"official": "Agilidad",  "spoken": ("Agilidad", "Agilidad")},
+        "SPIRIT":  {"official": "Brío",      "spoken": ("Brío", "Brío")},
+        "WIT":     {"official": "Astucia",   "spoken": ("Astucia", "Astucia")},
+        "MIGHT":   {"official": "Vigor",     "spoken": ("Vigor", "Vigor")},
+        "WISDOM":  {"official": "Sabiduría", "spoken": ("Sabiduría", "Sabiduría")},
+        "SUCCESS": {"official": "Éxito",     "spoken": ("éxito", "éxitos")},
+        "FATE":    {"official": "Destino",   "spoken": ("destino", "destino")},
+        "DAMAGE":  {"official": "Daño",      "spoken": ("de daño", "de daño")},
+        "FEAR":    {"official": "Miedo",     "spoken": ("de miedo", "de miedo")},
+        "RANGED":  {"official": "Ataque a distancia",
+                    "spoken": ("a distancia", "a distancia")},
+        "LORE":    {"official": "Erudición", "spoken": ("erudición", "erudición")},
+        "ACTION":  {"official": "Acción de interacción",
+                    "spoken": ("Acción:", "Acción:")},
+        "TRINKET":     {"official": "Pertrecho",  "spoken": ("pertrecho", "pertrechos")},
+        "ARMOR":       {"official": "Armadura",   "spoken": ("armadura", "armaduras")},
+        "SINGLE_HAND": {"official": "Objeto de una mano",
+                        "spoken": ("objeto de una mano", "objetos de una mano")},
+        "DOUBLE_HAND": {"official": "Objeto de dos manos",
+                        "spoken": ("objeto de dos manos", "objetos de dos manos")},
+    },
     "en": {
         "FOCUS":   {"official": "Agility",  "spoken": ("Agility", "Agility")},
         "SPIRIT":  {"official": "Spirit",   "spoken": ("Spirit", "Spirit")},
