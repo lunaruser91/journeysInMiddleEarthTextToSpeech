@@ -309,6 +309,76 @@ LEXICON: dict[str, dict[str, dict]] = {
         "DOUBLE_HAND": {"official": "Снаряжение в две руки",
                         "spoken": ("снаряжение в две руки", "снаряжение в две руки")},
     },
+    # Read off the icon glossary of the Polish rulebook, sent by a player.
+    # Sixteen entries. Polish declines like Russian, and the same two questions
+    # were counted rather than guessed.
+    #
+    # Attributes: `test` precedes 1,169 of them, then `karty`, `albo`, `kartę` —
+    # all governing the genitive, so `zręczność` is spoken `zręczności`.
+    #
+    # Number agreement matters far less here than in Russian: of the countable
+    # icons, **1,373 carry no number at all** against 207 that do, and of those
+    # 170 are a bare 1. So the singular form is what is nearly always heard, and
+    # the plural slot holds the 2-4 nominative plural, which covers the 37 that
+    # remain.
+    #
+    # The items are printed as bare adjectives — `pomocniczy`, `jednoręczny` —
+    # because the section heading supplies the noun. They are left as printed;
+    # whether they should be spoken as `przedmiot pomocniczy` is a question for
+    # somebody who speaks Polish, not for the page.
+    "pl": {
+        "FOCUS":   {"official": "zręczność", "spoken": ("zręczności", "zręczności")},
+        "SPIRIT":  {"official": "duch",      "spoken": ("ducha", "ducha")},
+        "WIT":     {"official": "spryt",     "spoken": ("sprytu", "sprytu")},
+        "MIGHT":   {"official": "siła",      "spoken": ("siły", "siły")},
+        "WISDOM":  {"official": "mądrość",   "spoken": ("mądrości", "mądrości")},
+        "SUCCESS": {"official": "sukces",    "spoken": ("sukces", "sukcesy")},
+        "FATE":    {"official": "przeznaczenie",
+                    "spoken": ("przeznaczenie", "przeznaczenia")},
+        # Genitive, and measured: the damage glyph follows a form of `karta`
+        # 91% of the time — `kartę obrażeń`, `karty obrażeń` — and fear does at
+        # 81%. Both are "a card OF damage", which wants the genitive whatever
+        # the number is. `sukces` keeps ordinary agreement because 78% of its
+        # occurrences follow a bare numeral instead.
+        "DAMAGE":  {"official": "obrażenie", "spoken": ("obrażeń", "obrażeń")},
+        "FEAR":    {"official": "strach",    "spoken": ("strachu", "strachu")},
+        "RANGED":  {"official": "atak dystansowy",
+                    "spoken": ("atak dystansowy", "atak dystansowy")},
+        "LORE":    {"official": "wiedza tajemna",
+                    "spoken": ("wiedza tajemna", "wiedza tajemna")},
+        "ACTION":  {"official": "akcja oddziaływania",
+                    "spoken": ("akcja oddziaływania:", "akcja oddziaływania:")},
+        "TRINKET":     {"official": "pomocniczy", "spoken": ("pomocniczy", "pomocnicze")},
+        "ARMOR":       {"official": "pancerz",    "spoken": ("pancerz", "pancerze")},
+        "SINGLE_HAND": {"official": "jednoręczny",
+                        "spoken": ("jednoręczny", "jednoręczne")},
+        "DOUBLE_HAND": {"official": "dwuręczny", "spoken": ("dwuręczny", "dwuręczne")},
+    },
+    # Read off the icon glossary of the Korean rulebook, sent by a player.
+    # Sixteen entries. Korean marks no plural on these nouns, so both forms are
+    # the same word — the one language here where the two-slot structure is not
+    # a compromise but simply unused.
+    #
+    # The two the game exports agree with the page exactly: `main:UI_PHYSICAL`
+    # is 피해 and `main:UI_FEAR` is 공포.
+    "ko": {
+        "FOCUS":   {"official": "민첩", "spoken": ("민첩", "민첩")},
+        "SPIRIT":  {"official": "기백", "spoken": ("기백", "기백")},
+        "WIT":     {"official": "재치", "spoken": ("재치", "재치")},
+        "MIGHT":   {"official": "힘",   "spoken": ("힘", "힘")},
+        "WISDOM":  {"official": "지혜", "spoken": ("지혜", "지혜")},
+        "SUCCESS": {"official": "성공", "spoken": ("성공", "성공")},
+        "FATE":    {"official": "숙명", "spoken": ("숙명", "숙명")},
+        "DAMAGE":  {"official": "피해", "spoken": ("피해", "피해")},
+        "FEAR":    {"official": "공포", "spoken": ("공포", "공포")},
+        "RANGED":  {"official": "원거리", "spoken": ("원거리", "원거리")},
+        "LORE":    {"official": "지식", "spoken": ("지식", "지식")},
+        "ACTION":  {"official": "상호작용 행동", "spoken": ("상호작용 행동:", "상호작용 행동:")},
+        "TRINKET":     {"official": "소모품", "spoken": ("소모품", "소모품")},
+        "ARMOR":       {"official": "방어구", "spoken": ("방어구", "방어구")},
+        "SINGLE_HAND": {"official": "한손 물품", "spoken": ("한손 물품", "한손 물품")},
+        "DOUBLE_HAND": {"official": "양손 물품", "spoken": ("양손 물품", "양손 물품")},
+    },
     "en": {
         "FOCUS":   {"official": "Agility",  "spoken": ("Agility", "Agility")},
         "SPIRIT":  {"official": "Spirit",   "spoken": ("Spirit", "Spirit")},
