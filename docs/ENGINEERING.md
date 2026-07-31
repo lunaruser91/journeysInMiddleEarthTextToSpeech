@@ -132,8 +132,17 @@ markup cleanup never saw them. The synthesiser received `"Each hero tests ; 2"`,
 with no attribute named.
 
 `glyphs.py` derives the map from the 24 `main:GLYPH_*` keys the game itself
-publishes. Those keys are identical across all 13 languages, so **adding a
-language is about 21 words**, not a fresh investigation.
+publishes. Those keys hold the *character*, identically in all 13 languages,
+which is what makes the map work — and they carry no words at all. Read this
+sentence as promising the words and you will go looking for them: only two of
+the twenty-one exist as a standalone string anywhere in the corpus,
+`main:UI_PHYSICAL` and `main:UI_FEAR`.
+
+So **adding a language is about 21 words** and still not an investigation, but
+the words come from the icon glossary in that edition's rulebook. They cannot be
+translated from the English: four editions use four different words for the
+Might icon — Vigor, Vigor, Körperkraft, Force — and the English predicts none of
+them. `jime glyphs --lang <code> --template` prints the block to fill.
 
 A pitfall: `GLYPH_FOCUS` is the internal name for **Agility**. Nothing in the name
 suggests it; the proof came from two independent keys whose only attribute glyph
@@ -405,8 +414,12 @@ works is indistinguishable from the engine you meant to use except by the clock.
    picked by listening to four values on 125 words of prose, and that step needs
    somebody who speaks the language.
 
-   Separately, eleven languages have no icon vocabulary — `jime glyphs --lang
-   <code>` says which words are needed.
+   Separately, four languages have no icon vocabulary: Czech, Hungarian,
+   Ukrainian and Chinese. Nine are filled, each covering 99% or more of the
+   icons in its own narration, and every one of them was read off a player's
+   rulebook rather than translated — four editions use four different words for
+   the Might icon and the English predicts none of them. `jime glyphs --lang
+   <code> --template` prints the block to fill and paste back.
 5. **Latency has never been measured on a machine with a graphics card.** The
    Windows testing was done on a GPU-less VM, where the game software-renders and
    takes about 88% of the processor; the narrator needs roughly 0.7 s of CPU per

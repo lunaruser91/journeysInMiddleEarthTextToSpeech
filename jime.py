@@ -21,10 +21,10 @@ has a Piper voice, so there is nothing that can be read but not heard. The
 previous engine covered ten, which is why parts of this project still carry a
 distinction between what extracts and what speaks.
 
-Icon vocabularies (`glyphs.py`) are filled for Portuguese and English. Any other
-language extracts and renders, but the game's icons will be dropped rather than
-spoken until someone fills in ~21 words. `jime glyphs --lang <code>` says exactly
-what is missing.
+Icon vocabularies (`glyphs.py`) are filled for nine: Portuguese, English,
+German, Spanish, French, Italian, Korean, Polish and Russian. Czech, Hungarian,
+Ukrainian and Chinese extract and render, but their icons are dropped rather than
+spoken. `jime glyphs --lang <code> --template` prints the block to fill.
 """
 from __future__ import annotations
 

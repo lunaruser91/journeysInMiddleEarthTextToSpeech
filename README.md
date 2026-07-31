@@ -334,9 +334,19 @@ pace, which is whatever its author chose and will not match.
 `jime voices --calibrate --lang de` measures one in a few minutes. It needs that
 language extracted first, and it prints the line to paste into `voices.py`.
 
-The game's icons are spoken as words in Portuguese and English. Adding a
-language is about 21 words, not a fresh investigation — `jime glyphs` says
-exactly which.
+The game's icons are spoken as words in **nine** of the thirteen languages:
+Portuguese, English, German, Spanish, French, Italian, Korean, Polish and
+Russian. Each covers 99% or more of the icons that occur in its own narration.
+
+The four still missing are **Czech, Hungarian, Ukrainian and Chinese**, and
+there the icons are dropped rather than guessed — a wrong word is worse than a
+silent one, because the player acts on the instruction and cannot tell.
+
+Adding a language is about 21 words, not an investigation. They cannot be
+translated from the English: four editions use four different words for the
+Might icon, and none of them is Might. They have to be read off the icon
+glossary in your own rulebook. `jime glyphs --lang cz --template` prints the
+block to fill and paste back, commonest icon first.
 
 ---
 

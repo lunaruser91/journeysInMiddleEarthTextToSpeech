@@ -340,9 +340,19 @@ O `jime voices --calibrate --lang de` mede um em alguns minutos. Ele precisa que
 aquele idioma já tenha sido extraído, e imprime a linha para colar no
 `voices.py`.
 
-Os ícones do jogo são falados como palavras em português e inglês. Acrescentar um
-idioma são cerca de 21 palavras, não uma investigação nova — o `jime glyphs` diz
-exatamente quais.
+Os ícones do jogo são falados como palavras em **nove** dos treze idiomas:
+português, inglês, alemão, espanhol, francês, italiano, coreano, polonês e russo.
+Cada um cobre 99% ou mais dos ícones que aparecem na própria narração.
+
+Faltam quatro — **tcheco, húngaro, ucraniano e chinês** — e neles o ícone é
+descartado em vez de chutado: palavra errada é pior que palavra nenhuma, porque
+o jogador age pela instrução e não tem como perceber.
+
+Acrescentar um idioma são cerca de 21 palavras, não uma investigação. Elas não
+saem da tradução do inglês: quatro edições usam quatro palavras diferentes para o
+ícone de *Might*, e nenhuma delas é *Might*. Precisam ser lidas do glossário de
+ícones do seu próprio manual. O `jime glyphs --lang cz --template` imprime o
+bloco para preencher e colar de volta, ícone mais frequente primeiro.
 
 ---
 
