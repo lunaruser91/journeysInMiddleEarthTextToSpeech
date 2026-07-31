@@ -71,6 +71,27 @@ DEFAULT_VOICE = {
     "pl": "pl_PL-darkman-medium",
     "pt": "pt_BR-faber-medium",
     "ru": "ru_RU-ruslan-medium",
+    # Ukrainian stays on the medium, and the reason is measured rather than
+    # inherited. It is `phoneme_type: text` — a character model whose table has
+    # no capitals — which looked like grounds to move to one of the three `high`
+    # voices Piper publishes for Ukrainian. Compared against `uk_UA-mykyta-high`
+    # on 20 real corpus blocks:
+    #
+    #                              medium        mykyta-high
+    #     says the whole alphabet  with speakable  natively
+    #     pace at length_scale 1.0    128 wpm        98 wpm
+    #     reaches 155 wpm at            ~0.75          0.50
+    #     model                         77 MB        114 MB
+    #     sample rate                 22050 Hz      22050 Hz
+    #
+    # `prosody.speakable` removed the only objective difference: the medium now
+    # says every letter, and what it still drops — digits — is the missing
+    # Ukrainian number spelling, which affects both. What is left is that the
+    # high voice has to be run at half its natural duration to reach any
+    # narration pace, and is 37 MB larger for the same sample rate.
+    #
+    # Which of them sounds better is not in this table and needs somebody who
+    # speaks the language. `jime voices --lang uk` lists all five.
     "uk": "uk_UA-ukrainian_tts-medium",
     "zh": "zh_CN-huayan-medium",
 }
