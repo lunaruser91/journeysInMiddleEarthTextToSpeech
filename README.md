@@ -114,6 +114,9 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 That installs whatever is missing, clones the project, builds the environment and
 checks the result. Running it again is also how you **update**.
 
+The whole Windows installation, recorded from a clean machine:
+**[JIME TTS Install For Windows](https://youtu.be/SGOpxZourBo)**.
+
 One thing it cannot do for you: **macOS needs screen recording permission.**
 System Settings → Privacy & Security → Screen Recording → tick Terminal, then
 quit Terminal (`Cmd`+`Q`) and reopen it — the permission is read when a program

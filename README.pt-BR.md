@@ -119,6 +119,9 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 Isso instala o que faltar, clona o projeto, monta o ambiente e confere o
 resultado. Rodar de novo é também como você **atualiza**.
 
+A instalação no Windows inteira, gravada de uma máquina limpa:
+**[JIME TTS Install For Windows](https://youtu.be/SGOpxZourBo)**.
+
 Uma coisa ele não faz por você: **o macOS exige permissão de gravação de tela.**
 Ajustes do Sistema → Privacidade e Segurança → Gravação de Tela → marque o
 Terminal, depois feche o Terminal (`Cmd`+`Q`) e abra de novo — a permissão é
