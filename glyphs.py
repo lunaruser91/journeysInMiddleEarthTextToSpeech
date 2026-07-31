@@ -194,8 +194,34 @@ OPAQUE = {"JME01", "JME05", "JME08"}
 # blocks (3,541 of 9,118); "1" alone appears 2,453 times.
 # --------------------------------------------------------------------------- #
 
+# `num2words` covers twelve of the game's thirteen; this mapped eight of them,
+# so Czech, Hungarian, Korean and Ukrainian read their digits in whatever the
+# voice does with a bare numeral. Chinese is the one num2words has no converter
+# for at all — 56 languages and none of them — and it is also the one that needs
+# it least: 43% of its narration carries an Arabic digit and a Chinese voice
+# reads those natively.
 _NUM_LANG = {"pt": "pt_BR", "en": "en", "es": "es", "fr": "fr", "de": "de",
-             "it": "it", "pl": "pl", "ru": "ru"}
+             "it": "it", "pl": "pl", "ru": "ru", "cz": "cs", "hu": "hu",
+             "ko": "ko", "uk": "uk"}
+
+# "(0/3)" is a counter — nought of three search tokens found — and the word
+# between the two numbers was hardcoded to the Portuguese "de" for every
+# language. An English session read "(zero de three)"; German "(null de drei)";
+# Russian "(ноль de три)". It shipped that way in a language that has been
+# rendered.
+#
+# Only the Portuguese and English are checked by someone who speaks them. The
+# rest are the ordinary counter phrasing and should be corrected by a native
+# speaker rather than trusted — same standing as the audition sentences in
+# voices.py.
+#
+# A language with no entry reads the two numbers with a pause between them. That
+# is terse and it is not wrong, which a preposition borrowed from another
+# language is.
+_FRACTION_WORD = {
+    "pt": "de", "es": "de", "en": "of", "it": "di", "fr": "sur",
+    "de": "von", "pl": "z", "ru": "из", "cz": "ze", "uk": "з",
+}
 
 # "208B", "300A" are map tile identifiers: the number is read normally and the
 # letter stands on its own ("duzentos e oito B"). "1º" or "2x", on the other
@@ -225,9 +251,11 @@ def spell_out_numbers(text: str, lang: str = "pt") -> str:
         except Exception:  # noqa: BLE001
             return str(v)
 
-    # "(0/3)" -> "zero de três"
-    text = _FRACTION.sub(lambda m: f"{_n(int(m.group(1)))} de {_n(int(m.group(2)))}",
-                         text)
+    # "(0/3)" -> "zero de três", "zero of three", "null von drei"
+    joiner = _FRACTION_WORD.get(lang)
+    sep = f" {joiner} " if joiner else ", "
+    text = _FRACTION.sub(
+        lambda m: f"{_n(int(m.group(1)))}{sep}{_n(int(m.group(2)))}", text)
     # "208B" -> "duzentos e oito B"
     text = _TILE_ID.sub(lambda m: f"{_n(int(m.group(1)))} {m.group(2).upper()}",
                         text)
