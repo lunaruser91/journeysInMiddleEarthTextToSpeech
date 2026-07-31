@@ -240,6 +240,35 @@ LEXICON: dict[str, dict[str, dict]] = {
         "DOUBLE_HAND": {"official": "Objet à deux mains",
                         "spoken": ("objet à deux mains", "objets à deux mains")},
     },
+    # Read off the icon glossary of the Italian rulebook, sent by a player.
+    # Sixteen entries, the Spanish and French set, 99.3% of Italian narration.
+    #
+    # This page also shows why the printed glossary beats the string the game
+    # exports. `main:UI_PHYSICAL` is "Danni" in the Italian corpus and
+    # `main:UI_FEAR` is "Paure" — both plural, because those strings label a
+    # counter in the interface. The glossary names the icon: *Danno*, *Paura*.
+    # The template pre-fills the corpus version, and Italian is the case where
+    # somebody reading the page should overwrite it.
+    "it": {
+        "FOCUS":   {"official": "Agilità",  "spoken": ("Agilità", "Agilità")},
+        "SPIRIT":  {"official": "Spirito",  "spoken": ("Spirito", "Spirito")},
+        "WIT":     {"official": "Ingegno",  "spoken": ("Ingegno", "Ingegno")},
+        "MIGHT":   {"official": "Forza",    "spoken": ("Forza", "Forza")},
+        "WISDOM":  {"official": "Saggezza", "spoken": ("Saggezza", "Saggezza")},
+        "SUCCESS": {"official": "Successo", "spoken": ("successo", "successi")},
+        "FATE":    {"official": "Fato",     "spoken": ("fato", "fato")},
+        "DAMAGE":  {"official": "Danno",    "spoken": ("danno", "danni")},
+        "FEAR":    {"official": "Paura",    "spoken": ("paura", "paura")},
+        "RANGED":  {"official": "Distanza", "spoken": ("a distanza", "a distanza")},
+        "LORE":    {"official": "Sapienza", "spoken": ("sapienza", "sapienza")},
+        "ACTION":  {"official": "Azione di Interazione", "spoken": ("Azione:", "Azione:")},
+        "TRINKET":     {"official": "Accessorio", "spoken": ("accessorio", "accessori")},
+        "ARMOR":       {"official": "Armatura",   "spoken": ("armatura", "armature")},
+        "SINGLE_HAND": {"official": "Oggetto a Una Mano",
+                        "spoken": ("oggetto a una mano", "oggetti a una mano")},
+        "DOUBLE_HAND": {"official": "Oggetto a Due Mani",
+                        "spoken": ("oggetto a due mani", "oggetti a due mani")},
+    },
     "en": {
         "FOCUS":   {"official": "Agility",  "spoken": ("Agility", "Agility")},
         "SPIRIT":  {"official": "Spirit",   "spoken": ("Spirit", "Spirit")},
