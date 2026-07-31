@@ -630,6 +630,8 @@ def cmd_play(args: argparse.Namespace) -> int:
         argv += ["--share"]
     if args.stable_frames:
         argv += ["--stable-frames", str(args.stable_frames)]
+    if args.save_crops:
+        argv += ["--save-crops", str(args.save_crops)]
     if args.ocr != "auto":
         argv += ["--ocr", args.ocr]
     if args.fps:
@@ -858,6 +860,12 @@ def build_parser() -> argparse.ArgumentParser:
                         "--fps 10 the default of 11 is a floor of 1.1s on every "
                         "screen. Lower it only against the `paused Nf` figure "
                         "--profile reports")
+    p.add_argument("--save-crops", type=Path, metavar="DIR",
+                   help="keep every screen that matched cleanly, so `test_ocr.py "
+                        "--from-captures DIR` can measure how much the "
+                        "recogniser gets wrong on the game's own pixels rather "
+                        "than on a rendered page. About 1 MB a screen, written "
+                        "after the audio is already queued")
     p.add_argument("--share", action="store_true",
                    help="print none of the game's text, so the log can be sent "
                         "to somebody else. Keys, scores and timings stay; the "

@@ -52,6 +52,11 @@ Data/
 *.dat
 *.bundle
 
+# `jime play --save-crops DIR` keeps pictures of the game's own screens so the
+# OCR can be measured against them. A picture of the text is the text.
+crops/
+*.npy
+
 # ---------------------------------------------------------------------------
 # Voice reference
 # ---------------------------------------------------------------------------

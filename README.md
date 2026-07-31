@@ -273,6 +273,29 @@ cd ~/jime && ~/jime-venv/bin/python probe_capture.py --seconds 40
 It writes to `output/probe.log` rather than the terminal, because looking at the
 terminal changes what is being measured.
 
+## Helping measure the OCR
+
+`test_ocr.py` reads back pages it renders itself and reports 0.09% character
+error. That is a floor, not the answer: the page is a system serif on flat grey
+and the game draws its own font on parchment. The gap between the two can only
+be closed by somebody playing.
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python jime.py play --display --save-crops crops/
+```
+
+Every screen that matched cleanly is kept — one block, won with a margin — so
+the corpus text for it is exactly what was on the screen, and:
+
+```bash
+cd ~/jime && ~/jime-venv/bin/python test_ocr.py --from-captures crops/
+```
+
+scores the recogniser against the game's real pixels. The crops are images of
+the game and stay on your machine; the number is the only thing worth sending.
+About 1 MB a screen, written after the audio is already queued, so it costs
+nothing in speed.
+
 ## Sending somebody a log
 
 A normal log carries the game's own text — the block preview under every screen

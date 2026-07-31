@@ -205,6 +205,39 @@ def await_game(app_hint: str, title_hint: str, wait: float,
                                   lang) + RESET)
 
 
+def _keep_crop(folder: Path, box, key: str, lang: str) -> None:
+    """Save one settled crop beside the key it matched, for `test_ocr.py`.
+
+    The pair is the measurement: the pixels the recogniser actually saw, and the
+    corpus text for the key it was matched to. Nothing else in this project can
+    produce that — the harness's synthetic pages are a system serif on flat grey
+    and the game draws its own font on parchment.
+
+    It is biased, and knowing which way is what makes it usable. Only screens
+    that matched are saved, and a screen that matched is one the OCR read well
+    enough to match, so this measures the good end. The synthetic pages measure
+    the other end. Between them is the answer.
+
+    Written after the audio is queued, so a slow disk cannot delay a word.
+    """
+    import json
+
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        index = folder / "index.json"
+        seen = (json.loads(index.read_text(encoding="utf-8"))
+                if index.exists() else {"lang": lang, "screens": []})
+        if any(s["key"] == key for s in seen["screens"]):
+            return                      # one sample per key is enough
+        name = f"{len(seen['screens']):04d}.npy"
+        np.save(folder / name, box)
+        seen["screens"].append({"key": key, "file": name})
+        index.write_text(json.dumps(seen, ensure_ascii=False, indent=1),
+                         encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass            # a measurement aid must never cost somebody their game
+
+
 def frames_from_video(path: Path, fps: float):
     """Yield greyscale frames from a recording, for --from-video."""
     import subprocess
@@ -317,6 +350,15 @@ def main() -> None:
                          "which needs nothing installed but is orders of "
                          "magnitude slower. Naming one makes its failure say "
                          "so instead of quietly costing seconds a screen.")
+    ap.add_argument("--save-crops", type=Path,
+                    help="write every settled crop to this folder, beside the "
+                         "key it matched. That pairs a real screen with its "
+                         "known text, which is the one thing `test_ocr.py` "
+                         "cannot make for itself — its synthetic pages measure "
+                         "a system serif on flat grey, and the game draws its "
+                         "own font on parchment. Costs about 1 MB a screen and "
+                         "nothing in speed; the write happens after the audio "
+                         "is already queued.")
     ap.add_argument("--stable-frames", type=int, default=STABLE_FRAMES,
                     help=f"quiet frames before a screen counts as finished "
                          f"(default {STABLE_FRAMES}). At --fps 10 this is a "
@@ -786,6 +828,16 @@ def main() -> None:
                       f"{'playing' if player.playing else 'idle'}{RESET}",
                       flush=True)
             queued += len(played)
+
+            # Keep this screen only when its truth is not in doubt. One key, won
+            # with a margin, no placeholder: then the corpus block is exactly
+            # what the pixels say and the comparison is honest. Two keys means
+            # the box was composed from two blocks and neither one is the
+            # answer; a tie means the key itself is a guess; a placeholder means
+            # the corpus holds "{0}" where the screen holds a number.
+            if (args.save_crops and len(keys) == 1 and keys[0] in sure
+                    and not corpus.get(keys[0], {}).get("placeholders")):
+                _keep_crop(args.save_crops, box, keys[0], args.lang)
 
             # One line per block, and it says what happens to it. Printing
             # "[screen] KEY" for every match regardless of whether it plays made

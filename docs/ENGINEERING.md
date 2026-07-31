@@ -282,6 +282,8 @@ jime demo.py ~/Downloads/screen.webp --no-audio   # one screen: OCR + matching
 jime batch.py ~/Downloads/*.webp --keys keys.txt  # several, with hit rate
 jime watch_log.py --all                           # the game's own event log
 jime test_matcher.py --verbose                    # 631 real screens, with noise
+jime test_ocr.py                                  # character error rate, rendered pages
+jime test_ocr.py --from-captures crops/           # ... on screens `--save-crops` kept
 jime probe_capture.py --seconds 40                # does capture keep producing pixels
 ```
 
@@ -363,15 +365,33 @@ works is indistinguishable from the engine you meant to use except by the clock.
 | `probe_capture.py` | whether capture keeps producing pixels while you play |
 | `selftest.py` | checks the whole machine, end to end |
 | `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
+| `test_ocr.py` | harness: how much the recogniser actually gets wrong |
 
 ---
 
 ## What is missing
 
-1. **An OCR harness with real character error rate.** The noise in the matcher
-   harness is synthetic. Measuring Apple Vision against the fixtures would say
-   whether real reading sits in the 1–3% band, where the matcher is above 94%.
-   Everything claimed about noise tolerance rests on an assumption until then.
+1. **The OCR harness has one half of its measurement.** `test_ocr.py` renders
+   every fixture's known text onto a page and reads it back: **0.09% CER, 18
+   edits over 19,928 characters** on Apple Vision, 120 pages of the game's own
+   prose with its proper nouns and its accents. That is twenty times below the
+   2% row of the table above, and it answers one question completely — the
+   corpus vocabulary is not what a recogniser struggles with.
+
+   It is a floor and it says so. The page is a system serif on flat grey; the
+   game draws its own font on parchment, with a texture behind the words. So the
+   real number is at least 0.09% and the gap between them is entirely the
+   game's pixels, which is where the remaining half lives: `jime play
+   --save-crops DIR` keeps every screen that matched cleanly — one key, won with
+   a margin, no placeholder, so the corpus block is exactly what the pixels say
+   — and `test_ocr.py --from-captures DIR` scores those. That half is biased the
+   other way, since a screen that matched is one the OCR read well enough to
+   match. The two bracket the answer; neither is it.
+
+   Two of the harness's first three findings were the harness. It scored the
+   game's icons as OCR errors when they are Private Use Area characters no
+   system font can draw — `Negado por ⬜.` read back as `Negado por O.` — and
+   then scored the space the stripped icon left behind. 0.28%, 0.11%, 0.09%.
 2. **Prose and mechanical instruction are still spoken as one.** Most narration
    blocks contain a paragraph break separating story from rule, so splitting them
    is mostly mechanical — but nobody has decided whether the narrator should read
