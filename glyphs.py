@@ -373,6 +373,17 @@ if __name__ == "__main__":
                 if name:
                     counts[name] = counts.get(name, 0) + 1
         en = LEXICON.get("en", {})
+        # Two of the twenty-one the game does publish as plain strings, and they
+        # are the two most spoken: FEAR and DAMAGE are 1,364 of German's 4,272
+        # icon occurrences between them. Filled in from the corpus rather than
+        # asked for — and seeing two already correct is what tells whoever fills
+        # the rest what "official" is supposed to mean.
+        FROM_GAME = {"DAMAGE": "main:UI_PHYSICAL", "FEAR": "main:UI_FEAR"}
+        known = {}
+        for icon, key in FROM_GAME.items():
+            got = (corpus.get(key) or {}).get("text", "").strip()
+            if got:
+                known[icon] = got
         # Every glyph the corpus defines, not only the ones that occur: a name
         # with no count is one this language never speaks today, and saying so
         # is better than a list that is quietly five short of the table it is
@@ -387,8 +398,15 @@ if __name__ == "__main__":
             n = counts[name]
             quanto = f"{n:>4}x" if n else "   -"
             chave = f'"{name}":'
-            print(f'        {chave:<22} {{"official": "", "spoken": ("", "")}},'
-                  f'   # {quanto}  en: {hint}')
+            got = known.get(name)
+            if got:
+                corpo = (f'{{"official": {got!r}, '
+                         f'"spoken": ({got.lower()!r}, {got.lower()!r})}},')
+                nota = f'   # {quanto}  from the game itself'
+            else:
+                corpo = '{"official": "", "spoken": ("", "")},'
+                nota = f'   # {quanto}  en: {hint}'
+            print(f'        {chave:<22} {corpo}{nota}')
         print("    },")
         print(f"\nPaste that into LEXICON in glyphs.py and fill the two strings "
               f"per line:\n  official — what the printed {args.lang!r} edition "
