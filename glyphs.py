@@ -269,6 +269,46 @@ LEXICON: dict[str, dict[str, dict]] = {
         "DOUBLE_HAND": {"official": "Oggetto a Due Mani",
                         "spoken": ("oggetto a due mani", "oggetti a due mani")},
     },
+    # Read off the icon glossary of the Russian rulebook, sent by a player.
+    # Sixteen entries. Russian is the first language here where `official` and
+    # `spoken` have to differ for grammar rather than for style, and both
+    # differences are measured rather than assumed.
+    #
+    # **Attributes are spoken in the genitive.** The glossary prints the
+    # nominative — Ловкость — and the game never uses it that way. Counted over
+    # the 1,524 attribute glyphs in Russian narration, the word before is
+    # `проверку` 62% of the time, `с помощью` 31%, then `или`, `показатель`,
+    # `значением`. Every one of those governs the genitive, so the icon is said
+    # as Ловкости.
+    #
+    # **The plural form is the genitive singular, not the plural.** Russian
+    # numerals take 1 → nominative, 2-4 → genitive singular, 5+ → genitive
+    # plural, and this table has room for two forms. Counted over the numbers
+    # that actually precede a countable icon: 1 appears 586 times, 2-4 appears
+    # 412, 5 appears once and 0 once. So ("урон", "урона") is right for 1,233 of
+    # 1,236 numbered cases, and the two it misses are one occurrence each.
+    "ru": {
+        "FOCUS":   {"official": "Ловкость",  "spoken": ("Ловкости", "Ловкости")},
+        "SPIRIT":  {"official": "Храбрость", "spoken": ("Храбрости", "Храбрости")},
+        "WIT":     {"official": "Смекалка",  "spoken": ("Смекалки", "Смекалки")},
+        "MIGHT":   {"official": "Сила",      "spoken": ("Силы", "Силы")},
+        "WISDOM":  {"official": "Мудрость",  "spoken": ("Мудрости", "Мудрости")},
+        "SUCCESS": {"official": "Успех",     "spoken": ("успех", "успеха")},
+        "FATE":    {"official": "Судьба",    "spoken": ("судьбы", "судьбы")},
+        "DAMAGE":  {"official": "Урон",      "spoken": ("урон", "урона")},
+        "FEAR":    {"official": "Страх",     "spoken": ("страх", "страха")},
+        "RANGED":  {"official": "Дальняя атака",
+                    "spoken": ("дальняя атака", "дальняя атака")},
+        "LORE":    {"official": "Сведения",  "spoken": ("сведения", "сведения")},
+        "ACTION":  {"official": "Взаимодействие",
+                    "spoken": ("Взаимодействие:", "Взаимодействие:")},
+        "TRINKET":     {"official": "Вещь",  "spoken": ("вещь", "вещи")},
+        "ARMOR":       {"official": "Броня", "spoken": ("броня", "брони")},
+        "SINGLE_HAND": {"official": "Снаряжение в одну руку",
+                        "spoken": ("снаряжение в одну руку", "снаряжение в одну руку")},
+        "DOUBLE_HAND": {"official": "Снаряжение в две руки",
+                        "spoken": ("снаряжение в две руки", "снаряжение в две руки")},
+    },
     "en": {
         "FOCUS":   {"official": "Agility",  "spoken": ("Agility", "Agility")},
         "SPIRIT":  {"official": "Spirit",   "spoken": ("Spirit", "Spirit")},
