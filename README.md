@@ -26,6 +26,9 @@ All **thirteen** of the game's localisations can be narrated.
 
 ## What using it looks like
 
+Two minutes of it narrating a real game, screen and voice as they happen:
+**[JIMETTS Playing The Game](https://www.youtube.com/watch?v=KuhVRNcy2Ew)**.
+
 You run one command and it asks the rest. Every question carries the state
 behind it, so nothing has to be remembered between sessions.
 

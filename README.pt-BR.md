@@ -29,6 +29,9 @@ Os **treze** idiomas do jogo podem ser narrados.
 
 ## Como é na prática
 
+Dois minutos narrando uma partida de verdade, tela e voz como acontecem:
+**[JIMETTS Playing The Game](https://www.youtube.com/watch?v=KuhVRNcy2Ew)**.
+
 Você roda um comando e ele pergunta o resto. Cada pergunta traz o estado por
 trás dela, então não é preciso lembrar de nada entre uma sessão e outra.
 
