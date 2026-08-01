@@ -131,8 +131,8 @@ That reports the vertical band the narration occupies — see
 own bounding boxes rather than sweeping. Then:
 
 ```bash
-~/jime-venv/bin/python narrator.py --app "Emulator" --lang pt \
-    --region <a>,<b> --profile --save-crops crops-android/
+~/jime-venv/bin/python narrator.py --app qemu --window "Android Emulator" \
+    --lang pt --region <a>,<b> --profile --save-crops crops-android/
 ```
 
 **Measured, on six screens harvested from the emulator: six matched.**
