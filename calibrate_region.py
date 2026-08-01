@@ -23,13 +23,27 @@ contains the answer; nothing has to be swept. One pass over the whole frame:
   1. read every line, with its box
   2. group into paragraphs and match them against the corpus
   3. take the lines belonging to paragraphs that matched a narration block
-  4. their vertical extent, plus a margin, is the band
+  4. split those into vertically separated blocks, and keep the one with the
+     most text on it
+  5. its extent, plus a margin, is the band
 
-Step 3 is what makes this a measurement rather than a heuristic. Text that
-matched the corpus is the game's own prose by definition; the objective bar, the
-hero cards, the buttons and the map labels are all text too, and a band drawn
-around *all* text on screen would be the whole screen. The band this reports is
-the band around the words the narrator exists to speak.
+Step 3 drops the map labels, the hero cards and the tile numbers: they are not
+in the corpus, so nothing anchors them.
+
+Step 4 is there because step 3 is not enough, which is what the first version of
+this got wrong. **The objective bar is a narration block** — 222 of them are —
+and so is every choice button, so a band drawn around everything that matched
+runs from above the dialogue box to below it. Measured on a Windows session it
+reported 0.07-0.57 against a default of 0.14-0.50: wider, when the whole point
+was to be tighter. `trigger.py` has recorded from the beginning that the
+objective bar "matched in all 19 screenshots of a test session", and this tool
+was written as if it would not.
+
+Geometry separates them where the corpus cannot. The dialogue box sets its lines
+about one height apart; the objective bar sits several heights above it and the
+buttons several below. Of those blocks the box is the one with the most text —
+the bar is one line and a button is three words. What gets dropped is printed,
+so the choice is visible rather than silent.
 
 ## Why several screenshots are better than one
 
@@ -80,6 +94,40 @@ def _band(lines) -> tuple[float, float] | None:
     return (top, bottom)
 
 
+# A gap this many line-heights wide separates one block of text from the next.
+# The dialogue box sets its lines about one height apart; the objective bar sits
+# several heights above it and the choice buttons several below.
+CLUSTER_GAP = 1.8
+
+
+def _clusters(lines) -> list[tuple[tuple[float, float], int, int]]:
+    """Split lines into vertically separated blocks, top to bottom.
+
+    Matching the corpus does not identify the dialogue box, which is what the
+    first version of this assumed. The objective bar is a narration block — 222
+    of them are, and `trigger.py` has recorded since the beginning that it
+    "matched in all 19 screenshots of a test session" — and so is every choice
+    button. A band drawn around everything that matched therefore reaches from
+    above the box to below it, which is the opposite of what `REGION` is for.
+
+    Geometry separates them where the corpus cannot. Returns
+    ((top, bottom), characters, lines) per block.
+    """
+    items = sorted(lines, key=lambda ln: 1.0 - (ln.bbox[1] + ln.bbox[3]))
+    if not items:
+        return []
+    typical = sorted(ln.bbox[3] for ln in items)[len(items) // 2] or 0.02
+    out, run = [], [items[0]]
+    for prev, line in zip(items, items[1:]):
+        gap = (1.0 - (line.bbox[1] + line.bbox[3])) - (1.0 - prev.bbox[1])
+        if gap > typical * CLUSTER_GAP:
+            out.append(run)
+            run = []
+        run.append(line)
+    out.append(run)
+    return [(_band(r), sum(len(ln.text) for ln in r), len(r)) for r in out]
+
+
 def measure(path: Path, engine, matcher, corpus) -> dict:
     """One screenshot: the band its narration text occupies, and what it matched."""
     import numpy as np
@@ -105,8 +153,15 @@ def measure(path: Path, engine, matcher, corpus) -> dict:
     narration = [ln for ln in lines
                  if len(normalize(ln.text)) >= 4 and normalize(ln.text) in wanted]
 
+    # The dialogue box is the block with the most text on it. The objective bar
+    # is one line and a button is three words; neither competes with a
+    # paragraph of prose.
+    blocks = _clusters(narration)
+    best = max(blocks, key=lambda b: b[1]) if blocks else None
     return {"path": path, "keys": keys, "lines": len(lines),
-            "narration": len(narration), "band": _band(narration),
+            "narration": len(narration),
+            "band": best[0] if best else None,
+            "blocks": blocks, "chars": best[1] if best else 0,
             "all": _band(lines)}
 
 
@@ -181,9 +236,18 @@ def main() -> int:
             continue
         top, bottom = r["band"]
         bands.append(r["band"])
+        # Say what was thrown away. A block of narration text that is not the
+        # dialogue box is the objective bar or a row of choice buttons, and
+        # somebody reading this should see that the tool knew they were there.
+        other = [b for b in r["blocks"] if b[0] != r["band"]]
         print(f"  {GREEN}{image.name}{RESET} — {top:.3f} to {bottom:.3f}  "
-              f"{GRAY}{r['narration']}/{r['lines']} lines are narration; "
-              f"{', '.join(r['keys'])[:60]}{RESET}")
+              f"{GRAY}{r['chars']} chars over {r['narration']}/{r['lines']} "
+              f"narration lines{RESET}")
+        if other:
+            print(f"      {GRAY}dropped: "
+                  + ", ".join(f"{b[0][0]:.2f}-{b[0][1]:.2f} ({b[1]}c)"
+                              for b in other) + f"{RESET}")
+        print(f"      {GRAY}{', '.join(r['keys'])[:72]}{RESET}")
 
     if not bands:
         print(f"\n{RED}No screenshot matched anything.{RESET} Either the corpus "
