@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .base import Capture, CaptureError, Window
+from .base import Capture, CaptureError, Window, app_matches
 
 
 def _require():
@@ -120,7 +120,7 @@ def list_windows(app_hint: str = "") -> list[Window]:
             return True
 
         app = _process_name(hwnd)
-        if app_hint and app_hint.lower() not in f"{app} {title}".lower():
+        if not app_matches(app, app_hint):
             return True
         found.append(Window(handle=int(hwnd), title=title, app=app,
                             width=width, height=height))
@@ -214,7 +214,7 @@ def open_window(title_hint: str = "", app_hint: str = "Journeys",
         matches = [
             w for w in list_windows("")
             if (not title_hint or title_hint.lower() in w.title.lower())
-            and (not app_hint or app_hint.lower() in f"{w.app} {w.title}".lower())
+            and app_matches(w.app, app_hint)
             and w.width > 200 and w.height > 200
         ]
         if matches:

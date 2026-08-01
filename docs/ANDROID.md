@@ -160,13 +160,24 @@ process launched detached from a background shell (`CGS_REQUIRE_INIT`). That is
 the harness, not the narrator; run from a terminal it is the ordinary path.
 Someone should confirm it interactively.
 
-Two things this turned up about `--app`, which are the project's own, not
-Android's. macOS matches the hint against the **application name alone**;
-Windows matches it against **application and title together**. So the Android
-emulator needs `--app qemu` on macOS — it is owned by `qemu-system-aarch64` and
-nothing there is called "Emulator". And the Windows form will match any window
-whose *title* contains the hint, which for a default of `Journeys` includes a
-terminal sitting in this project's own directory.
+Pointing the narrator at a window that is not the desktop game turned up a
+defect in `--app` that had nothing to do with Android, and it was worse than the
+inconsistency it looked like at first. `|` was split in exactly one place —
+`is_foreground` — so the foreground guard understood `Journeys|JiME` and the two
+window matchers compared that literal string, which matches neither name.
+**Window capture could not find the game with the default hint, on either
+platform.** It went unnoticed because `--display` is the documented path and
+does not go through there.
+
+Fixed by putting the split in one place, `capture.base.app_names`, with
+`app_matches` beside it matching the **application name and never the title** —
+the Windows backend had been matching `f"{app} {title}"`, which is how a
+terminal sitting in `journeysInMiddleEarthTextToSpeech` could pass a `Journeys`
+hint. `narrator.py --list-windows` now says which window it would pick and why
+each of the others was refused.
+
+The Android emulator is `--app qemu`: it is owned by `qemu-system-aarch64` and
+nothing there is called "Emulator".
 
 Do not read the `paused Nf` figure from an emulator. A machine that drops frames
 animates as continuous motion — the same trap that made a GPU-less VM report no

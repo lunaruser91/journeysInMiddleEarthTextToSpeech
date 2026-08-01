@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .base import Capture, CaptureError, Window
+from .base import Capture, CaptureError, Window, app_matches
 
 TIMEOUT = 5.0
 
@@ -114,7 +114,7 @@ def list_windows(app_hint: str = "") -> list[Window]:
         app = w.owningApplication()
         app_name = app.applicationName() if app else ""
         title = w.title() or ""
-        if app_hint and app_hint.lower() not in app_name.lower():
+        if not app_matches(app_name, app_hint):
             continue
         frame = w.frame()
         out.append(Window(handle=(w, content), title=title, app=app_name,

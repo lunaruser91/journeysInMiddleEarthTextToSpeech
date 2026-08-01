@@ -389,15 +389,46 @@ def main() -> None:
                     help="hold each screen until a key is pressed")
     args = ap.parse_args()
 
-    from capture.base import (CaptureError, list_windows, open_display,
-                              open_window)
+    from capture.base import (CaptureError, app_matches, list_windows,
+                              open_display, open_window)
 
     if args.list_windows:
+        # Not just what is there — which one the current hints would pick, and
+        # why. Somebody reads this list precisely when the game was not found,
+        # and a list alone leaves them comparing strings by eye. The hint is
+        # matched against the *application*, which on macOS is the bundle name
+        # and on Windows the executable; the title is only ever a tie-breaker.
         try:
-            for w in list_windows(""):
-                print(f"  {w}")
+            windows = list_windows("")
         except CaptureError as exc:
             sys.exit(f"{RED}{exc}{RESET}")
+        print(f"{GRAY}--app {args.app!r}"
+              + (f"  --window {args.window!r}" if args.window else "")
+              + f"{RESET}\n")
+        chosen = []
+        for w in windows:
+            by_app = app_matches(w.app, args.app)
+            by_title = not args.window or args.window.lower() in w.title.lower()
+            big = w.width > 200 and w.height > 200
+            if by_app and by_title and big:
+                chosen.append(w)
+                mark, why = f"{GREEN}[match]{RESET} ", ""
+            else:
+                mark = f"{GRAY}        {RESET}"
+                why = (" — app does not match" if not by_app else
+                       " — title does not match" if not by_title else
+                       " — too small to capture")
+            print(f"  {mark}{w}{GRAY}{why}{RESET}")
+        if chosen:
+            best = max(chosen, key=lambda w: w.width * w.height)
+            print(f"\n{GREEN}would capture{RESET} {best}"
+                  + (f" {GRAY}(largest of {len(chosen)}){RESET}"
+                     if len(chosen) > 1 else ""))
+        else:
+            print(f"\n{YELLOW}nothing would be captured.{RESET} The hint is "
+                  f"matched against the application name, not the window "
+                  f"title;\n`|` separates alternatives, so --app "
+                  f"'Journeys|JiME' accepts either.")
         return
 
     top, bottom = (float(x) for x in args.region.split(","))

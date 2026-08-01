@@ -121,6 +121,38 @@ def foreground() -> str | None:
         return None
 
 
+def app_names(app_hint: str) -> list[str]:
+    """The alternatives in a hint like "Journeys|JiME", lowercased.
+
+    The same game is not called the same thing on the two platforms: macOS
+    reports the bundle's display name, "Journeys in Middle-earth", and Windows
+    reports the executable, `JiME.exe`. So the default hint names it both ways
+    and any of them counts.
+
+    This lived inline in `is_foreground` and nowhere else, which meant the
+    foreground guard understood `|` and the two window matchers did not — they
+    compared the literal string "journeys|jime", which matches neither name.
+    Window capture could not find the game on either platform with the default
+    hint. It went unnoticed because `--display` is the documented path and does
+    not go through here.
+    """
+    return [h.strip().lower() for h in app_hint.split("|") if h.strip()]
+
+
+def app_matches(app: str, app_hint: str) -> bool:
+    """Does this application name satisfy the hint?
+
+    The application name, never the window title. Matching the title would cover
+    both platforms with one name and is worse for a reason this project can name
+    precisely: a terminal's title is its command line, and this project's own
+    directory is called `journeysInMiddleEarthTextToSpeech`, so the terminal the
+    narrator was launched from passes a `Journeys` hint. The Windows backend was
+    matching `f"{app} {title}"` and had exactly that hole.
+    """
+    names = app_names(app_hint)
+    return not names or any(n in (app or "").lower() for n in names)
+
+
 def is_foreground(app_hint: str, title_hint: str = "") -> bool | None:
     """Whether the game is the window in front. None when it cannot be told.
 
@@ -140,7 +172,7 @@ def is_foreground(app_hint: str, title_hint: str = "") -> bool | None:
     if front is None:
         return None
     front = front.lower()
-    names = [h.strip().lower() for h in app_hint.split("|") if h.strip()]
+    names = app_names(app_hint)
     return ((not names or any(h in front for h in names))
             and (not title_hint or title_hint.lower() in front))
 
