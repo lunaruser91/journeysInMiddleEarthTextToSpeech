@@ -111,7 +111,8 @@ def _clusters(lines) -> list[tuple[tuple[float, float], int, int]]:
     above the box to below it, which is the opposite of what `REGION` is for.
 
     Geometry separates them where the corpus cannot. Returns
-    ((top, bottom), characters, lines) per block.
+    ((top, bottom), characters, lines, width) per block, width as a fraction of
+    the frame.
     """
     items = sorted(lines, key=lambda ln: 1.0 - (ln.bbox[1] + ln.bbox[3]))
     if not items:
@@ -125,7 +126,9 @@ def _clusters(lines) -> list[tuple[tuple[float, float], int, int]]:
             run = []
         run.append(line)
     out.append(run)
-    return [(_band(r), sum(len(ln.text) for ln in r), len(r)) for r in out]
+    return [(_band(r), sum(len(ln.text) for ln in r), len(r),
+             max(ln.bbox[0] + ln.bbox[2] for ln in r)
+             - min(ln.bbox[0] for ln in r)) for r in out]
 
 
 def measure(path: Path, engine, matcher, corpus) -> dict:
@@ -145,23 +148,36 @@ def measure(path: Path, engine, matcher, corpus) -> dict:
             if r.accepted and r.key and corpus.get(r.key, {}).get("narration")]
     keys = list(dict.fromkeys(keys))
 
-    # Which lines are the narration? A line belongs to a matched block when its
-    # text is inside that block's text. Normalised on both sides, because that
-    # comparison is against OCR output and nothing else in this project compares
-    # raw strings either.
+    # Which lines are the narration? A line belongs to a matched block when the
+    # block nearly contains it. The comment here used to say that nothing in
+    # this project compares raw strings, above a line that did exactly that:
+    # exact containment after normalising. One misread character dropped the
+    # whole line, and on a Windows session that turned a dialogue box into nine
+    # characters, which then lost to the objective bar.
+    #
+    # 88 is narrator.py's ON_SCREEN_SCORE, answering the same question about the
+    # same kind of text: is this paragraph the screen is showing one of the
+    # block's?
+    from rapidfuzz import fuzz
+
     wanted = " ".join(normalize(corpus[k]["text"]) for k in keys)
     narration = [ln for ln in lines
-                 if len(normalize(ln.text)) >= 4 and normalize(ln.text) in wanted]
+                 if len(normalize(ln.text)) >= 4
+                 and fuzz.partial_ratio(normalize(ln.text), wanted) >= 88.0]
 
-    # The dialogue box is the block with the most text on it. The objective bar
-    # is one line and a button is three words; neither competes with a
-    # paragraph of prose.
+    # Which block is the dialogue box? Text alone nearly answers it — the
+    # objective bar is one line and a button is three words — but nearly is not
+    # enough: measured on a Windows screen a 56-character bar beat a box the OCR
+    # had read badly. Width is the second signal and an independent one. The box
+    # is drawn nearly edge to edge; the bar is centred and narrow, and the
+    # buttons sit in two columns. Neither is wide AND heavy.
     blocks = _clusters(narration)
-    best = max(blocks, key=lambda b: b[1]) if blocks else None
+    best = max(blocks, key=lambda b: b[1] * b[3]) if blocks else None
     return {"path": path, "keys": keys, "lines": len(lines),
             "narration": len(narration),
             "band": best[0] if best else None,
             "blocks": blocks, "chars": best[1] if best else 0,
+            "width": best[3] if best else 0.0,
             "all": _band(lines)}
 
 
@@ -241,12 +257,12 @@ def main() -> int:
         # somebody reading this should see that the tool knew they were there.
         other = [b for b in r["blocks"] if b[0] != r["band"]]
         print(f"  {GREEN}{image.name}{RESET} — {top:.3f} to {bottom:.3f}  "
-              f"{GRAY}{r['chars']} chars over {r['narration']}/{r['lines']} "
-              f"narration lines{RESET}")
+              f"{GRAY}{r['chars']}c x{r['width']:.2f}w over "
+              f"{r['narration']}/{r['lines']} narration lines{RESET}")
         if other:
             print(f"      {GRAY}dropped: "
-                  + ", ".join(f"{b[0][0]:.2f}-{b[0][1]:.2f} ({b[1]}c)"
-                              for b in other) + f"{RESET}")
+                  + ", ".join(f"{b[0][0]:.2f}-{b[0][1]:.2f} ({b[1]}c "
+                              f"x{b[3]:.2f}w)" for b in other) + f"{RESET}")
         print(f"      {GRAY}{', '.join(r['keys'])[:72]}{RESET}")
 
     if not bands:
