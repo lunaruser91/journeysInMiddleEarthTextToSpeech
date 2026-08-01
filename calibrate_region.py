@@ -28,22 +28,30 @@ contains the answer; nothing has to be swept. One pass over the whole frame:
   5. its extent, plus a margin, is the band
 
 Step 3 drops the map labels, the hero cards and the tile numbers: they are not
-in the corpus, so nothing anchors them.
+in the corpus, so nothing anchors them. It is not enough on its own, which is
+what the first version of this got wrong. **The objective bar is a narration
+block** — 222 of them are — and so is every choice button, so a band drawn
+around everything that matched runs from above the dialogue box to below it.
+Measured on a Windows session it reported 0.07-0.57 against a default of
+0.14-0.50: wider, when the whole point was to be tighter. `trigger.py` has
+recorded from the beginning that the objective bar "matched in all 19
+screenshots of a test session", and this tool was written as if it would not.
 
-Step 4 is there because step 3 is not enough, which is what the first version of
-this got wrong. **The objective bar is a narration block** — 222 of them are —
-and so is every choice button, so a band drawn around everything that matched
-runs from above the dialogue box to below it. Measured on a Windows session it
-reported 0.07-0.57 against a default of 0.14-0.50: wider, when the whole point
-was to be tighter. `trigger.py` has recorded from the beginning that the
-objective bar "matched in all 19 screenshots of a test session", and this tool
-was written as if it would not.
+The bar goes by name. Each line is attributed to the one block it came from, and
+495 keys carry `OBJECTIVE` — that is the game's own label, not an inference
+about pixels. Separating it by geometry was tried first and is too delicate: the
+gap between the bar and the box is about 1.5 line-heights, the box sets its own
+lines 1.0 to 1.3 apart, and the threshold that split them on one screenshot
+merged them on the next from the same session.
 
-Geometry separates them where the corpus cannot. The dialogue box sets its lines
-about one height apart; the objective bar sits several heights above it and the
-buttons several below. Of those blocks the box is the one with the most text —
-the bar is one line and a button is three words. What gets dropped is printed,
-so the choice is visible rather than silent.
+The buttons have no such label, so they go by shape. Blocks separated
+vertically, and the box is the one that is both heavy and wide — a button is
+three words in a column, the box is drawn nearly edge to edge. What gets dropped
+is printed with both numbers, so the choice can be argued with rather than
+trusted.
+
+A screenshot showing only the objective bar says nothing about where a dialogue
+box sits, and is reported as such rather than counted.
 
 ## Why several screenshots are better than one
 
@@ -160,10 +168,34 @@ def measure(path: Path, engine, matcher, corpus) -> dict:
     # block's?
     from rapidfuzz import fuzz
 
-    wanted = " ".join(normalize(corpus[k]["text"]) for k in keys)
-    narration = [ln for ln in lines
-                 if len(normalize(ln.text)) >= 4
-                 and fuzz.partial_ratio(normalize(ln.text), wanted) >= 88.0]
+    # Each line against each key separately, not against all of them joined.
+    # Knowing *which* block a line came from is what lets the objective bar be
+    # dropped by name, and the game names it: 495 keys carry OBJECTIVE, 222 of
+    # them narration. That is the game's own label, not a guess about pixels.
+    #
+    # Dropping it by geometry was the first attempt and it is too delicate. The
+    # gap between the bar and the box is about 1.5 line-heights and the box sets
+    # its own lines 1.0 to 1.3 apart, so the threshold that separates them on
+    # one screen merges them on the next — measured, on two screenshots of the
+    # same session.
+    texts = {k: normalize(corpus[k]["text"]) for k in keys}
+    owned, bar = [], 0
+    for ln in lines:
+        norm = normalize(ln.text)
+        if len(norm) < 4:
+            continue
+        key, score = None, 0.0
+        for k, body in texts.items():
+            s = fuzz.partial_ratio(norm, body)
+            if s > score:
+                key, score = k, s
+        if score < 88.0:                       # not the game's prose at all
+            continue
+        if "OBJECTIVE" in key.upper():
+            bar += 1
+            continue
+        owned.append(ln)
+    narration = owned
 
     # Which block is the dialogue box? Text alone nearly answers it — the
     # objective bar is one line and a button is three words — but nearly is not
@@ -174,7 +206,7 @@ def measure(path: Path, engine, matcher, corpus) -> dict:
     blocks = _clusters(narration)
     best = max(blocks, key=lambda b: b[1] * b[3]) if blocks else None
     return {"path": path, "keys": keys, "lines": len(lines),
-            "narration": len(narration),
+            "narration": len(narration), "bar": bar,
             "band": best[0] if best else None,
             "blocks": blocks, "chars": best[1] if best else 0,
             "width": best[3] if best else 0.0,
@@ -242,8 +274,15 @@ def main() -> int:
             print(f"  {RED}{image.name}{RESET} — {type(exc).__name__}: {exc}")
             continue
         if r["band"] is None:
-            # Worth distinguishing: nothing matched at all is a corpus problem,
-            # not a region problem, and no band can fix it.
+            # Three different things end up here and they need different
+            # answers: nothing matched (wrong language, or no game text on the
+            # screen), or only the objective bar did (a screen with no dialogue
+            # box open, which cannot say where the box goes).
+            if r["bar"]:
+                print(f"  {YELLOW}{image.name}{RESET} — only the objective bar "
+                      f"{GRAY}({r['bar']} line(s)); no dialogue box on this "
+                      f"screen, so it says nothing about where one sits{RESET}")
+                continue
             print(f"  {YELLOW}{image.name}{RESET} — {r['lines']} lines read, "
                   f"nothing matched the corpus"
                   + (f" {GRAY}(whole-frame text spans "
@@ -258,7 +297,8 @@ def main() -> int:
         other = [b for b in r["blocks"] if b[0] != r["band"]]
         print(f"  {GREEN}{image.name}{RESET} — {top:.3f} to {bottom:.3f}  "
               f"{GRAY}{r['chars']}c x{r['width']:.2f}w over "
-              f"{r['narration']}/{r['lines']} narration lines{RESET}")
+              f"{r['narration']}/{r['lines']} narration lines"
+              + (f", bar {r['bar']} dropped" if r["bar"] else "") + f"{RESET}")
         if other:
             print(f"      {GRAY}dropped: "
                   + ", ".join(f"{b[0][0]:.2f}-{b[0][1]:.2f} ({b[1]}c "
