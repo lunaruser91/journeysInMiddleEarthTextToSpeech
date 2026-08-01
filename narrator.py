@@ -307,7 +307,12 @@ def main() -> None:
                     help="replay a recording instead of capturing the screen")
     ap.add_argument("--list-windows", action="store_true")
     ap.add_argument("--lang", default="pt")
-    ap.add_argument("--corpus", type=Path, default=ROOT / "corpus" / "corpus_pt.json")
+    # Defaulted after parsing, from --lang, because a fixed default here is a
+    # silent wrong answer: `narrator.py --lang en` loaded the Portuguese corpus
+    # and said nothing. jime.py always passes --corpus explicitly, which is why
+    # this only bites the direct path.
+    ap.add_argument("--corpus", type=Path,
+                    help="corpus JSON (default: corpus/corpus_<lang>.json)")
     ap.add_argument("--audio", type=Path, action="append", default=[],
                     help="folder with a manifest.json (repeatable)")
     ap.add_argument("--campaign", help="override the campaign used for scoping")
@@ -433,7 +438,24 @@ def main() -> None:
 
     top, bottom = (float(x) for x in args.region.split(","))
 
+    if args.corpus is None:
+        args.corpus = ROOT / "corpus" / f"corpus_{args.lang}.json"
+
     campaign = args.campaign or current_campaign()
+    # Every other entry point says this in a sentence — jime.py in four places,
+    # calibrate_region.py, demo.py. Running narrator.py directly went straight
+    # into json.loads and printed a traceback ending in FileNotFoundError, which
+    # names the file but not the thing to do about it. Reported from a Windows
+    # VM after a clean reinstall, where having no corpus yet is the normal state
+    # rather than an error.
+    if not Path(args.corpus).exists():
+        sys.exit(f"{RED}no corpus for {args.lang!r}{RESET} — nothing to match "
+                 f"the screen against.\n"
+                 f"{GRAY}Extract it from your own installation first; the menu "
+                 f"walks through it:{RESET}\n\n"
+                 f"  jime.py            {GRAY}# or: jime.py extract --lang "
+                 f"{args.lang}{RESET}\n\n"
+                 f"{GRAY}expected at {args.corpus}{RESET}")
     corpus = load_corpus(args.corpus)
     matcher = Matcher(corpus, campaign=campaign)
     print(f"{GRAY}[scope] campaign={campaign} | {len(matcher):,} candidates{RESET}")
