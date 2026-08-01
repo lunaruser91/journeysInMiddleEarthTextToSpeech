@@ -69,6 +69,10 @@ What it cost is expressiveness. Piper has clear diction and flat prosody; it
 reads, it does not act. Chatterbox sounded better. The measurement in §6c of
 [PHASE2-MEASUREMENTS](PHASE2-MEASUREMENTS.md) is why it lost anyway.
 
+The same engine is what makes an Android port plausible: 60 MB of model replaces
+264 MB of pre-rendered audio, and 6.3% of the narration cannot be rendered ahead at
+all. [ANDROID](ANDROID.md) has the plan and what has been measured for it.
+
 An aged-voice filter chain (pitch down, low lift, high rolloff, tremolo, echo)
 was tried on top and turned off by default: it made the voice soft, slow and
 hard to make out, cutting 2.5 dB where the consonants live. It is still there
