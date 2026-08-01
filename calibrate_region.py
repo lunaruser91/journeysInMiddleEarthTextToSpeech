@@ -176,7 +176,17 @@ def main() -> int:
           f"band far from that is a different\nlayout, which is the thing this "
           f"was written to find.{RESET}\n")
     print(f"  ~/jime-venv/bin/python narrator.py --lang {lang} "
-          f"--region {top:.2f},{bottom:.2f} --app \"Emulator\"")
+          f"--region {top:.2f},{bottom:.2f} --display")
+    # Naming a window rather than a display needs the *owning application*, and
+    # what that is called is not guessable from a screenshot. It also differs by
+    # platform: macOS matches --app against the application name alone, Windows
+    # against application and title together. The Android emulator is owned by
+    # `qemu-system-aarch64`, not by anything called "Emulator" — which is what
+    # this line used to suggest, and it does not work on macOS.
+    print(f"{GRAY}For a window instead of a display — an emulator, a mirrored "
+          f"phone — pass --app naming\nthe owning application. "
+          f"`narrator.py --list-windows` prints it; for the Android emulator "
+          f"it is\n`--app qemu --window \"Android Emulator\"`.{RESET}")
 
     if len(bands) < 3:
         print(f"\n{YELLOW}Only {len(bands)} screenshot(s).{RESET} The game draws "

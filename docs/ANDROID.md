@@ -135,8 +135,38 @@ own bounding boxes rather than sweeping. Then:
     --region <a>,<b> --profile --save-crops crops-android/
 ```
 
-**Ends when** the hit rate on Android screens sits beside the desktop's. The
-crops it saves become the fixtures Phase 5 needs.
+**Measured, on six screens harvested from the emulator: six matched.**
+
+| screen | key |
+|---|---|
+| 1–3 | `bonesofarnor:A1_M1_E1_CHOICE` |
+| 4 | `A1_M1_E1_SNEAK_FAIL` + `A1_M1_E1_GREETED` — one box composed of two blocks |
+| 5 | `bonesofarnor:A1_M1_E1_ENEMIES` |
+| 6 | `main:E_TREASURE_CHEST_SUPER_PASS` |
+
+The band is **`--region 0.15,0.40`** against the desktop's `0.14,0.50` — a
+different layout, which is what the tool exists to find. The top is anchored
+(0.179–0.181 across all six; the box grows downward) and the bottom ranges
+0.257–0.380 with the length of the block.
+
+Screen 4 is the one worth noticing: the game composed a box from two blocks and
+the matcher found both, which is the same composition behaviour it has on the
+desktop. Nothing about the matching had to change for Android.
+
+**Still open:** the narrator has not been run live against the emulator window
+end to end. It finds the window and starts watching — `[source]
+qemu-system-aarch64 — Android Emulator` — and then CoreGraphics refuses a
+process launched detached from a background shell (`CGS_REQUIRE_INIT`). That is
+the harness, not the narrator; run from a terminal it is the ordinary path.
+Someone should confirm it interactively.
+
+Two things this turned up about `--app`, which are the project's own, not
+Android's. macOS matches the hint against the **application name alone**;
+Windows matches it against **application and title together**. So the Android
+emulator needs `--app qemu` on macOS — it is owned by `qemu-system-aarch64` and
+nothing there is called "Emulator". And the Windows form will match any window
+whose *title* contains the hint, which for a default of `Journeys` includes a
+terminal sitting in this project's own directory.
 
 Do not read the `paused Nf` figure from an emulator. A machine that drops frames
 animates as continuous motion — the same trap that made a GPU-less VM report no
