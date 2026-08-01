@@ -4,7 +4,8 @@ calibrate_region.py — where is the dialogue box on THIS layout?
 
     python calibrate_region.py ~/Desktop/android-screen.png
     python calibrate_region.py shot1.png shot2.png shot3.png     # better
-    python calibrate_region.py *.png --lang en
+    python calibrate_region.py shots/ --lang en                  # a whole folder
+    python calibrate_region.py "shots/*.png"                     # or a wildcard
 
 `REGION = (0.14, 0.50)` in trigger.py is the vertical band the narrator reads,
 as fractions of the frame from the top. It was measured on the desktop game at
@@ -134,11 +135,36 @@ def main() -> int:
     matcher = Matcher(corpus, campaign=args.campaign)
     engine = open_ocr(args.ocr, languages=locales_for(lang))
 
-    print(f"{BOLD}{len(args.images)} screenshot(s){RESET}, corpus {lang!r}, "
+
+
+    # PowerShell does not expand wildcards for external programs, so
+    # `calibrate_region.py *.png` — which this file's own usage line shows —
+    # arrives as the literal string "*.png" on Windows and dies as a missing
+    # file. Expanding here makes the documented form true on both platforms.
+    # A directory is taken as every image in it, for the same reason: it is what
+    # somebody means when they point at the folder they saved the shots to.
+    images: list[Path] = []
+    for spec in args.images:
+        if spec.is_dir():
+            images += sorted(q for q in spec.iterdir()
+                             if q.suffix.lower() in (".png", ".jpg", ".jpeg",
+                                                     ".webp", ".bmp"))
+        elif any(c in str(spec) for c in "*?["):
+            images += sorted(Path().glob(str(spec)) if not spec.is_absolute()
+                             else Path(spec.anchor).glob(
+                                 str(spec.relative_to(spec.anchor))))
+        else:
+            images.append(spec)
+    if not images:
+        print(f"{RED}no images matched{RESET} "
+              f"{', '.join(str(s) for s in args.images)}")
+        return 1
+
+    print(f"{BOLD}{len(images)} screenshot(s){RESET}, corpus {lang!r}, "
           f"{type(engine).__name__}\n")
 
     bands = []
-    for image in args.images:
+    for image in images:
         try:
             r = measure(image, engine, matcher, corpus)
         except Exception as exc:  # noqa: BLE001
