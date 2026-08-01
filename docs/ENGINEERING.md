@@ -284,6 +284,7 @@ jime watch_log.py --all                           # the game's own event log
 jime test_matcher.py --verbose                    # 631 real screens, with noise
 jime test_ocr.py                                  # character error rate, rendered pages
 jime test_ocr.py --from-captures crops/           # ... on screens `--save-crops` kept
+jime calibrate_region.py shot1.png shot2.png      # where the dialogue box is on this layout
 jime probe_capture.py --seconds 40                # does capture keep producing pixels
 ```
 
@@ -366,6 +367,7 @@ works is indistinguishable from the engine you meant to use except by the clock.
 | `selftest.py` | checks the whole machine, end to end |
 | `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
 | `test_ocr.py` | harness: how much the recogniser actually gets wrong |
+| `calibrate_region.py` | measures `--region` for a layout that is not the desktop one |
 
 ---
 
