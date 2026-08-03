@@ -16,20 +16,46 @@ they are. This file holds what does not belong to any one module.
 
 | | |
 |---|---|
-| RTF (wall clock ÷ audio duration) | **0.029** |
-| Bones of Arnor + shared text (3,386 blocks, 12.4 h of audio) | **22 min** |
-| Every campaign (~37 h of audio) | ~1 h |
+| RTF, M-series Mac | **0.029** |
+| RTF, GPU-less Windows VM | **0.042–0.043** |
+| Bones of Arnor + shared text (3,386 blocks, 12.4 h of audio), Mac | **22 min** |
+| The same on that VM (3,330 blocks, 12.0 h) | **31 min** |
+| Every campaign (~37 h of audio), Mac | ~1 h |
 | Model on disk | 60 MB, CPU only |
-| Reading pace | 155 wpm, inside the audiobook range |
+| Reading pace | 153 wpm, inside the audiobook range |
 
-Those come from `output/render-20260727-2325.log`: 744.1 minutes of speech
-produced in 21.9 minutes of wall clock.
+The Mac figures come from `output/render-20260727-2325.log`: 744.1 minutes of
+speech produced in 21.9 minutes of wall clock. The Windows ones are from a
+GPU-less Azure VM rendering English: 710 s for 280.3 min of speech, then 1125 s
+for 438.6 min. A machine with no graphics card and a weak CPU costs about 1.45×,
+which is much less than the gap in the machines suggests — synthesis here is
+CPU-only either way.
 
-The 155 wpm is the measured output of the shipped recipe, and it is now also the
-target a new voice is swept against. It used to disagree with itself: `voices.py`
-carried a comment saying 161 and a `TARGET_WPS` of 2.68, which nothing produced —
-1.35 was chosen by ear and delivers 155. A second voice aimed at 161 would have
-come out 6 wpm faster than the first, which is the mismatch the target exists to
+The 153 wpm is the measured output of the shipped recipe, and it is also the
+target a new voice is swept against. That number has now been wrong twice, the
+same way both times: it named a statistic nobody had measured.
+
+First it was 2.68 w/s, 161 wpm, which nothing produced. Then 2.58, 155 wpm —
+which the reference voice does not reach by any reading. At its ear-tuned 1.35 it
+does 2.480 w/s over 25 blocks, 2.485 over 100, 2.530 over the whole 3,340-block
+render, all medians, and **2.556 weighted by words** over that render. The only
+figure equal to 2.58 is the median of blocks with 60 words or more.
+
+Two things were wrong at once. The target was a long-block statistic, and
+`_calibrate` compared it against the median of *all* blocks — where short ones
+outnumber long ones three to one and run slower, because a clause pause and two
+edges weigh more when there are fewer words to spread them over. 2.48 w/s under
+20 words against 2.58 over 60.
+
+So the sweep read the reference as slower than it is and sped every calibrated
+voice up by about 5% to compensate. It is fixed by making both sides agree:
+words-weighted measurement, and 2.556 as the target. The proof is that
+Portuguese now calibrates back to the 1.35 somebody chose by ear — exactly, over
+400 blocks. Over 100 it returns 1.32, which is why `--blocks` defaults to 400: a
+fast wrong answer is the worst kind.
+
+A second voice aimed at the old number would have come out 6 wpm faster than the
+first, which is the mismatch the target exists to
 prevent, so the target is what the ear-tuned voice actually does.
 
 ### Screen recognition
@@ -408,9 +434,52 @@ works is indistinguishable from the engine you meant to use except by the clock.
    `PREPARED` and `CORRUPTION` were checked against the rulebooks and hold; the
    English lexicon no longer flags them. What remains open for Portuguese is the
    printed wording, since all four manuals are in English.
-4. **Eleven of the thirteen languages have no measured pace.** Portuguese and
-   English do: 155 and 154 wpm on the same blocks, which the corpora hold in
-   both languages because they are translations of each other.
+4. **Seven of the thirteen languages have no measured pace, and six of them
+   cannot get one this way.** Six do: Portuguese, English, German, Spanish,
+   Italian and French, swept over 400 blocks each against 2.556 w/s.
+
+   | | length_scale | w/s |
+   |---|---|---|
+   | `pt_BR-faber-medium` | 1.35 | 2.556 |
+   | `en_GB-alan-medium` | 1.07 | 2.56 |
+   | `de_DE-thorsten-medium` | 1.23 | 2.58 |
+   | `es_ES-davefx-medium` | 1.35 | 2.55 |
+   | `it_IT-paola-medium` | 1.40 | 2.55 |
+   | `fr_FR-tom-medium` | 1.15 | 2.46 |
+
+   English moved from 1.02 to 1.07 in the process, and that is the same finding
+   from the other side. Its old number came out of the broken sweep, not out of
+   anybody's ear, so it carried the bias: 1.28 → 1.35 for Portuguese is +5.5%,
+   1.01 → 1.07 for English is +5.9%. The same correction twice is what a
+   systematic error looks like. Portuguese escaped only because 1.35 was settled
+   by listening and never came from this procedure at all.
+
+   English audio rendered at 1.02 therefore reads about 6% fast. It re-renders
+   on its own — `length_scale` is in the version string, so
+   `plain-p2-en_GB-alan-medium-l1.02` stops matching and those blocks stop being
+   cached.
+
+   French lands 3.8% under, and the sweep reports it rather than hiding it: its
+   response to `length_scale` is the steepest measured — 3.01 to 1.94 w/s across
+   0.9 to 1.5, against German's 2.98 to 2.20 — so a single linear interpolation
+   between the ends overshoots. A second pass through the verify point would
+   close it. Nothing does that yet.
+
+   **The other seven do not fail, they show that the unit does.** Czech, Polish,
+   Russian, Ukrainian, Hungarian and Korean top out between 1.83 and 2.36 w/s at
+   `length_scale` 0.9, so 2.556 is not reachable at any speed the sweep allows.
+   Those are not slow voices: they are languages whose words are longer, read at
+   a normal speed. Every language that *does* converge is Romance or Germanic,
+   with Portuguese-like word lengths, and that is not a coincidence.
+
+   Chinese breaks the ruler outright — 0.16 w/s, 10 wpm — because it does not
+   delimit words with spaces and `text.split()` returns roughly one "word" per
+   paragraph. The number is not bad, it is meaningless.
+
+   So `TARGET_WPS` per language exists for a real reason and is still empty: the
+   seven need either their own target or a different unit, and choosing either
+   needs somebody who speaks the language to listen. Which was already this
+   entry's conclusion, now with thirteen measurements behind it rather than two.
 
    Getting the second one there meant fixing two things that only look like one.
    `prosody.synthesize` clamped every clause into an absolute `[1.20, 1.50]`,

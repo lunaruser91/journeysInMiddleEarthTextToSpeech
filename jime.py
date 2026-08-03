@@ -430,8 +430,26 @@ def _calibrate(args: argparse.Namespace, V) -> int:
         if rc != 0:
             raise RuntimeError("render failed")
         man = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
-        w = [v["wps"] for v in man.values() if v.get("wps")]
-        return statistics.median(w)
+        # Words per second over the whole sample, not the median block's.
+        #
+        # The median asks what a typical block does; the question is how long the
+        # corpus takes to speak. Those differ because a short block carries
+        # proportionally more silence — the clause pauses and the edges weigh
+        # more when there are fewer words to spread them over — and short blocks
+        # outnumber long ones three to one. Measured on the reference voice at
+        # its ear-tuned 1.35: blocks under 20 words run at 2.48 w/s, blocks over
+        # 60 at 2.58.
+        #
+        # So the median was reporting the reference as slower than it is, and the
+        # sweep sped every calibrated voice up by about 5% to compensate. It is
+        # also the worse estimator: at 25 blocks the weighted figure is within
+        # 0.7% of the full 3,340-block render and the median is 2% out, and the
+        # median drifts upward as the sample grows — bias, not noise.
+        rows = [(v["words"], v["wps"]) for v in man.values()
+                if v.get("wps") and v.get("words")]
+        if not rows:
+            raise RuntimeError("nothing rendered, so nothing to measure")
+        return sum(n * r for n, r in rows) / sum(n for n, _ in rows)
 
     # Sweep wide, because nothing clamps the base any more.
     #
@@ -908,8 +926,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--calibrate", action="store_true",
                    help="render a sample and report its pace, so an uncalibrated "
                         "voice can be given a length_scale that matches the rest")
-    p.add_argument("--blocks", type=int, default=25,
-                   help="how many blocks to measure when calibrating")
+    p.add_argument("--blocks", type=int, default=400,
+                   help="how many blocks to measure when calibrating. 400 is "
+                        "what it takes to be right: measured against the "
+                        "reference voice, whose 1.35 was settled by ear, a "
+                        "sweep over 400 blocks returns 1.35 and one over 100 "
+                        "returns 1.32. Fewer is faster and wrong, which is the "
+                        "worst thing a measurement can be")
     p.set_defaults(func=cmd_voices)
 
     p = sub.add_parser("check", help="audit rendered audio for bad pace")

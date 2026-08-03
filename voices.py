@@ -110,22 +110,64 @@ DEFAULT_VOICE = {
 # It is per *voice*: carrying one speaker's number to another is how a session
 # ends up with one screen rushing and the next not.
 CALIBRATION = {
-    "pt_BR-faber-medium": 1.35,   # 2.58 w/s, 155 wpm, chosen by ear
-    "en_GB-alan-medium": 1.02,    # 2.56 w/s, 154 wpm, swept against the above
+    "pt_BR-faber-medium": 1.35,   # 2.556 w/s, 153 wpm, chosen by ear
+    # Was 1.02, and that number came out of the broken sweep rather than out of
+    # anybody's ear. Re-swept with the ruler fixed it is 1.07 — the same 5.9%
+    # correction the reference needed (1.28 -> 1.35), which is what a systematic
+    # bias looks like as opposed to noise. Portuguese escaped it only because
+    # 1.35 was settled by listening and never came from this procedure.
+    #
+    # Every English render made at 1.02 reads about 6% fast. They re-render on
+    # their own: length_scale is in the version string, so the manifest's
+    # `plain-p2-en_GB-alan-medium-l1.02` no longer matches and those blocks are
+    # no longer cached.
+    "en_GB-alan-medium": 1.07,    # 2.56 w/s, 154 wpm, swept over 400 blocks
+    # Swept over 400 blocks against 2.556 w/s. Six of the thirteen languages
+    # reach that pace; the other seven cannot, and it is the unit's fault rather
+    # than the voices'. Czech, Polish, Russian, Ukrainian, Hungarian and Korean
+    # top out between 1.83 and 2.36 w/s at length_scale 0.9 — they are read at a
+    # normal speed and their words are simply longer, so fewer of them fit in a
+    # second. Every language that does converge is Romance or Germanic, with
+    # Portuguese-like word lengths. That is not a coincidence.
+    #
+    # Chinese does not fail, it breaks the ruler: 0.16 w/s, 10 wpm, because it
+    # does not delimit words with spaces and `text.split()` returns roughly one
+    # "word" per paragraph. The number is not bad, it is meaningless.
+    "de_DE-thorsten-medium": 1.23,  # 2.58 w/s
+    "es_ES-davefx-medium": 1.35,    # 2.55 w/s
+    "it_IT-paola-medium": 1.40,     # 2.55 w/s
+    # French lands 3.8% slow, and the sweep says so rather than hiding it. Its
+    # response to length_scale is the steepest measured — 3.01 to 1.94 w/s
+    # across 0.9 to 1.5, against German's 2.98 to 2.20 — so one linear
+    # interpolation between the ends overshoots. A second pass through the
+    # verify point would close it; nothing does that yet.
+    "fr_FR-tom-medium": 1.15,       # 2.46 w/s, 4% under target
 }
 
 # The pace to aim a new voice at, and it is not a preference — it is what the one
 # voice that was tuned by ear actually delivers.
 #
 # This was 2.68 w/s, 161 wpm, and nothing produced that. The 1.35 above was
-# settled by listening; measured over the 3,386-block render it reads at 155 wpm,
+# settled by listening; measured over the 3,340-block render it reads at 153 wpm,
 # and over 14 blocks through the live path at 152. 161 was the number the
 # calibration procedure had converged on for a different reason and it stayed
 # after the pace moved, so a second voice aimed at it would have come out 6 to 9
 # wpm faster than the first — the exact mismatch the target exists to prevent.
 #
-# 155 wpm is also inside the audiobook range, which 161 sits at the top of.
-DEFAULT_TARGET_WPS = 2.58
+# 153 wpm is also inside the audiobook range, which 161 sits at the top of.
+#
+# 2.58 was the second wrong number here, and wrong the same way: it named a
+# statistic nobody had measured. The reference voice at 1.35 does not reach it
+# by any reading — 2.480 over 25 blocks, 2.485 over 100, 2.530 over the whole
+# 3,340-block render, all medians; 2.556 weighted by words over that render. The
+# only figure that equals 2.58 is the median of blocks with 60 words or more,
+# which is where it must have come from.
+#
+# So the sweep was aiming every voice at a pace its own reference does not hold,
+# and interpolating past it: Portuguese calibrated to 1.28 against a 1.35 that
+# had been settled by ear. 2.556 is that render, measured the way `_calibrate`
+# now measures.
+DEFAULT_TARGET_WPS = 2.556
 # Per language, when one turns out to want its own. Nothing does yet: the two
 # measured voices are within noise of each other on this target, and a language
 # earns an entry here by being listened to, not by being different on paper.
