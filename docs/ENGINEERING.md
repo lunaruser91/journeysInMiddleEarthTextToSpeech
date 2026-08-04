@@ -95,6 +95,30 @@ What it cost is expressiveness. Piper has clear diction and flat prosody; it
 reads, it does not act. Chatterbox sounded better. The measurement in §6c of
 [PHASE2-MEASUREMENTS](PHASE2-MEASUREMENTS.md) is why it lost anyway.
 
+That decision was between engines, and a second rendering mode — an expressive
+one beside the plain one — is a different question nobody has answered.
+`test_voice_ab.py` runs the same blocks through both and reports what each
+costs, because "sounded better" was never weighed against "53 hours" by anybody
+listening to the two. Four things would decide it, and only the first is a
+matter of taste:
+
+1. Is the difference worth the wait, listening to both on the same blocks
+2. **Thirteen languages.** Piper covers all of them; Chatterbox covered ten. An
+   expressive mode for six is defensible and has to be said on the screen where
+   somebody picks it, not discovered afterwards
+3. **Neither machine this runs on has a usable GPU.** RTF 3.7 was measured on
+   this Mac's MPS, and the Windows VM has no card at all
+4. **The 622 placeholder blocks cannot use it.** Their value only exists at the
+   table, and a model at RTF 3.7 needs about 30 s for a ten-second block. They
+   would come out in Piper whichever mode was chosen — a mixed session, which is
+   the one thing `dsp_version` exists to prevent
+
+There is a cheaper thing that attacks the same complaint. Flat prosody is not
+only an engine property: `prosody.py` already reads a block clause by clause
+with its own pauses, and going further there — scene-break pauses, pace per
+sentence type, emphasis on short test lines — costs nothing in RTF, keeps all
+thirteen languages, and does not break the Android path.
+
 The same engine is what makes an Android port plausible: 60 MB of model replaces
 264 MB of pre-rendered audio, and 6.3% of the narration cannot be rendered ahead at
 all. [ANDROID](ANDROID.md) has the plan and what has been measured for it.
@@ -398,6 +422,7 @@ works is indistinguishable from the engine you meant to use except by the clock.
 | `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
 | `test_ocr.py` | harness: how much the recogniser actually gets wrong |
 | `calibrate_region.py` | measures `--region` for a layout that is not the desktop one |
+| `test_voice_ab.py` | the same blocks through two engines, with the cost of each |
 
 ---
 
