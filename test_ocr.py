@@ -70,7 +70,14 @@ FONT_CANDIDATES = [
     "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
     "C:/Windows/Fonts/georgia.ttf",
     "C:/Windows/Fonts/times.ttf",
+    # Debian and Ubuntu, then Fedora, then Arch: the same two families under
+    # three layouts.
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/liberation-serif/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/dejavu-serif-fonts/DejaVuSerif.ttf",
+    "/usr/share/fonts/liberation/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/TTF/DejaVuSerif.ttf",
 ]
 
 

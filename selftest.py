@@ -371,21 +371,26 @@ def test_capture() -> None:
     check("know which window is in front", front is not None,
           (front or "backend cannot tell")[:56])
 
-    game = [w for w in windows if "journey" in (w.app or "").lower()
-            or "journey" in (w.title or "").lower()]
+    # By application, as the narrator finds it. This also matched on the title,
+    # which found the terminal the selftest was started from — its title is its
+    # command line, and this project's directory is named after the game — and
+    # then failed "capture the game" on a machine where the game was not running.
+    from capture.base import GAME_APP, app_matches
+    game = [w for w in windows if app_matches(w.app, GAME_APP)]
     if not game:
         # On macOS this cannot distinguish the two: a fullscreen game owns a
         # Space that is not drawn while you are here, and an undrawn window is
-        # not listed. On Windows it is listed either way, so absence is absence.
+        # not listed. On Windows and on X11 it is listed either way, so absence
+        # is absence.
         skip("capture the game",
              "the game is not running — start it and rerun"
-             if platform.system() == "Windows" else
+             if platform.system() in ("Windows", "Linux") else
              "no game window visible — not running, or fullscreen on its own "
              "Space")
         return
     from capture.base import open_window
     try:
-        cap = open_window("", "Journeys")
+        cap = open_window("")
         frame = cap.grab()
         cap.close()
     except Exception as exc:  # noqa: BLE001

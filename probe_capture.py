@@ -48,6 +48,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import console  # noqa: E402
+from capture.base import GAME_APP  # noqa: E402
 
 console.setup()
 
@@ -67,7 +68,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--seconds", type=float, default=40.0)
     ap.add_argument("--hz", type=float, default=2.0)
-    ap.add_argument("--app", default="Journeys")
+    ap.add_argument("--app", default=GAME_APP)
     ap.add_argument("--window", default="")
     ap.add_argument("--display", type=int, default=0)
     ap.add_argument("--out", type=Path, default=ROOT / "output" / "probe.log")

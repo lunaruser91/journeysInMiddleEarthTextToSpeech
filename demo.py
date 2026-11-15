@@ -102,7 +102,10 @@ def find_audio(key: str, folders: list[Path]) -> Path | None:
 
 def play(p: Path) -> None:
     print(f"{GREEN}[playing]{RESET} {p.name}")
-    subprocess.run(["afplay", str(p)], check=False)
+    # The narrator's own player command, not afplay: afplay exists only on
+    # macOS, and even there it "plays" an Opus file by exiting 0 in silence.
+    from player import _play_command
+    subprocess.run(_play_command(p), check=False)
 
 
 def current_scope() -> tuple[str | None, int | None]:

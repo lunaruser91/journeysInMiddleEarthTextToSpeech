@@ -47,7 +47,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from .base import Capture, CaptureError, Window, app_matches
+from .base import GAME_APP, Capture, CaptureError, Window, app_matches
 
 
 def _require():
@@ -206,7 +206,7 @@ class WindowsCapture(Capture):
                 pass
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys",
+def open_window(title_hint: str = "", app_hint: str = GAME_APP,
                 wait: float = 0.0) -> Capture:
     deadline = time.monotonic() + wait
     announced = False

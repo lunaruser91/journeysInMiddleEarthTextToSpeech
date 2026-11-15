@@ -72,6 +72,7 @@ import console  # noqa: E402
 console.setup()
 
 import glyphs  # noqa: E402
+from capture.base import GAME_APP  # noqa: E402
 from i18n import t  # noqa: E402
 from live import LiveVoice, fill_template  # noqa: E402
 from matcher import Matcher, load_corpus, normalize  # noqa: E402
@@ -321,8 +322,9 @@ def main() -> None:
                     help="vertical band of the dialogue box, as fractions")
     ap.add_argument("--window", default="", help="window title hint")
     # Both names the game goes by. macOS reports "Journeys in Middle-earth" from
-    # the bundle; Windows reports the executable, JiME.exe. `|` means either.
-    ap.add_argument("--app", default="Journeys|JiME",
+    # the bundle; Windows reports the executable, JiME.exe; Proton on Linux a
+    # Steam id plus the window title. `|` means either.
+    ap.add_argument("--app", default=GAME_APP,
                     help="application name hint; `|` separates alternatives")
     ap.add_argument("--display", type=int, nargs="?", const=0, default=None,
                     metavar="N",

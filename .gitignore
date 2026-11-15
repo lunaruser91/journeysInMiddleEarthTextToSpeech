@@ -72,6 +72,8 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.tools/
+:memory:.ses
 *.egg-info/
 .pytest_cache/
 .ruff_cache/

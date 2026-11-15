@@ -91,14 +91,16 @@ watching. Ctrl+C to stop.
 
 ## Install
 
-You need a Mac or a Windows PC, **the game installed on the same computer** —
+You need macOS, Windows, or Linux, **the game installed on the same computer** —
 the narrator reads its text files — and about 350 MB free per campaign you
-render. No graphics card and nothing fast.
+render. No graphics card and nothing fast. On Linux the game runs through
+Steam's Proton and the desktop has to be an **X11 session**: Wayland does not let
+one program read another's window unattended.
 
 It needs the internet twice: once to install, and once more the first time you
 render in a new language, to fetch that voice. Never during a game.
 
-**macOS**
+**macOS** and **Linux**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
@@ -117,6 +119,12 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 That installs whatever is missing, clones the project, builds the environment and
 checks the result. Running it again is also how you **update**.
 
+On Linux it asks for your password only if Python 3.12–3.13, Git or FFmpeg is
+missing, and installs them through `apt`, `dnf`, `pacman` or `zypper`. Run the
+game through Steam/Proton from an X11 session — on KDE's login screen, choose
+**Plasma (X11)** rather than Plasma (Wayland). The narrator finds the game in any
+Steam library, including the Flatpak and Snap ones.
+
 The whole Windows installation, recorded from a clean machine:
 **[JIME TTS Install For Windows](https://youtu.be/SGOpxZourBo)**.
 
@@ -125,9 +133,9 @@ System Settings → Privacy & Security → Screen Recording → tick Terminal, t
 quit Terminal (`Cmd`+`Q`) and reopen it — the permission is read when a program
 starts, so a running terminal keeps the old answer. Without it, capture hangs
 rather than failing, which is why this is worth doing before anything else.
-Windows needs no permission.
+Windows and X11 Linux need no screen-recording permission.
 
-Then start it — **macOS**:
+Then start it — **macOS** and **Linux**:
 
 ```bash
 cd ~/jime && ~/jime-venv/bin/python jime.py
@@ -177,10 +185,12 @@ silent. The menu offers it when it notices.
 ## During a game
 
 **If the game runs fullscreen, choose the fullscreen option.** Window capture
-cannot reach a fullscreen game on either platform: macOS gives it a Space of its
-own and does not draw an inactive Space, and Windows lets exclusive fullscreen
-bypass the compositor that screen capture reads from. Where the game offers
-*borderless windowed*, that is the better answer on Windows.
+cannot reach a fullscreen game on macOS or Windows: macOS gives it a Space of
+its own and does not draw an inactive Space, and Windows lets exclusive
+fullscreen bypass the compositor that screen capture reads from. Where the game
+offers *borderless windowed*, that is the better answer on Windows. On Linux
+either works, and the window option follows the game when you move or resize it
+— but it reads the screen where the window is, so keep other windows off it.
 
 The fullscreen option captures the whole monitor, so the narrator waits until
 the game is the window in front, and stays quiet whenever it is not. Otherwise
@@ -218,6 +228,12 @@ The most common answers:
 - **It finds no game window, or only reads when you alt-tab.** Choose the
   fullscreen option. On Windows, set the game to borderless windowed if it
   offers it.
+- **Linux: it says this is a Wayland session.** Log out, select an X11 session
+  on the login screen (for example, **Plasma (X11)**), and log in again. Under
+  Wayland a screen capture comes back black rather than failing, so the narrator
+  refuses to start instead of watching nothing.
+- **Linux, two monitors: it watches the wrong one.** The fullscreen option takes
+  the primary monitor. For another, `jime play --display 1`.
 - **It recognises screens but says nothing.** That campaign has no audio yet —
   go back and render it. The menu offers this when it notices.
 - **It reacts slowly.** Add `--profile` to `jime play`: it times each stage per
@@ -412,6 +428,9 @@ prosody — it reads, it does not act.
 The reasoning, the measurements and the mistakes are in
 [docs/ENGINEERING.md](docs/ENGINEERING.md), and the individual tools each carry
 their own explanation at the top of the file.
+
+The Linux/X11 capture backend was contributed by
+[tharak](https://github.com/tharak), implemented with **OpenAI Codex**.
 
 ---
 

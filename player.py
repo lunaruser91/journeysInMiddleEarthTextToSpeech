@@ -110,7 +110,9 @@ def require_ffplay() -> str | None:
         return None
     system = platform.system()
     how = {"Windows": "winget install ffmpeg   (or: choco install ffmpeg)",
-           "Darwin": "brew install ffmpeg"}.get(system, "apt install ffmpeg")
+           "Darwin": "brew install ffmpeg"}.get(
+               system, "install ffmpeg with your package manager — apt, dnf, "
+                       "pacman, zypper")
     return (f"ffplay was not found, and nothing else on {system} decodes Opus — "
             f"the audio this renders.\n  Install ffmpeg and it will play:\n    {how}")
 

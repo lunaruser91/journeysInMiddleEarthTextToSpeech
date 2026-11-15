@@ -94,16 +94,18 @@ observando. Ctrl+C para parar.
 
 ## Instalação
 
-Você precisa de um Mac ou um PC com Windows, **o jogo instalado no mesmo
+Você precisa de macOS, Windows ou Linux, **o jogo instalado no mesmo
 computador** — o narrador lê os arquivos de texto dele — e cerca de 350 MB
 livres por campanha que você gerar. Nada de placa de vídeo, nada de máquina
-rápida.
+rápida. No Linux o jogo roda pelo Proton da Steam e a área de trabalho precisa
+ser uma **sessão X11**: o Wayland não deixa um programa ler a janela de outro
+sem alguém clicando para autorizar.
 
 Precisa de internet duas vezes: uma para instalar, e outra na primeira vez que
 você gerar áudio num idioma novo, para baixar aquela voz. Nunca durante a
 partida.
 
-**macOS**
+**macOS** e **Linux**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
@@ -122,6 +124,12 @@ irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpe
 Isso instala o que faltar, clona o projeto, monta o ambiente e confere o
 resultado. Rodar de novo é também como você **atualiza**.
 
+No Linux ele só pede a sua senha se faltar Python 3.12–3.13, Git ou FFmpeg, e
+instala pelo `apt`, `dnf`, `pacman` ou `zypper`. Rode o jogo pela Steam/Proton
+numa sessão X11 — na tela de login do KDE, escolha **Plasma (X11)** em vez de
+Plasma (Wayland). O narrador acha o jogo em qualquer biblioteca da Steam,
+inclusive as do Flatpak e do Snap.
+
 A instalação no Windows inteira, gravada de uma máquina limpa:
 **[JIME TTS Install For Windows](https://youtu.be/SGOpxZourBo)**.
 
@@ -130,9 +138,10 @@ Ajustes do Sistema → Privacidade e Segurança → Gravação de Tela → marqu
 Terminal, depois feche o Terminal (`Cmd`+`Q`) e abra de novo — a permissão é
 lida quando o programa inicia, então um terminal já aberto mantém a resposta
 antiga. Sem ela a captura trava em vez de dar erro, e é por isso que vale
-resolver antes de qualquer outra coisa. O Windows não pede permissão.
+resolver antes de qualquer outra coisa. O Windows e o Linux em X11 não pedem
+permissão.
 
-Depois é só iniciar — **macOS**:
+Depois é só iniciar — **macOS** e **Linux**:
 
 ```bash
 cd ~/jime && ~/jime-venv/bin/python jime.py
@@ -181,10 +190,13 @@ metade do jogo em silêncio. O menu oferece isso quando percebe.
 ## Durante a partida
 
 **Se o jogo roda em tela cheia, escolha a opção de tela cheia.** A captura de
-janela não alcança um jogo em tela cheia em nenhum dos dois sistemas: o macOS lhe
+janela não alcança um jogo em tela cheia no macOS nem no Windows: o macOS lhe
 dá um Space próprio e não desenha Space inativo, e o Windows deixa a tela cheia
 *exclusiva* passar por cima do compositor de onde a captura lê. Onde o jogo
-oferecer *borderless windowed*, essa é a melhor resposta no Windows.
+oferecer *borderless windowed*, essa é a melhor resposta no Windows. No Linux as
+duas opções funcionam, e a de janela acompanha o jogo quando você o move ou
+redimensiona — mas ela lê a tela onde a janela está, então não deixe outra
+janela por cima.
 
 A opção de tela cheia captura o monitor inteiro, então o narrador espera o jogo
 ser a janela da frente e fica calado sempre que não for. Senão ele leria a sua
@@ -221,6 +233,12 @@ As respostas mais comuns:
 - **Não encontra a janela do jogo, ou só lê quando você dá alt+tab.** Escolha a
   opção de tela cheia. No Windows, configure o jogo como borderless windowed se
   ele oferecer.
+- **Linux: ele diz que esta é uma sessão Wayland.** Saia da sessão, escolha uma
+  sessão X11 na tela de login (por exemplo, **Plasma (X11)**) e entre de novo.
+  No Wayland a captura de tela volta preta em vez de dar erro, então o narrador
+  se recusa a começar em vez de ficar olhando para o nada.
+- **Linux, dois monitores: ele observa o errado.** A opção de tela cheia pega o
+  monitor principal. Para outro, `jime play --display 1`.
 - **Reconhece as telas mas não fala nada.** Aquela campanha ainda não tem áudio —
   volte e gere. O menu oferece isso quando percebe.
 - **Demora para reagir.** Acrescente `--profile` ao `jime play`: ele cronometra
@@ -418,6 +436,9 @@ lê, não interpreta.
 O raciocínio, as medições e os erros estão em
 [docs/ENGINEERING.md](docs/ENGINEERING.md) (em inglês), e cada ferramenta carrega
 a própria explicação no topo do arquivo.
+
+A captura para Linux/X11 foi contribuída por
+[tharak](https://github.com/tharak), implementada com o **OpenAI Codex**.
 
 ---
 
