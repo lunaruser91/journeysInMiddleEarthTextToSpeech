@@ -112,9 +112,9 @@ class RapidOcr(Ocr):
             from rapidocr_onnxruntime import RapidOCR
         except ImportError as exc:
             raise OcrError(
-                "rapidocr-onnxruntime is not installed. It is the portable OCR "
-                "fallback for platforms without Apple Vision.\n"
-                "    pip install rapidocr-onnxruntime") from exc
+                "rapidocr-onnxruntime is not installed. It is the portable OCR: "
+                "the fallback on Windows, and the only engine on Linux.\n"
+                "    pip install -e '.[ocr]'") from exc
         # A slow OCR is a complaint; an OCR that will not start is a dead
         # narrator. If a future version renames these keywords, take the stock
         # engine rather than nothing — but say so, because the stock engine is

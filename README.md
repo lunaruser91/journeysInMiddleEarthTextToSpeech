@@ -93,13 +93,14 @@ watching. Ctrl+C to stop.
 
 You need macOS, Windows, or Linux, **the game installed on the same computer** —
 the narrator reads its text files — and about 350 MB free per campaign you
-render. No graphics card and nothing fast. Linux capture currently requires an
-**X11 session**; Wayland does not permit unattended capture of arbitrary windows.
+render. No graphics card and nothing fast. On Linux the game runs through
+Steam's Proton and the desktop has to be an **X11 session**: Wayland does not let
+one program read another's window unattended.
 
 It needs the internet twice: once to install, and once more the first time you
 render in a new language, to fetch that voice. Never during a game.
 
-**macOS**
+**macOS** and **Linux**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.sh | bash
@@ -115,28 +116,14 @@ tries every part on real data](docs/images/install-windows.png)
 irm https://raw.githubusercontent.com/lunaruser91/journeysInMiddleEarthTextToSpeech/main/install.ps1 | iex
 ```
 
-**Linux (X11)**
+That installs whatever is missing, clones the project, builds the environment and
+checks the result. Running it again is also how you **update**.
 
-Install Python 3.12 or 3.13, Git, FFmpeg, and Tk with your distribution's package
-manager. Then:
-
-```bash
-git clone https://github.com/lunaruser91/journeysInMiddleEarthTextToSpeech.git ~/jime
-python3 -m venv ~/jime-venv
-~/jime-venv/bin/python -m pip install --upgrade pip
-~/jime-venv/bin/python -m pip install -e "$HOME/jime[tts,ocr,capture]"
-cd ~/jime && ~/jime-venv/bin/python selftest.py
-```
-
-Run the game through Steam/Proton from an X11 desktop session. On KDE's login
-screen, choose **Plasma (X11)** rather than Plasma (Wayland). Both full-display
-and window capture are supported; the narrator recognizes Proton game windows
-whose `WM_CLASS` is a Steam application ID.
-
-The macOS and Windows installers install whatever is missing, clone the project,
-build the environment, and check the result. Running either one again is also
-how you **update**. On Linux, update the clone with `git pull`, then repeat the
-two `pip` commands above.
+On Linux it asks for your password only if Python 3.12–3.13, Git or FFmpeg is
+missing, and installs them through `apt`, `dnf`, `pacman` or `zypper`. Run the
+game through Steam/Proton from an X11 session — on KDE's login screen, choose
+**Plasma (X11)** rather than Plasma (Wayland). The narrator finds the game in any
+Steam library, including the Flatpak and Snap ones.
 
 The whole Windows installation, recorded from a clean machine:
 **[JIME TTS Install For Windows](https://youtu.be/SGOpxZourBo)**.
@@ -148,7 +135,7 @@ starts, so a running terminal keeps the old answer. Without it, capture hangs
 rather than failing, which is why this is worth doing before anything else.
 Windows and X11 Linux need no screen-recording permission.
 
-Then start it — **macOS**:
+Then start it — **macOS** and **Linux**:
 
 ```bash
 cd ~/jime && ~/jime-venv/bin/python jime.py
@@ -158,12 +145,6 @@ cd ~/jime && ~/jime-venv/bin/python jime.py
 
 ```powershell
 cd $HOME\jime; & $HOME\jime-venv\Scripts\python.exe jime.py
-```
-
-**Linux**:
-
-```bash
-cd ~/jime && ~/jime-venv/bin/python jime.py
 ```
 
 **The first time, in this order:** extract the corpus, render the audio, then
@@ -207,9 +188,9 @@ silent. The menu offers it when it notices.
 cannot reach a fullscreen game on macOS or Windows: macOS gives it a Space of
 its own and does not draw an inactive Space, and Windows lets exclusive
 fullscreen bypass the compositor that screen capture reads from. Where the game
-offers *borderless windowed*, that is the better answer on Windows. On Linux,
-the X11 backend refreshes the selected window's position and size before every
-capture, but fullscreen display capture remains the simplest setup.
+offers *borderless windowed*, that is the better answer on Windows. On Linux
+either works, and the window option follows the game when you move or resize it
+— but it reads the screen where the window is, so keep other windows off it.
 
 The fullscreen option captures the whole monitor, so the narrator waits until
 the game is the window in front, and stays quiet whenever it is not. Otherwise
@@ -247,9 +228,12 @@ The most common answers:
 - **It finds no game window, or only reads when you alt-tab.** Choose the
   fullscreen option. On Windows, set the game to borderless windowed if it
   offers it.
-- **Linux: capture says it requires X11.** Log out, select an X11 session in the
-  desktop login screen (for example, **Plasma (X11)**), and log in again. The
-  unattended capture used here is not available under Wayland.
+- **Linux: it says this is a Wayland session.** Log out, select an X11 session
+  on the login screen (for example, **Plasma (X11)**), and log in again. Under
+  Wayland a screen capture comes back black rather than failing, so the narrator
+  refuses to start instead of watching nothing.
+- **Linux, two monitors: it watches the wrong one.** The fullscreen option takes
+  the primary monitor. For another, `jime play --display 1`.
 - **It recognises screens but says nothing.** That campaign has no audio yet —
   go back and render it. The menu offers this when it notices.
 - **It reacts slowly.** Add `--profile` to `jime play`: it times each stage per
@@ -445,7 +429,8 @@ The reasoning, the measurements and the mistakes are in
 [docs/ENGINEERING.md](docs/ENGINEERING.md), and the individual tools each carry
 their own explanation at the top of the file.
 
-The Linux/X11 capture backend was implemented by **OpenAI Codex**.
+The Linux/X11 capture backend was contributed by
+[tharak](https://github.com/tharak), implemented with **OpenAI Codex**.
 
 ---
 

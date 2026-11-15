@@ -30,7 +30,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .base import Capture, CaptureError, Window, app_matches
+from .base import GAME_APP, Capture, CaptureError, Window, app_matches
 
 TIMEOUT = 5.0
 
@@ -378,7 +378,7 @@ def open_display(index: int = 0) -> Capture:
     return DisplayCapture(index=index)
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys",
+def open_window(title_hint: str = "", app_hint: str = GAME_APP,
                 wait: float = 0.0) -> Capture:
     """Open a capture, optionally waiting for the window to become visible.
 

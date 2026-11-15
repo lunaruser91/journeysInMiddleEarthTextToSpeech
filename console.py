@@ -127,7 +127,65 @@ def saves_dir() -> Path:
     if platform.system() == "Darwin":
         return (Path.home() / "Library/Application Support"
                 / "com.fantasyflightgames.jime" / "SavedGames")
-    # Linux, where the game runs through Proton: Unity writes under the prefix
-    return (Path.home() / ".steam/steam/steamapps/compatdata/1152310/pfx"
-            / "drive_c/users/steamuser/AppData/LocalLow/Fantasy Flight Games"
+    # Linux, where the game runs through Proton: Unity writes the Windows path,
+    # inside the prefix Steam keeps for this game — and Steam keeps it in
+    # whichever library the game was installed to.
+    #
+    # This returned one path, under ~/.steam/steam and under application id
+    # 1152310, which is a different game altogether. The saves were never found
+    # on Linux, the campaign was never detected, and nothing said so: an absent
+    # saves folder is also what a fresh install looks like.
+    tail = (Path(f"steamapps/compatdata/{STEAM_APP_ID}/pfx/drive_c/users/steamuser")
+            / "AppData/LocalLow/Fantasy Flight Games"
             / "Journeys in Middle-earth" / "SavedGames")
+    candidates = [library / tail for library in steam_libraries()]
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+# store.steampowered.com/app/1003400 — also what Proton puts in the window's
+# WM_CLASS, as `steam_app_1003400`.
+STEAM_APP_ID = 1003400
+
+
+def steam_libraries() -> list[Path]:
+    """Every Steam library on a Linux machine, the default one first.
+
+    Steam is not in one place here. The native package uses ~/.local/share/Steam
+    and leaves ~/.steam/steam pointing at it; Flatpak and Snap each keep a
+    private home; and a second drive gets a library of its own, which is where a
+    game ends up once the first drive fills. `libraryfolders.vdf` lists those,
+    and it is a text file with one `"path"` line per library.
+    """
+    import re
+
+    home = Path.home()
+    roots = [home / ".steam/steam", home / ".local/share/Steam",
+             home / ".steam/root",
+             home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+             home / ".var/app/com.valvesoftware.Steam/data/Steam",
+             home / "snap/steam/common/.local/share/Steam"]
+    found: list[Path] = []
+    for root in roots:
+        found.append(root)
+        try:
+            listing = (root / "steamapps/libraryfolders.vdf").read_text(
+                encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        found += [Path(p) for p in re.findall(r'"path"\s+"([^"]+)"', listing)]
+    # ~/.steam/steam is a symlink to one of the others, so the same library
+    # arrives under several names. Keep the first spelling of each.
+    seen: set[Path] = set()
+    out: list[Path] = []
+    for path in found:
+        try:
+            real = path.resolve()
+        except OSError:
+            real = path
+        if real not in seen:
+            seen.add(real)
+            out.append(path)
+    return out

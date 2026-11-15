@@ -18,6 +18,10 @@ On **Windows**, `BitBlt` and `PrintWindow` return black frames for Unity windows
 because the game renders through the GPU rather than into the window's device
 context. Windows.Graphics.Capture is the equivalent answer there.
 
+On **Linux** the obvious API does work — on X11, where any client may read the
+screen with `XGetImage`. Under Wayland the same call returns black, so that
+session type is refused by name. See capture/linux.py.
+
 ## Permission, and why running from a terminal matters
 
 macOS attaches screen-recording permission to the *responsible process*. Launched
@@ -36,6 +40,16 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
+
+
+# Every name the game goes by, for callers that have no hint of their own. macOS
+# reports the bundle, "Journeys in Middle-earth"; Windows the executable,
+# `JiME.exe`; Proton on Linux a Steam id with the window title appended. The
+# narrator's `--app` always defaulted to this. `jime test --capture`, `jime
+# doctor`, the selftest and probe_capture each spelled out "Journeys" instead,
+# which Windows never reports — so the four tools meant to say whether capture
+# works could not find a game the narrator itself found.
+GAME_APP = "Journeys|JiME"
 
 
 class CaptureError(RuntimeError):
@@ -76,7 +90,7 @@ def list_windows(app_hint: str = "") -> list[Window]:
     return _backend().list_windows(app_hint)
 
 
-def open_window(title_hint: str = "", app_hint: str = "Journeys",
+def open_window(title_hint: str = "", app_hint: str = GAME_APP,
                 wait: float = 0.0) -> Capture:
     """Open a capture on the first window matching the hints.
 

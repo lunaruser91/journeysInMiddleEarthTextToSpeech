@@ -377,13 +377,19 @@ py -3.13 -m venv $HOME\jime-venv
 & $HOME\jime-venv\Scripts\pip install -e '.[tts,ocr,capture]'
 ```
 
-Both installers accept overrides: `JIME_DIR` and `JIME_VENV` on macOS, `-Path`
-and `-Venv` on Windows.
+Both installers accept overrides: `JIME_DIR` and `JIME_VENV` on macOS and Linux,
+`-Path` and `-Venv` on Windows.
 
 `ocr` and `capture` resolve per platform — Apple Vision and ScreenCaptureKit on
 macOS, Windows.Media.Ocr and `windows-capture` on Windows, the latter wrapping
 Windows.Graphics.Capture, the only API that sees a Unity window since BitBlt and
-PrintWindow return black frames.
+PrintWindow return black frames. On Linux capture is `XGetImage` through Pillow,
+with python-xlib asking the window manager where the game is; it is X11 only,
+and a Wayland session is refused by name because XWayland answers the same call
+with a black frame. `test_capture_linux.py` checks that backend against a real X
+server — `xvfb-run` is enough — by putting a window of its own on the screen and
+reading it back, which is how a window position returned with its sign flipped
+was found: a fullscreen game sits at the origin, where that does not show.
 
 RapidOCR is the fallback, and that is all it is — and it is not installed on
 macOS at all: `pyproject.toml` pins it to `sys_platform != 'darwin'`, so a Mac
@@ -420,6 +426,7 @@ works is indistinguishable from the engine you meant to use except by the clock.
 | `probe_capture.py` | whether capture keeps producing pixels while you play |
 | `selftest.py` | checks the whole machine, end to end |
 | `test_matcher.py` | harness: 631 real screens + synthetic OCR noise |
+| `test_capture_linux.py` | harness: the X11 backend against a real X server, no game needed |
 | `test_ocr.py` | harness: how much the recogniser actually gets wrong |
 | `calibrate_region.py` | measures `--region` for a layout that is not the desktop one |
 | `test_voice_ab.py` | the same blocks through two engines, with the cost of each |

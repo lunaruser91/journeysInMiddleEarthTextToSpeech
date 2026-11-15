@@ -96,10 +96,12 @@ def _asset_guesses() -> list[Path]:
         roots += [Path(f"{d}:/Steam") for d in string.ascii_uppercase]
         out += [r / "steamapps/common" / tail for r in roots]
         out += [Path(f"{d}:/Program Files/{tail}") for d in ("C", "D")]
-    else:
-        # Steam on Linux, including the Proton install of the Windows build
-        for base in (Path.home() / ".steam/steam", Path.home() / ".local/share/Steam"):
-            out.append(base / "steamapps/common" / tail)
+    elif platform.system() == "Linux":
+        # The Windows build, installed by Steam for Proton to run. Every
+        # library, because Flatpak and Snap keep Steam somewhere of their own
+        # and a second drive gets its own library — see console.steam_libraries.
+        out += [library / "steamapps/common" / tail
+                for library in console.steam_libraries()]
     return out
 
 
@@ -262,7 +264,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"{BOLD}core{RESET}")
     check("python", sys.version_info[:2] >= (3, 12),
           f"{sys.version_info.major}.{sys.version_info.minor} "
-          f"(3.14 has no PyTorch wheels)")
+          f"(3.14 has no onnxruntime wheels)")
     for module, why in (("rapidfuzz", "matching"), ("numpy", "trigger"),
                         ("PIL", "images"), ("num2words", "spoken numbers")):
         try:
@@ -274,7 +276,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"\n{BOLD}audio{RESET}")
     check("ffmpeg", bool(shutil.which("ffmpeg")), "DSP chain")
     check("ffplay", bool(shutil.which("ffplay")),
-          "playback — afplay cannot decode Opus")
+          "playback — nothing else here decodes Opus")
 
     print(f"\n{BOLD}recognition{RESET}")
     try:
@@ -284,10 +286,10 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     except Exception as exc:  # noqa: BLE001
         check("OCR", False, str(exc).split("\n")[0])
     try:
-        from capture.base import list_windows
+        from capture.base import GAME_APP, app_matches, list_windows
         windows = list_windows("")
         check("screen capture", True, f"{len(windows)} windows visible")
-        game = [w for w in windows if "journey" in w.app.lower()]
+        game = [w for w in windows if app_matches(w.app, GAME_APP)]
         print(f"  {GREEN if game else YELLOW}{'✓' if game else '!'}{RESET} "
               f"{'game window':<34} {GRAY}"
               f"{game[0] if game else 'not visible from here'}{RESET}")
@@ -307,6 +309,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                       f"borderless\n    windowed, or use display capture:\n"
                       f"      jime play --display        (and keep the game in "
                       f"front){RESET}")
+            elif platform.system() == "Linux":
+                # X11 lists a window whatever state it is in, so here too an
+                # absence is an absence — unless the game goes by a name the
+                # hint does not know, which the list settles.
+                print(f"    {GRAY}The game does not appear to be running. Start "
+                      f"it and run this again.\n    If it IS running, see what "
+                      f"it is called:\n"
+                      f"      jime play --list-windows{RESET}")
             else:
                 print(f"    {GRAY}Either it is not running, or it is fullscreen "
                       f"on its own Space —\n    which looks exactly the same from "
@@ -317,9 +327,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     except Exception as exc:  # noqa: BLE001
         first = str(exc).split("\n")[0]
         check("screen capture", False, first)
-        print(f"    {GRAY}This is usually the permission. System Settings → "
-              f"Privacy & Security →\n    Screen Recording → tick your terminal, "
-              f"then restart the terminal.{RESET}")
+        if platform.system() == "Darwin":
+            print(f"    {GRAY}This is usually the permission. System Settings → "
+                  f"Privacy & Security →\n    Screen Recording → tick your "
+                  f"terminal, then restart the terminal.{RESET}")
+        elif platform.system() == "Linux":
+            # No permission exists to be missing here. What does go wrong is the
+            # session type, and the backend's own message is the instruction.
+            rest = "\n    ".join(str(exc).split("\n")[1:]).strip()
+            if rest:
+                print(f"    {GRAY}{rest}{RESET}")
 
     print(f"\n{BOLD}synthesis{RESET} {GRAY}(only needed to render){RESET}")
     try:
@@ -688,7 +705,7 @@ def _probe_capture(args: argparse.Namespace) -> int:
 
     try:
         cap = (open_display() if args.display
-               else open_window("", "Journeys", wait=args.wait))
+               else open_window("", wait=args.wait))
     except CaptureError as exc:
         return _fail(str(exc))
 

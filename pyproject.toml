@@ -3,7 +3,10 @@ name = "jime-narrador"
 version = "1.0.0"
 description = "Offline automatic narrator for the Journeys in Middle-earth companion app"
 requires-python = ">=3.12,<3.14"   # 3.14 has no wheels for onnxruntime yet
-license = { text = "MIT" }
+# A plain SPDX string. The table form, `{ text = "MIT" }`, is deprecated and
+# setuptools has announced it stops building such projects on 2027-02-18 — at
+# which point `pip install -e .` fails, and with it both installers.
+license = "MIT"
 
 dependencies = [
     "UnityPy",              # phase 1: extract the corpus from the AssetBundles
@@ -33,7 +36,10 @@ tts = ["piper-tts>=1.6"]
 # against Windows.Media.Ocr's 25 ms on the same crop, so it is a fallback and
 # not an alternative. ScreenCaptureKit is the only macOS 26 API that still sees
 # windows; Windows.Graphics.Capture is its counterpart, and is required there
-# because BitBlt and PrintWindow return black frames for a Unity window.
+# because BitBlt and PrintWindow return black frames for a Unity window. On
+# Linux the copy itself is Pillow's, already a dependency; python-xlib is there
+# to ask the X server where the game's window is and which window is in front.
+# RapidOCR is the only engine Linux has.
 #
 # The winrt-* packages are the Python bindings for Windows.Media.Ocr, one per
 # namespace touched. The recogniser itself is not here and cannot be: it is a

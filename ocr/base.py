@@ -277,6 +277,11 @@ def missing_recogniser(lang: str) -> str:
     been true for Hungarian since the map was written and nobody would have found
     out except by listening.
     """
+    if platform.system() == "Linux":
+        # There is no native recogniser to be missing: RapidOCR reads every
+        # language with the same model. This fell through to the Apple branch
+        # and warned a Hungarian player on Linux about Apple Vision.
+        return ""
     if platform.system() == "Windows":
         if lang not in WINDOWS_OCR_LOCALE:
             return (f"Windows publishes no OCR recogniser for {lang!r} in any "
